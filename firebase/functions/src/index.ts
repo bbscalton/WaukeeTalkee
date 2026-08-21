@@ -4,10 +4,12 @@ import {
   FieldValue,
   getFirestore,
   Timestamp,
+  type Query,
   type Transaction,
 } from "firebase-admin/firestore";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 initializeApp();
 setGlobalOptions({ region: "us-central1" });
@@ -18,6 +20,10 @@ const DEFAULT_ORG = "demo";
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LEN = 6;
 const CODE_TTL_MS = 30 * 60 * 1000;
+/** Rolling retention for radio archive + map DVR tracks. */
+const RETENTION_DAYS = 7;
+const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const PURGE_BATCH = 400;
 
 function assertAuth(requestAuth: { uid: string } | undefined): asserts requestAuth is { uid: string } {
   if (!requestAuth?.uid) {
@@ -276,3 +282,56 @@ export const redeemPairCode = onCall(async (request) => {
     customToken,
   };
 });
+
+async function deleteQueryBatch(query: Query, label: string): Promise<number> {
+  let deleted = 0;
+  for (;;) {
+    const snap = await query.limit(PURGE_BATCH).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    deleted += snap.size;
+    if (snap.size < PURGE_BATCH) break;
+  }
+  if (deleted > 0) {
+    console.log(`Purged ${deleted} ${label}`);
+  }
+  return deleted;
+}
+
+/**
+ * Daily job: drop radio clips and map track points older than 7 days
+ * so archive + DVR stay a rolling window.
+ */
+export const purgeExpiredArchive = onSchedule(
+  {
+    schedule: "every 24 hours",
+    timeZone: "America/Chicago",
+  },
+  async () => {
+    const cutoff = Timestamp.fromMillis(Date.now() - RETENTION_MS);
+    const orgs = await db.collection("orgs").listDocuments();
+    let radioTotal = 0;
+    let trackTotal = 0;
+
+    for (const orgRef of orgs) {
+      radioTotal += await deleteQueryBatch(
+        orgRef.collection("radio").where("createdAt", "<", cutoff),
+        `radio clips in ${orgRef.id}`
+      );
+
+      const trackDrivers = await orgRef.collection("tracks").listDocuments();
+      for (const driverTrack of trackDrivers) {
+        trackTotal += await deleteQueryBatch(
+          driverTrack.collection("points").where("t", "<", cutoff),
+          `track points ${orgRef.id}/${driverTrack.id}`
+        );
+      }
+    }
+
+    console.log(
+      `Retention purge done (${RETENTION_DAYS}d). radio=${radioTotal} tracks=${trackTotal}`
+    );
+  }
+);

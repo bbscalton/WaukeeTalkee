@@ -36,6 +36,7 @@ class RadioController(
     private val seen = mutableSetOf<String>()
     private var listeningSince = 0L
     private var transmitting = false
+    private var transmitStartedAt = 0L
 
     fun start(orgId: String, driverId: String) {
         stop()
@@ -61,6 +62,7 @@ class RadioController(
                     if (created > 0 && created < listeningSince - 2000) return@forEach
                     val b64 = change.document.getString("audioBase64") ?: return@forEach
                     val contentType = change.document.getString("contentType") ?: "audio/webm"
+                    markDriverHeard(change.document.id)
                     playIncoming(b64, contentType)
                 }
             }
@@ -103,6 +105,7 @@ class RadioController(
             rec.start()
             recorder = rec
             transmitting = true
+            transmitStartedAt = System.currentTimeMillis()
             onTxChanged(true)
         } catch (e: Exception) {
             transmitting = false
@@ -116,6 +119,7 @@ class RadioController(
         val o = orgId
         val d = driverId
         val file = recordFile
+        val durationMs = (System.currentTimeMillis() - transmitStartedAt).coerceAtLeast(0L)
         try {
             recorder?.apply {
                 stop()
@@ -145,6 +149,7 @@ class RadioController(
                         "driverId" to d,
                         "audioBase64" to b64,
                         "contentType" to "audio/mp4",
+                        "durationMs" to durationMs,
                         "createdAt" to FieldValue.serverTimestamp(),
                     )
                 ).await()
@@ -166,6 +171,18 @@ class RadioController(
         } catch (_: Exception) {
         }
         recordFile = null
+    }
+
+    private fun markDriverHeard(clipId: String) {
+        val o = orgId ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                Firebase.firestore.document("orgs/$o/radio/$clipId")
+                    .update("driverHeardAt", FieldValue.serverTimestamp())
+                    .await()
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private fun stopTransmit() {

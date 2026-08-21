@@ -21,6 +21,22 @@ service cloud.firestore {
         && token().driverId == driverId;
     }
 
+    function radioCreateKeysOk() {
+      return request.resource.data.keys().hasOnly([
+        'from', 'driverId', 'audioBase64', 'createdAt', 'contentType', 'durationMs'
+      ]);
+    }
+
+    function radioClipPayloadOk() {
+      return request.resource.data.audioBase64 is string
+        && request.resource.data.audioBase64.size() < 900000
+        && request.resource.data.contentType is string
+        && (!('durationMs' in request.resource.data)
+          || (request.resource.data.durationMs is number
+            && request.resource.data.durationMs >= 0
+            && request.resource.data.durationMs < 120000));
+    }
+
     match /orgs/{orgId} {
       allow read: if isDispatcher(orgId)
         || (signedIn() && token().role == 'driver' && token().orgId == orgId);
@@ -66,27 +82,53 @@ service cloud.firestore {
         allow read, write: if isDispatcher(orgId);
       }
 
+      // Live PTT + 7-day archive (base64 clips; Storage optional later)
       match /radio/{clipId} {
         allow read: if isDispatcher(orgId)
           || (isDriver(orgId, resource.data.driverId));
 
         allow create: if (isDispatcher(orgId)
           && request.resource.data.from == 'dispatch'
-          && request.resource.data.keys().hasOnly([
-            'from', 'driverId', 'audioBase64', 'createdAt', 'contentType'
-          ])
-          && request.resource.data.audioBase64 is string
-          && request.resource.data.audioBase64.size() < 900000)
+          && radioCreateKeysOk()
+          && radioClipPayloadOk())
           || (signedIn()
             && token().role == 'driver'
             && token().orgId == orgId
             && request.resource.data.driverId == token().driverId
             && request.resource.data.from == 'driver'
-            && request.resource.data.keys().hasOnly([
-              'from', 'driverId', 'audioBase64', 'createdAt', 'contentType'
-            ])
-            && request.resource.data.audioBase64 is string
-            && request.resource.data.audioBase64.size() < 900000);
+            && radioCreateKeysOk()
+            && radioClipPayloadOk());
+
+        // Dispatcher may update/delete; drivers may only mark their inbox heard.
+        allow update: if isDispatcher(orgId)
+          || (isDriver(orgId, resource.data.driverId)
+            && request.resource.data.diff(resource.data).changedKeys()
+                .hasOnly(['driverHeardAt'])
+            && request.resource.data.driverId == resource.data.driverId
+            && request.resource.data.from == resource.data.from
+            && request.resource.data.audioBase64 == resource.data.audioBase64
+            && request.resource.data.contentType == resource.data.contentType);
+
+        allow delete: if isDispatcher(orgId);
+      }
+
+      // Map DVR track points (7-day rolling; purged by scheduled function)
+      match /tracks/{driverId}/points/{pointId} {
+        allow read: if isDispatcher(orgId) || isDriver(orgId, driverId);
+
+        allow create: if isDriver(orgId, driverId)
+          && request.resource.data.keys().hasOnly([
+            't', 'lat', 'lng', 'speed', 'heading'
+          ])
+          && request.resource.data.t is timestamp
+          && request.resource.data.lat is number
+          && request.resource.data.lng is number
+          && request.resource.data.lat >= -90
+          && request.resource.data.lat <= 90
+          && request.resource.data.lng >= -180
+          && request.resource.data.lng <= 180
+          && (request.resource.data.speed == null || request.resource.data.speed is number)
+          && (request.resource.data.heading == null || request.resource.data.heading is number);
 
         allow update, delete: if isDispatcher(orgId);
       }

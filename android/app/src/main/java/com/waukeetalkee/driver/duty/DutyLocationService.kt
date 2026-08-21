@@ -29,6 +29,9 @@ class DutyLocationService : Service() {
     private val fused by lazy { LocationServices.getFusedLocationProviderClient(this) }
     private var orgId: String? = null
     private var driverId: String? = null
+    private var lastTrackAt = 0L
+    private var lastTrackLat = Double.NaN
+    private var lastTrackLng = Double.NaN
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -48,7 +51,51 @@ class DutyLocationService : Service() {
                         "lastTelemetryAt" to FieldValue.serverTimestamp(),
                     )
                 )
+            maybeAppendTrackPoint(o, d, loc.latitude, loc.longitude, speed, heading)
         }
+    }
+
+    /** Throttle map-DVR breadcrumbs (~10s or ~25m move). */
+    private fun maybeAppendTrackPoint(
+        orgId: String,
+        driverId: String,
+        lat: Double,
+        lng: Double,
+        speed: Double,
+        heading: Double?,
+    ) {
+        val now = System.currentTimeMillis()
+        val moved = if (lastTrackLat.isNaN()) {
+            true
+        } else {
+            haversineMeters(lastTrackLat, lastTrackLng, lat, lng) >= TRACK_MOVE_METERS
+        }
+        val due = now - lastTrackAt >= TRACK_INTERVAL_MS
+        if (!due && !moved) return
+
+        lastTrackAt = now
+        lastTrackLat = lat
+        lastTrackLng = lng
+        Firebase.firestore.collection("orgs/$orgId/tracks/$driverId/points")
+            .add(
+                mapOf(
+                    "t" to FieldValue.serverTimestamp(),
+                    "lat" to lat,
+                    "lng" to lng,
+                    "speed" to speed,
+                    "heading" to heading,
+                )
+            )
+    }
+
+    private fun haversineMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+        val r = 6371000.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLng = Math.toRadians(lng2 - lng1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2)
+        return 2 * r * Math.asin(Math.sqrt(a))
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -150,6 +197,8 @@ class DutyLocationService : Service() {
         const val EXTRA_DRIVER_ID = "driverId"
         private const val CHANNEL_ID = "duty_location"
         private const val NOTIFICATION_ID = 42
+        private const val TRACK_INTERVAL_MS = 10_000L
+        private const val TRACK_MOVE_METERS = 25.0
 
         fun start(context: Context, orgId: String, driverId: String) {
             val intent = Intent(context, DutyLocationService::class.java).apply {

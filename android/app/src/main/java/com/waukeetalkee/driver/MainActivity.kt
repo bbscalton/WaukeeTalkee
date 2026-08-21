@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Button
@@ -26,12 +27,21 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import com.waukeetalkee.driver.data.DriverPrefs
 import com.waukeetalkee.driver.radio.AccessibilityPttHelper
 import com.waukeetalkee.driver.radio.RadioBus
+import com.waukeetalkee.driver.radio.RadioClipPlayer
 import com.waukeetalkee.driver.radio.RadioForegroundService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private val vm: MainViewModel by viewModels()
@@ -61,11 +71,30 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permOverlay: TextView
     private lateinit var permAccessibility: TextView
     private lateinit var continueHomeButton: Button
+    private lateinit var radioHistoryList: LinearLayout
+    private lateinit var radioHistoryEmpty: TextView
+    private lateinit var radioUnreadBadge: TextView
+    private lateinit var channelBadge: TextView
 
     private var volumePttEnabled = false
     private var volumeUpHeld = false
     private var showPermissionChecklist = false
     private var ignoreSwitchCallback = false
+    private var radioHistoryListener: ListenerRegistration? = null
+    private var historyPlayer: RadioClipPlayer? = null
+    private var playingClipId: String? = null
+    private var lastHistoryDriverKey: String? = null
+    private val clipTimeFormat = SimpleDateFormat("MMM d · h:mm a", Locale.getDefault())
+
+    private data class HistoryClip(
+        val id: String,
+        val from: String,
+        val audioBase64: String,
+        val contentType: String,
+        val createdAtMs: Long,
+        val durationMs: Long?,
+        val driverHeardAt: Boolean,
+    )
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -102,6 +131,28 @@ class MainActivity : AppCompatActivity() {
         permOverlay = findViewById(R.id.permOverlay)
         permAccessibility = findViewById(R.id.permAccessibility)
         continueHomeButton = findViewById(R.id.continueHomeButton)
+        radioHistoryList = findViewById(R.id.radioHistoryList)
+        radioHistoryEmpty = findViewById(R.id.radioHistoryEmpty)
+        radioUnreadBadge = findViewById(R.id.radioUnreadBadge)
+        channelBadge = findViewById(R.id.channelBadge)
+
+        historyPlayer = RadioClipPlayer(
+            this,
+            onPlaying = { playing ->
+                if (!playing) {
+                    playingClipId = null
+                    // Refresh labels without clearing list
+                    for (i in 0 until radioHistoryList.childCount) {
+                        val row = radioHistoryList.getChildAt(i) as? TextView ?: continue
+                        val clip = row.tag as? HistoryClip ?: continue
+                        row.text = formatHistoryRow(clip, false)
+                    }
+                }
+            },
+            onError = { msg ->
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            },
+        )
 
         pairButton.setOnClickListener { vm.pair(codeInput.text.toString()) }
         findViewById<Button>(R.id.grantButton).setOnClickListener { requestRuntimePermissions() }
@@ -319,6 +370,128 @@ class MainActivity : AppCompatActivity() {
         RadioForegroundService.start(this, session.orgId, session.driverId)
     }
 
+    override fun onDestroy() {
+        radioHistoryListener?.remove()
+        radioHistoryListener = null
+        historyPlayer?.stop()
+        super.onDestroy()
+    }
+
+    private fun bindRadioHistory(state: UiState) {
+        val session = state.session
+        if (session == null || !homePanel.isVisible) {
+            radioHistoryListener?.remove()
+            radioHistoryListener = null
+            lastHistoryDriverKey = null
+            radioHistoryList.removeAllViews()
+            radioHistoryEmpty.isVisible = true
+            radioUnreadBadge.isVisible = false
+            return
+        }
+        val key = "${session.orgId}/${session.driverId}"
+        if (key == lastHistoryDriverKey && radioHistoryListener != null) return
+        lastHistoryDriverKey = key
+        radioHistoryListener?.remove()
+        radioHistoryListener = Firebase.firestore.collection("orgs/${session.orgId}/radio")
+            .whereEqualTo("driverId", session.driverId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(40)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+                val clips = snap.documents.mapNotNull { doc ->
+                    val b64 = doc.getString("audioBase64") ?: return@mapNotNull null
+                    HistoryClip(
+                        id = doc.id,
+                        from = doc.getString("from") ?: "dispatch",
+                        audioBase64 = b64,
+                        contentType = doc.getString("contentType") ?: "audio/mp4",
+                        createdAtMs = doc.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                        durationMs = doc.getLong("durationMs"),
+                        driverHeardAt = doc.getTimestamp("driverHeardAt") != null,
+                    )
+                }
+                renderHistory(session.orgId, clips)
+            }
+    }
+
+    private fun renderHistory(orgId: String, clips: List<HistoryClip>) {
+        radioHistoryList.removeAllViews()
+        radioHistoryEmpty.isVisible = clips.isEmpty()
+        val unread = clips.count { it.from == "dispatch" && !it.driverHeardAt }
+        if (unread > 0) {
+            radioUnreadBadge.isVisible = true
+            radioUnreadBadge.text = "$unread NEW"
+            channelBadge.text = "CH · $unread NEW"
+            channelBadge.setTextColor(ContextCompat.getColor(this, R.color.amber))
+        } else {
+            radioUnreadBadge.isVisible = false
+            channelBadge.text = "CH · FLEET"
+            channelBadge.setTextColor(ContextCompat.getColor(this, R.color.muted))
+        }
+
+        val pad = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            10f,
+            resources.displayMetrics,
+        ).toInt()
+
+        clips.take(20).forEach { clip ->
+            val row = TextView(this)
+            row.tag = clip
+            row.setPadding(pad, pad, pad, pad)
+            row.setBackgroundResource(R.drawable.bg_input)
+            row.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    if (clip.from == "dispatch" && !clip.driverHeardAt) R.color.amber else R.color.ink,
+                ),
+            )
+            row.textSize = 13f
+            row.text = formatHistoryRow(clip, clip.id == playingClipId)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            lp.topMargin = pad / 2
+            row.layoutParams = lp
+            row.setOnClickListener {
+                playingClipId = clip.id
+                row.text = formatHistoryRow(clip, true)
+                historyPlayer?.play(clip.audioBase64, clip.contentType)
+                if (clip.from == "dispatch" && !clip.driverHeardAt) {
+                    lifecycleScope.launch {
+                        try {
+                            Firebase.firestore.document("orgs/$orgId/radio/${clip.id}")
+                                .update(
+                                    "driverHeardAt",
+                                    com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                )
+                                .await()
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+            radioHistoryList.addView(row)
+        }
+    }
+
+    private fun formatHistoryRow(clip: HistoryClip, playing: Boolean): String {
+        val who = if (clip.from == "dispatch") "Dispatch" else "You"
+        val whenStr = if (clip.createdAtMs > 0) {
+            clipTimeFormat.format(Date(clip.createdAtMs))
+        } else {
+            "—"
+        }
+        val dur = clip.durationMs?.let { "${(it / 1000).coerceAtLeast(1)}s" } ?: "—"
+        val mark = when {
+            playing -> "▶ "
+            clip.from == "dispatch" && !clip.driverHeardAt -> "● "
+            else -> ""
+        }
+        return "$mark$who · $whenStr · $dur"
+    }
+
     private fun applyRadioUi(tx: Boolean, rx: Boolean, live: Boolean) {
         when {
             tx -> {
@@ -417,7 +590,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 val snap = RadioBus.state.value
                 applyRadioUi(snap.transmitting, snap.receiving, snap.live)
+                bindRadioHistory(state)
             }
+        }
+        if (state.session == null) {
+            bindRadioHistory(state)
         }
         if (state.error != null && state.session != null) {
             Toast.makeText(this, state.error, Toast.LENGTH_LONG).show()

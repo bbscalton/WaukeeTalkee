@@ -1,9 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ORG_ID } from "../firebase";
+import { useRadioArchive } from "../useRadioArchive";
 
 export function AppShell() {
   const { user, logout } = useAuth();
+  const { totalUnread } = useRadioArchive();
 
   return (
     <div className="shell">
@@ -14,6 +16,11 @@ export function AppShell() {
         </div>
         <nav>
           <NavLink to="/map">Radio map</NavLink>
+          <NavLink to="/inbox">
+            Inbox
+            {totalUnread > 0 && <span className="nav-badge">{totalUnread}</span>}
+          </NavLink>
+          <NavLink to="/replay">Map DVR</NavLink>
           <NavLink to="/drivers">Drivers</NavLink>
           <NavLink to="/contacts">Contacts</NavLink>
           <NavLink to="/bookings">Bookings</NavLink>

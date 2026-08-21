@@ -6,6 +6,8 @@ import { ContactsPage } from "./pages/ContactsPage";
 import { DriversPage } from "./pages/DriversPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
+import { RadioInboxPage } from "./pages/RadioInboxPage";
+import { ReplayPage } from "./pages/ReplayPage";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading, isDispatcher } = useAuth();
@@ -30,6 +32,8 @@ export default function App() {
         >
           <Route index element={<Navigate to="/map" replace />} />
           <Route path="map" element={<MapPage />} />
+          <Route path="inbox" element={<RadioInboxPage />} />
+          <Route path="replay" element={<ReplayPage />} />
           <Route path="drivers" element={<DriversPage />} />
           <Route path="contacts" element={<ContactsPage />} />
           <Route path="bookings" element={<BookingsPage />} />

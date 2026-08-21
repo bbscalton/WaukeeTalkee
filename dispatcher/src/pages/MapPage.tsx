@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
 import { PushToTalk } from "../components/PushToTalk";
-import { formatAge, formatSpeed, type Driver } from "../types";
+import { formatAge, formatSpeed, RADIO_RETENTION_DAYS, type Driver } from "../types";
+import { useRadioArchive } from "../useRadioArchive";
 
 type MapMode = "streets" | "satellite";
 
@@ -48,14 +50,18 @@ function streetViewUrl(lat: number, lng: number): string {
 }
 
 export function MapPage() {
+  const [search, setSearch] = useSearchParams();
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    search.get("driver")
+  );
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapMode, setMapMode] = useState<MapMode>("streets");
+  const { unreadByDriver } = useRadioArchive();
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
@@ -124,6 +130,8 @@ export function MapPage() {
         });
         setDrivers(rows);
         setSelectedId((prev) => {
+          const fromUrl = search.get("driver");
+          if (fromUrl && rows.some((r) => r.id === fromUrl)) return fromUrl;
           if (prev && rows.some((r) => r.id === prev)) return prev;
           const first = rows.find((r) => r.pairStatus === "paired");
           return first?.id ?? null;
@@ -131,7 +139,16 @@ export function MapPage() {
       },
       (err) => setError(err.message)
     );
-  }, []);
+  }, [search]);
+
+  const selectDriverRef = useRef<(id: string) => void>(() => undefined);
+  const selectDriver = (id: string) => {
+    setSelectedId(id);
+    const next = new URLSearchParams(search);
+    next.set("driver", id);
+    setSearch(next, { replace: true });
+  };
+  selectDriverRef.current = selectDriver;
 
   const lastFlyRef = useRef<string | null>(null);
 
@@ -139,7 +156,6 @@ export function MapPage() {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    // Show any paired (or on-duty) driver that has a GPS fix — not only on-duty.
     const located = drivers.filter(
       (d) => (d.pairStatus === "paired" || d.onDuty) && hasFix(d)
     );
@@ -155,7 +171,7 @@ export function MapPage() {
         el.type = "button";
         el.className = "map-marker";
         el.title = d.displayName;
-        el.addEventListener("click", () => setSelectedId(d.id));
+        el.addEventListener("click", () => selectDriverRef.current(d.id));
         marker = new maplibregl.Marker({ element: el })
           .setLngLat([lng, lat])
           .addTo(map);
@@ -193,6 +209,7 @@ export function MapPage() {
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
   const onDutyCount = drivers.filter((d) => d.onDuty).length;
   const selectedHasFix = selected ? hasFix(selected) : false;
+  const selectedUnread = selected ? unreadByDriver.get(selected.id) ?? 0 : 0;
 
   return (
     <div className="map-layout">
@@ -200,14 +217,27 @@ export function MapPage() {
         <p className="map-kicker">Fleet radio</p>
         <h1>Talk to drivers</h1>
         <p className="muted">
-          {onDutyCount} on duty · {paired.length} paired
+          {onDutyCount} on duty · {paired.length} paired · archive {RADIO_RETENTION_DAYS}d
         </p>
+        <div className="map-quick-links">
+          <Link to={selected ? `/inbox?driver=${selected.id}` : "/inbox"}>
+            Inbox{selectedUnread > 0 ? ` (${selectedUnread})` : ""}
+          </Link>
+          <Link to={selected ? `/replay?driver=${selected.id}` : "/replay"}>
+            Map DVR
+          </Link>
+        </div>
         {error && <p className="error">{error}</p>}
 
         {selected ? (
           <div className="panel detail radio-panel">
             <p className="map-kicker">Channel open</p>
-            <h2>{selected.displayName}</h2>
+            <h2>
+              {selected.displayName}
+              {selectedUnread > 0 && (
+                <span className="nav-badge">{selectedUnread}</span>
+              )}
+            </h2>
             <div className="detail-meta">
               <span>{selected.onDuty ? "On duty" : "Off duty"}</span>
               <span>Speed: {formatSpeed(selected.lastSpeed)}</span>
@@ -245,24 +275,34 @@ export function MapPage() {
 
         <p className="list-label">Units</p>
         <ul className="driver-list">
-          {paired.map((d) => (
-            <li key={d.id}>
-              <button
-                type="button"
-                className={selectedId === d.id ? "selected" : ""}
-                onClick={() => setSelectedId(d.id)}
-              >
-                <strong>{d.displayName}</strong>
-                <span>
-                  {d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}
-                  {hasFix(d) ? "" : " · no GPS"}
-                </span>
-                <span className="talk-hint">
-                  {selectedId === d.id ? "Radio open" : "Tap to talk"}
-                </span>
-              </button>
-            </li>
-          ))}
+          {paired.map((d) => {
+            const unread = unreadByDriver.get(d.id) ?? 0;
+            return (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  className={selectedId === d.id ? "selected" : ""}
+                  onClick={() => selectDriver(d.id)}
+                >
+                  <strong>
+                    {d.displayName}
+                    {unread > 0 && <span className="nav-badge">{unread}</span>}
+                  </strong>
+                  <span>
+                    {d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}
+                    {hasFix(d) ? "" : " · no GPS"}
+                  </span>
+                  <span className="talk-hint">
+                    {unread > 0
+                      ? `${unread} new`
+                      : selectedId === d.id
+                        ? "Radio open"
+                        : "Tap to talk"}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
           {paired.length === 0 && (
             <li className="muted">No paired drivers yet.</li>
           )}

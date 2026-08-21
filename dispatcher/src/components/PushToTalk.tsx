@@ -9,6 +9,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
+import { markDispatchHeard } from "../radio";
 
 type Props = {
   driverId: string;
@@ -82,12 +83,14 @@ export function PushToTalk({ driverId, driverName }: Props) {
             setStatus("Hold to talk");
             return;
           }
+          const durationMs = Math.max(0, Date.now() - startedAtRef.current);
           const audioBase64 = await blobToBase64(blob);
           await addDoc(collection(db, "orgs", ORG_ID, "radio"), {
             from: "dispatch",
             driverId,
             audioBase64,
             contentType: mime,
+            durationMs,
             createdAt: serverTimestamp(),
           });
           setStatus("Sent — hold to talk again");
@@ -149,6 +152,7 @@ export function PushToTalk({ driverId, driverName }: Props) {
         setStatus(`Receiving from ${driverName}…`);
         const audio = new Audio(`data:${contentType};base64,${b64}`);
         audioRef.current = audio;
+        void markDispatchHeard(change.doc.id).catch(() => undefined);
         audio.onended = () => {
           setRx(false);
           setStatus("Hold to talk");
@@ -205,7 +209,7 @@ export function PushToTalk({ driverId, driverName }: Props) {
       <p className="muted">{status}</p>
       {error && <p className="error">{error}</p>}
       <p className="muted small">
-        Your mic → driver’s speaker. Driver answers with Volume Up.
+        Your mic → driver’s speaker. Driver answers with Volume Up. Clips kept 7 days.
       </p>
     </div>
   );

@@ -12,6 +12,32 @@ export type Driver = {
   lastTelemetryAt: { seconds: number; nanoseconds: number } | null;
 };
 
+export type RadioFrom = "dispatch" | "driver";
+
+/** PTT clip stored under orgs/{orgId}/radio (7-day archive). */
+export type RadioClip = {
+  id: string;
+  from: RadioFrom;
+  driverId: string;
+  audioBase64: string;
+  contentType: string;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  durationMs: number | null;
+  dispatchHeardAt: { seconds: number; nanoseconds: number } | null;
+  driverHeardAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export type TrackPoint = {
+  id: string;
+  t: { seconds: number; nanoseconds: number } | null;
+  lat: number;
+  lng: number;
+  speed: number | null;
+  heading: number | null;
+};
+
+export const RADIO_RETENTION_DAYS = 7;
+
 export type ContactType = "customer" | "hotel" | "account";
 
 export type Contact = {
