@@ -23,6 +23,7 @@ android/.idea/
 captures/
 *.apk
 *.aab
+!website/downloads/*.apk
 
 # IDE
 .idea/
