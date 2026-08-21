@@ -176,7 +176,9 @@ export function PushToTalk({ driverId, driverName }: Props) {
 
   return (
     <div className="ptt">
-      <p className="ptt-status">{tx ? "TX" : rx ? "RX" : "STANDBY"}</p>
+      <p className={`ptt-status ${tx ? "tx" : rx ? "rx" : ""}`}>
+        {tx ? "TX · LIVE" : rx ? "RX · INCOMING" : "STANDBY"}
+      </p>
       <button
         type="button"
         className={`ptt-btn ${tx ? "hot" : ""}`}
@@ -198,12 +200,12 @@ export function PushToTalk({ driverId, driverName }: Props) {
           stopTalk();
         }}
       >
-        Hold to talk
+        {tx ? "Release to send" : "Hold to talk"}
       </button>
       <p className="muted">{status}</p>
       {error && <p className="error">{error}</p>}
       <p className="muted small">
-        Real radio: your mic → driver’s speaker. Driver holds Volume Up to answer.
+        Your mic → driver’s speaker. Driver answers with Volume Up.
       </p>
     </div>
   );

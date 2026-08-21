@@ -7,7 +7,7 @@ import { PushToTalk } from "../components/PushToTalk";
 import { formatAge, formatSpeed, type Driver } from "../types";
 
 const STYLE =
-  "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 export function MapPage() {
   const mapNode = useRef<HTMLDivElement | null>(null);
@@ -107,8 +107,12 @@ export function MapPage() {
   return (
     <div className="map-layout">
       <aside className="map-side">
-        <h1>Live map</h1>
-        <p className="muted">{onDutyCount} on duty · {drivers.length} total</p>
+        <p className="map-kicker">Fleet radio</p>
+        <h1>Command map</h1>
+        <p className="muted">
+          {onDutyCount} on duty · {drivers.filter((d) => d.pairStatus === "paired").length}{" "}
+          paired — select a unit, then hold to talk
+        </p>
         {error && <p className="error">{error}</p>}
         <ul className="driver-list">
           {drivers
@@ -133,20 +137,22 @@ export function MapPage() {
         {selected && (
           <div className="panel detail">
             <h2>{selected.displayName}</h2>
-            <p>Speed: {formatSpeed(selected.lastSpeed)}</p>
-            <p>
-              Position:{" "}
-              {selected.lastLat != null && selected.lastLng != null
-                ? `${selected.lastLat.toFixed(5)}, ${selected.lastLng.toFixed(5)}`
-                : "—"}
-            </p>
-            <p className="muted">Updated {formatAge(selected.lastTelemetryAt)}</p>
-            {!selected.onDuty && <p className="muted">Currently off duty</p>}
+            <div className="detail-meta">
+              <span>Speed: {formatSpeed(selected.lastSpeed)}</span>
+              <span>
+                Position:{" "}
+                {selected.lastLat != null && selected.lastLng != null
+                  ? `${selected.lastLat.toFixed(5)}, ${selected.lastLng.toFixed(5)}`
+                  : "—"}
+              </span>
+              <span>Updated {formatAge(selected.lastTelemetryAt)}</span>
+              {!selected.onDuty && <span>Currently off duty</span>}
+            </div>
             <PushToTalk driverId={selected.id} driverName={selected.displayName} />
           </div>
         )}
         {!selected && (
-          <p className="muted">Select a driver to push-to-talk.</p>
+          <p className="muted">Select a driver to open the radio channel.</p>
         )}
       </aside>
       <div className="map-canvas" ref={mapNode} />

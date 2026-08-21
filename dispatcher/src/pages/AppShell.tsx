@@ -10,10 +10,10 @@ export function AppShell() {
       <header className="topbar">
         <div className="topbar-brand">
           <strong>Waukee Talkee</strong>
-          <span className="muted">org/{ORG_ID}</span>
+          <span className="muted">Dispatch · {ORG_ID}</span>
         </div>
         <nav>
-          <NavLink to="/map">Live map</NavLink>
+          <NavLink to="/map">Radio map</NavLink>
           <NavLink to="/drivers">Drivers</NavLink>
         </nav>
         <div className="topbar-user">

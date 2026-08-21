@@ -30,8 +30,11 @@ export function LoginPage() {
     <div className="auth-shell">
       <form className="auth-card" onSubmit={onSubmit}>
         <p className="brand">Waukee Talkee</p>
-        <h1>Dispatcher</h1>
-        <p className="muted">Sign in to manage drivers and the live map.</p>
+        <h1>Dispatcher console</h1>
+        <p className="muted">
+          Sign in to call drivers on the radio map — hold to talk, live location,
+          pair codes.
+        </p>
         <label>
           Email
           <input
@@ -55,12 +58,11 @@ export function LoginPage() {
         {error && <p className="error">{error}</p>}
         {!loading && user && !isDispatcher && (
           <p className="error">
-            Signed in, but this account is not a dispatcher for org demo. Seed
-            orgs/demo/dispatchers/&#123;uid&#125; in Firestore.
+            Signed in, but this account is not a dispatcher for org demo.
           </p>
         )}
         <button type="submit" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? "Signing in…" : "Enter dispatch"}
         </button>
       </form>
     </div>
