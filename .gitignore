@@ -1,0 +1,37 @@
+# Node
+node_modules/
+dist/
+.firebase/
+*.log
+dispatcher/.env
+dispatcher/firebase-web-config.json
+
+
+# Firebase
+firebase/functions/lib/
+firebase/emulator-data/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/google-services.json
+android/.idea/
+*.iml
+.DS_Store
+captures/
+*.apk
+*.aab
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+firebase/waukee-setup-key.json
+*-firebase-adminsdk*.json
+serviceAccount*.json
+google-services.json
+

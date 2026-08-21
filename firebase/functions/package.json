@@ -1,0 +1,26 @@
+{
+  "name": "waukeetalkee-functions",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
+    "seed": "node lib/seed.js",
+    "lint": "echo \"no lint\""
+  },
+  "dependencies": {
+    "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
+    "firebase-functions": "^7.3.2",
+    "maplibre-gl": "^6.4.1",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "typescript": "^5.7.3"
+  }
+}

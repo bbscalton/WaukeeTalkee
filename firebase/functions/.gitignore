@@ -1,0 +1,4 @@
+# Keep lib/ out of git; built by tsc before deploy
+lib/
+node_modules/
+*.local
