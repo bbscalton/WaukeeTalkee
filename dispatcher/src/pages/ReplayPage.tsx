@@ -24,6 +24,7 @@ import {
   formatDayLabel,
   lastSevenDayKeys,
 } from "../radio";
+import { clearMapDvrAll, clearMapDvrDay } from "../tracks";
 import { RADIO_RETENTION_DAYS, type Driver, type TrackPoint } from "../types";
 
 type MapMode = "streets" | "satellite";
@@ -79,6 +80,7 @@ export function ReplayPage() {
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [clearing, setClearing] = useState<"day" | "all" | null>(null);
   const playRef = useRef<number | null>(null);
   const lastFitKey = useRef<string | null>(null);
   const playingRef = useRef(false);
@@ -317,6 +319,59 @@ export function ReplayPage() {
         second: "2-digit",
       })
     : "—";
+  const dayLabel = formatDayLabel(dayKeys.includes(day) ? day : dayKeys[0]!);
+
+  const clearThisDay = async () => {
+    if (!selectedId || !selected) return;
+    if (
+      !window.confirm(
+        `Delete all Map DVR points for ${selected.displayName} on ${dayLabel}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setClearing("day");
+    setPlaying(false);
+    try {
+      await clearMapDvrDay(selectedId, day);
+      setCursor(0);
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not clear this day's tracks."
+      );
+    } finally {
+      setClearing(null);
+    }
+  };
+
+  const clearAllDvr = async () => {
+    if (
+      !window.confirm(
+        "Delete ALL Map DVR track history for every driver in this org? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    if (
+      !window.confirm(
+        "Final confirmation: clear the entire Map DVR for this organization?"
+      )
+    ) {
+      return;
+    }
+    setClearing("all");
+    setPlaying(false);
+    try {
+      await clearMapDvrAll();
+      setCursor(0);
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not clear Map DVR."
+      );
+    } finally {
+      setClearing(null);
+    }
+  };
 
   let emptyHint: string | null = null;
   if (!paired.length) {
@@ -426,6 +481,32 @@ export function ReplayPage() {
             />
           </label>
           {emptyHint && <p className="muted small">{emptyHint}</p>}
+        </div>
+
+        <div className="panel dvr-danger-panel">
+          <p className="map-kicker">Clear recordings</p>
+          <p className="muted small">
+            Clear this day removes the selected driver’s path for the day above.
+            Clear all DVR wipes every driver’s track history for this org.
+          </p>
+          <div className="dvr-danger-actions">
+            <button
+              type="button"
+              className="ghost danger-ghost"
+              disabled={!selectedId || clearing != null}
+              onClick={() => void clearThisDay()}
+            >
+              {clearing === "day" ? "Clearing…" : "Clear this day"}
+            </button>
+            <button
+              type="button"
+              className="ghost danger-ghost"
+              disabled={clearing != null}
+              onClick={() => void clearAllDvr()}
+            >
+              {clearing === "all" ? "Clearing…" : "Clear all DVR"}
+            </button>
+          </div>
         </div>
       </aside>
       <div className="map-stage">

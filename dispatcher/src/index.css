@@ -1033,6 +1033,19 @@ button.danger-ghost {
   accent-color: var(--amber);
 }
 
+.dvr-danger-panel {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+  border-color: rgba(255, 93, 93, 0.28);
+}
+
+.dvr-danger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .map-marker.dvr-marker {
   width: 16px;
   height: 16px;

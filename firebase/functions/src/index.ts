@@ -301,6 +301,65 @@ async function deleteQueryBatch(query: Query, label: string): Promise<number> {
 }
 
 /**
+ * Dispatcher Map DVR clear: one driver's local calendar day, or all org tracks.
+ * Day window (startMs/endMs) comes from the browser so it matches Replay filters.
+ */
+export const clearMapDvrTracks = onCall(
+  {
+    timeoutSeconds: 300,
+    memory: "512MiB",
+  },
+  async (request) => {
+    assertAuth(request.auth);
+    const orgId = String(request.data?.orgId || DEFAULT_ORG);
+    await assertDispatcher(orgId, request.auth.uid);
+
+    const scope = String(request.data?.scope || "").trim();
+
+    if (scope === "day") {
+      const driverId = String(request.data?.driverId || "").trim();
+      const startMs = Number(request.data?.startMs);
+      const endMs = Number(request.data?.endMs);
+      if (!driverId) {
+        throw new HttpsError("invalid-argument", "driverId is required.");
+      }
+      if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+        throw new HttpsError("invalid-argument", "Valid startMs/endMs required.");
+      }
+      // Browser day window should be ~24h; reject absurd ranges.
+      if (endMs - startMs > 48 * 60 * 60 * 1000) {
+        throw new HttpsError("invalid-argument", "Day window too large.");
+      }
+
+      const deleted = await deleteQueryBatch(
+        db
+          .collection(`orgs/${orgId}/tracks/${driverId}/points`)
+          .where("t", ">=", Timestamp.fromMillis(startMs))
+          .where("t", "<", Timestamp.fromMillis(endMs)),
+        `clear day ${orgId}/${driverId}`
+      );
+      return { deleted, scope: "day", driverId, orgId };
+    }
+
+    if (scope === "all") {
+      const trackDrivers = await db
+        .collection(`orgs/${orgId}/tracks`)
+        .listDocuments();
+      let deleted = 0;
+      for (const driverTrack of trackDrivers) {
+        deleted += await deleteQueryBatch(
+          driverTrack.collection("points"),
+          `clear all ${orgId}/${driverTrack.id}`
+        );
+      }
+      return { deleted, scope: "all", orgId };
+    }
+
+    throw new HttpsError("invalid-argument", "scope must be 'day' or 'all'.");
+  }
+);
+
+/**
  * Daily job: drop radio clips and map track points older than 7 days
  * so archive + DVR stay a rolling window.
  */
