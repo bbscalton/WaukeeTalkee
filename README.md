@@ -29,21 +29,23 @@ https://console.firebase.google.com/project/waukee-talkee/authentication/provide
 
 Then tell the agent to finish seeding the dispatcher login.
 
-## Dispatcher (local)
+## Website
+
+Marketing site + dispatcher on GitHub Pages:
+
+- Site: https://bbscalton.github.io/WaukeeTalkee/
+- Dispatcher: https://bbscalton.github.io/WaukeeTalkee/app/
+
+Local preview:
 
 ```bash
-cd dispatcher
-npm install
-npm run dev
+# static site
+cd website && npx --yes serve .
+
+# dispatcher (separate)
+cd dispatcher && npm run dev
 ```
 
-## Android
-
-Open `android/` in Android Studio (`google-services.json` is already wired to `waukee-talkee`).
-
-## GitHub Pages
-
-Push repo, enable Pages via Actions, add `VITE_FIREBASE_*` secrets from `dispatcher/.env`, and add `*.github.io` under Auth → Settings → Authorized domains.
 
 ## Later slices
 

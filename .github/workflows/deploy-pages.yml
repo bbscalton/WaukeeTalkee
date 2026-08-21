@@ -1,11 +1,13 @@
-name: Deploy dispatcher to GitHub Pages
+name: Deploy site to GitHub Pages
 
 on:
   push:
     branches: [main, master]
     paths:
+      - "website/**"
       - "dispatcher/**"
       - ".github/workflows/deploy-dispatcher.yml"
+      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,9 +22,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: dispatcher
     steps:
       - uses: actions/checkout@v4
 
@@ -32,12 +31,19 @@ jobs:
           cache: npm
           cache-dependency-path: dispatcher/package-lock.json
 
-      - name: Install
+      - name: Build marketing site
+        run: |
+          mkdir -p dist
+          cp -r website/* dist/
+
+      - name: Install dispatcher
+        working-directory: dispatcher
         run: npm ci
 
-      - name: Build
+      - name: Build dispatcher
+        working-directory: dispatcher
         env:
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/app/
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -48,10 +54,15 @@ jobs:
           VITE_USE_EMULATORS: "false"
         run: npm run build
 
+      - name: Combine site + dispatcher
+        run: |
+          mkdir -p dist/app
+          cp -r dispatcher/dist/* dist/app/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dispatcher/dist
+          path: dist
 
   deploy:
     needs: build
