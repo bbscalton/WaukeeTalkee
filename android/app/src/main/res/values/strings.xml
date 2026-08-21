@@ -1,6 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Waukee Talkee</string>
     <string name="duty_channel_name">On duty</string>
     <string name="duty_notification_title">Waukee Talkee — On duty</string>
     <string name="duty_notification_text">Sharing location with dispatch</string>
+    <string name="radio_channel_name">Radio</string>
+    <string name="radio_notification_title">Waukee Talkee radio live</string>
+    <string name="radio_notification_standby">Paired · listening for dispatch</string>
+    <string name="radio_notification_rx">Receiving dispatch — listen up</string>
+    <string name="radio_notification_tx">Transmitting to dispatch</string>
+    <string name="radio_incoming_channel">Incoming radio</string>
+    <string name="overlay_receiving">RECEIVING DISPATCH</string>
+    <string name="overlay_transmitting">ON AIR</string>
 </resources>

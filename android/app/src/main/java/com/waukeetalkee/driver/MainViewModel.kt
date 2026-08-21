@@ -11,6 +11,7 @@ import com.waukeetalkee.driver.data.DriverSession
 import com.waukeetalkee.driver.data.PairingRepository
 import com.waukeetalkee.driver.data.SessionStore
 import com.waukeetalkee.driver.duty.DutyLocationService
+import com.waukeetalkee.driver.radio.RadioForegroundService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -115,6 +116,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun unpair() {
         viewModelScope.launch {
             setOnDuty(false)
+            RadioForegroundService.stop(getApplication())
             Firebase.auth.signOut()
             store.clear()
             _state.value = UiState(ready = true)

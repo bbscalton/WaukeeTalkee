@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0F6E56</color>
-    <color name="ic_launcher_foreground">#F4FFFA</color>
+    <color name="asphalt">#12151A</color>
+    <color name="asphalt_2">#1C222B</color>
+    <color name="asphalt_3">#262E3A</color>
+    <color name="ink">#F3EFE6</color>
+    <color name="muted">#B9B0A2</color>
+    <color name="amber">#F0B429</color>
+    <color name="amber_deep">#C8890F</color>
+    <color name="amber_glow">#66F0B429</color>
+    <color name="rx_green">#3DDC97</color>
+    <color name="tx_red">#FF5C5C</color>
+    <color name="line">#24F3EFE6</color>
+    <color name="danger">#E85D5D</color>
+    <color name="ic_launcher_background">#12151A</color>
+    <color name="ic_launcher_foreground">#F0B429</color>
 </resources>

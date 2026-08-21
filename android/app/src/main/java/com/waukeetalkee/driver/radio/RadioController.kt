@@ -156,6 +156,18 @@ class RadioController(
         }
     }
 
+    /** Drop the in-progress clip without sending (e.g. Volume Down while PTT is on). */
+    fun cancelTransmit() {
+        if (!transmitting) return
+        stopTransmit()
+        onTxChanged(false)
+        try {
+            recordFile?.delete()
+        } catch (_: Exception) {
+        }
+        recordFile = null
+    }
+
     private fun stopTransmit() {
         try {
             recorder?.apply {

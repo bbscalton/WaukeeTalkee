@@ -1,166 +1,406 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E8EEF2"
-    android:padding="24dp">
+    android:background="@drawable/bg_screen"
+    android:fillViewport="true">
 
-    <LinearLayout
-        android:id="@+id/pairPanel"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
+        android:minHeight="640dp"
+        android:padding="20dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Waukee Talkee"
-            android:textAllCaps="true"
-            android:textColor="#0F6E56"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Enter pair code"
-            android:textColor="#14212B"
-            android:textSize="28sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Ask dispatch for your 6-character code."
-            android:textColor="#5B6B76" />
-
-        <EditText
-            android:id="@+id/codeInput"
+        <!-- PAIR -->
+        <LinearLayout
+            android:id="@+id/pairPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:hint="Pair code"
-            android:inputType="textCapCharacters"
-            android:maxLength="6" />
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <TextView
-            android:id="@+id/pairError"
+            <TextView
+                style="@style/Text.Brand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Waukee Talkee"
+                android:textColor="@color/amber"
+                android:textSize="22sp" />
+
+            <TextView
+                style="@style/Text.Display"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Pair this handset"
+                android:textSize="34sp" />
+
+            <TextView
+                style="@style/Text.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Ask dispatch for your 6-character code. This phone becomes a fleet radio." />
+
+            <EditText
+                android:id="@+id/codeInput"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_input"
+                android:gravity="center"
+                android:hint="PAIR CODE"
+                android:importantForAutofill="no"
+                android:inputType="textCapCharacters"
+                android:letterSpacing="0.2"
+                android:maxLength="6"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/ink"
+                android:textColorHint="@color/muted"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/pairError"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/danger"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/pairButton"
+                style="@style/Btn.Amber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="Connect radio" />
+        </LinearLayout>
+
+        <!-- PERMISSIONS CHECKLIST -->
+        <LinearLayout
+            android:id="@+id/permissionPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="#9B1C1C"
-            android:visibility="gone" />
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <Button
-            android:id="@+id/pairButton"
+            <TextView
+                style="@style/Text.Brand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Waukee Talkee"
+                android:textColor="@color/amber"
+                android:textSize="18sp" />
+
+            <TextView
+                style="@style/Text.Display"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Keep radio alive"
+                android:textSize="30sp" />
+
+            <TextView
+                style="@style/Text.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Grant these so dispatch audio still plays when the screen is locked or another app is open." />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_panel"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:id="@+id/permMic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Microphone — talk back to dispatch"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Location — show you on the map when on duty"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permNotifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Notifications — persistent “radio live” banner"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permBattery"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Battery unrestricted — don’t kill radio in background"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Display over other apps — flash HUD on incoming radio"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/grantButton"
+                style="@style/Btn.Amber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Grant required permissions" />
+
+            <Button
+                android:id="@+id/batteryButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Allow unrestricted battery" />
+
+            <Button
+                android:id="@+id/overlayButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Allow radio overlay HUD" />
+
+            <Button
+                android:id="@+id/settingsButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Open app settings" />
+
+            <Button
+                android:id="@+id/continueHomeButton"
+                style="@style/Btn.Amber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Continue to radio"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- HOME / RADIO HANDSET -->
+        <LinearLayout
+            android:id="@+id/homePanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:backgroundTint="#0F6E56"
-            android:text="Connect"
-            android:textColor="#F4FFFA" />
-    </LinearLayout>
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-    <LinearLayout
-        android:id="@+id/permissionPanel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Allow these to go on duty"
-            android:textColor="#14212B"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+                <TextView
+                    style="@style/Text.Brand"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Waukee Talkee"
+                    android:textColor="@color/amber"
+                    android:textSize="18sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="- Precise location (required)\n- Microphone (talk back to dispatch)\n- Notifications (Android 13+)\n- Later: allow all-the-time location in system settings"
-            android:textColor="#5B6B76" />
+                <TextView
+                    android:id="@+id/channelBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_panel"
+                    android:fontFamily="sans-serif-medium"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"
+                    android:text="CH · FLEET"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp" />
+            </LinearLayout>
 
-        <Button
-            android:id="@+id/grantButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:backgroundTint="#0F6E56"
-            android:text="Grant permissions"
-            android:textColor="#F4FFFA" />
+            <TextView
+                android:id="@+id/nameText"
+                style="@style/Text.Display"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="32sp" />
 
-        <Button
-            android:id="@+id/settingsButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Open app settings" />
-    </LinearLayout>
+            <TextView
+                android:id="@+id/pairStatusText"
+                style="@style/Text.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Paired · radio channel open" />
 
-    <LinearLayout
-        android:id="@+id/homePanel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
+            <!-- RADIO FACE -->
+            <LinearLayout
+                android:id="@+id/radioFace"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_radio_standby"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:padding="22dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Signed in as"
-            android:textColor="#5B6B76" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/nameText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#14212B"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+                    <View
+                        android:id="@+id/radioDot"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/dot_live" />
 
-        <TextView
-            android:id="@+id/dutyText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="#0F6E56"
-            android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/radioLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:letterSpacing="0.12"
+                        android:text="CHANNEL LIVE"
+                        android:textAllCaps="true"
+                        android:textColor="@color/amber"
+                        android:textSize="12sp" />
+                </LinearLayout>
 
-        <TextView
-            android:id="@+id/radioStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="#14212B"
-            android:padding="16dp"
-            android:text="RADIO STANDBY\nHold Volume Up to talk to dispatch"
-            android:textColor="#F4FFFA"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/radioStatus"
+                    style="@style/Text.Display"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:gravity="center"
+                    android:text="STANDBY"
+                    android:textSize="40sp" />
 
-        <Button
-            android:id="@+id/dutyButton"
-            android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:layout_marginTop="24dp"
-            android:backgroundTint="#0F6E56"
-            android:text="Go on duty"
-            android:textColor="#F4FFFA"
-            android:textSize="18sp" />
+                <TextView
+                    android:id="@+id/radioHint"
+                    style="@style/Text.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Listening for dispatch" />
+            </LinearLayout>
 
-        <Button
-            android:id="@+id/unpairButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Unpair this phone" />
-    </LinearLayout>
-</FrameLayout>
+            <TextView
+                android:id="@+id/dutyText"
+                style="@style/Text.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:gravity="center"
+                android:text="OFF DUTY"
+                android:textAllCaps="true"
+                android:textColor="@color/muted"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/dutyButton"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_duty_off"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.06"
+                android:text="GO ON DUTY"
+                android:textAllCaps="true"
+                android:textColor="@color/amber"
+                android:textSize="20sp" />
+
+            <!-- Volume PTT toggle -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_panel"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Volume push-to-talk"
+                        android:textColor="@color/ink"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/volumePttDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Off — volume keys change volume"
+                        android:textColor="@color/muted"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/volumePttSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/keepAliveButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Permissions / keep-alive checklist" />
+
+            <Button
+                android:id="@+id/unpairButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Unpair this phone"
+                android:textColor="@color/danger" />
+        </LinearLayout>
+    </FrameLayout>
+</ScrollView>
