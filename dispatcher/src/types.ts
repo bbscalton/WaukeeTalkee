@@ -23,14 +23,14 @@ export function formatSpeed(mps: number | null | undefined): string {
   return `${kmh.toFixed(0)} km/h`;
 }
 
-export function formatAge(ts: Driver["lastTelemetryAt"]): string {
+export function formatAge(ts: Driver["lastTelemetryAt"] | { toMillis: () => number } | null): string {
   if (!ts) return "never";
-  const seconds =
-    typeof (ts as { seconds?: number }).seconds === "number"
-      ? (ts as { seconds: number }).seconds
-      : typeof (ts as { toMillis?: () => number }).toMillis === "function"
-        ? Math.floor((ts as { toMillis: () => number }).toMillis() / 1000)
-        : null;
+  let seconds: number | null = null;
+  if ("seconds" in ts && typeof ts.seconds === "number") {
+    seconds = ts.seconds;
+  } else if ("toMillis" in ts && typeof ts.toMillis === "function") {
+    seconds = Math.floor(ts.toMillis() / 1000);
+  }
   if (seconds == null) return "never";
   const sec = Math.max(0, Math.round((Date.now() - seconds * 1000) / 1000));
   if (sec < 60) return `${sec}s ago`;
