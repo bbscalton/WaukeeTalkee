@@ -167,6 +167,16 @@
                     android:text="○ Display over other apps — flash HUD on incoming radio"
                     android:textColor="@color/ink"
                     android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permAccessibility"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Accessibility — volume PTT anywhere (lock screen)"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <Button
@@ -192,6 +202,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Allow radio overlay HUD" />
+
+            <Button
+                android:id="@+id/accessibilityButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Open Accessibility settings" />
 
             <Button
                 android:id="@+id/settingsButton"

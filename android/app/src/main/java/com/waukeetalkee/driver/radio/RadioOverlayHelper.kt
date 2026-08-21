@@ -27,11 +27,19 @@ class RadioOverlayHelper(private val context: Context) {
     }
 
     fun showReceiving() {
+        showHud(R.layout.overlay_radio_hud)
+    }
+
+    fun showTransmitting() {
+        showHud(R.layout.overlay_radio_tx)
+    }
+
+    private fun showHud(layoutRes: Int) {
         if (!canDrawOverlays()) return
-        if (view != null) return
+        hide()
         try {
             val overlay = LayoutInflater.from(context)
-                .inflate(R.layout.overlay_radio_hud, null) as FrameLayout
+                .inflate(layoutRes, null) as FrameLayout
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {

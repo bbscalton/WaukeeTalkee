@@ -12,4 +12,7 @@
     <string name="radio_incoming_channel">Incoming radio</string>
     <string name="overlay_receiving">RECEIVING DISPATCH</string>
     <string name="overlay_transmitting">ON AIR</string>
+    <string name="ptt_transmit_hint">Release Volume Up to send · Volume Down cancels</string>
+    <string name="accessibility_ptt_description">Waukee Talkee uses Accessibility only to read Volume Up/Down for driver radio push-to-talk when you turn on Volume PTT. Keys are ignored when that toggle is off, so normal volume control still works. No screen content is read or shared.</string>
+    <string name="accessibility_service_label">Waukee Talkee volume PTT</string>
 </resources>

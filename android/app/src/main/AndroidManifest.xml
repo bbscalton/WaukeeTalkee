@@ -38,6 +38,16 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".radio.PttTransmitActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.WaukeeTalkee.PttTransmit"
+            android:turnScreenOn="true" />
+
         <service
             android:name=".duty.DutyLocationService"
             android:exported="false"
@@ -47,5 +57,18 @@
             android:name=".radio.RadioForegroundService"
             android:exported="false"
             android:foregroundServiceType="microphone|mediaPlayback" />
+
+        <service
+            android:name=".radio.RadioPttAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
     </application>
 </manifest>

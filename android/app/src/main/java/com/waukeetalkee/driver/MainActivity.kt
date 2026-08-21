@@ -27,6 +27,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.waukeetalkee.driver.data.DriverPrefs
+import com.waukeetalkee.driver.radio.AccessibilityPttHelper
 import com.waukeetalkee.driver.radio.RadioBus
 import com.waukeetalkee.driver.radio.RadioForegroundService
 import kotlinx.coroutines.flow.first
@@ -58,6 +59,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permNotifications: TextView
     private lateinit var permBattery: TextView
     private lateinit var permOverlay: TextView
+    private lateinit var permAccessibility: TextView
     private lateinit var continueHomeButton: Button
 
     private var volumePttEnabled = false
@@ -98,12 +100,16 @@ class MainActivity : AppCompatActivity() {
         permNotifications = findViewById(R.id.permNotifications)
         permBattery = findViewById(R.id.permBattery)
         permOverlay = findViewById(R.id.permOverlay)
+        permAccessibility = findViewById(R.id.permAccessibility)
         continueHomeButton = findViewById(R.id.continueHomeButton)
 
         pairButton.setOnClickListener { vm.pair(codeInput.text.toString()) }
         findViewById<Button>(R.id.grantButton).setOnClickListener { requestRuntimePermissions() }
         findViewById<Button>(R.id.batteryButton).setOnClickListener { requestBatteryExemption() }
         findViewById<Button>(R.id.overlayButton).setOnClickListener { requestOverlayPermission() }
+        findViewById<Button>(R.id.accessibilityButton).setOnClickListener {
+            AccessibilityPttHelper.openAccessibilitySettings(this)
+        }
         findViewById<Button>(R.id.settingsButton).setOnClickListener {
             startActivity(
                 Intent(
@@ -188,6 +194,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         render(vm.state.value)
         maybeStartRadio(vm.state.value)
+        applyVolumePttUi()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -241,14 +248,20 @@ class MainActivity : AppCompatActivity() {
                 "When enabled:\n\n" +
                     "• Hold Volume Up to talk to dispatch\n" +
                     "• Volume Down cancels an in-progress transmit\n\n" +
-                    "Volume keys will no longer change media volume while this screen is open. " +
-                    "You can turn this off anytime.",
+                    "Works while this app is open. With Accessibility enabled for " +
+                    "“Waukee Talkee volume PTT”, it also works in other apps and on the " +
+                    "lock screen (best-effort when the screen is fully off — some phones " +
+                    "still need the screen awake).\n\n" +
+                    "Turn the toggle off anytime to restore normal volume keys.",
             )
             .setPositiveButton("Enable") { _, _ ->
                 lifecycleScope.launch {
                     prefs.setVolumePttEnabled(true)
                     volumePttEnabled = true
                     applyVolumePttUi()
+                    if (!AccessibilityPttHelper.isServiceEnabled(this@MainActivity)) {
+                        promptEnableAccessibility()
+                    }
                 }
             }
             .setNegativeButton("Cancel") { _, _ ->
@@ -264,14 +277,34 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun promptEnableAccessibility() {
+        AlertDialog.Builder(this)
+            .setTitle("Enable Accessibility for volume PTT")
+            .setMessage(
+                "To talk with Volume Up when another app is open or the phone is locked, " +
+                    "turn on “Waukee Talkee volume PTT” in Accessibility settings.\n\n" +
+                    "Android cannot turn this on automatically. Without it, Volume PTT " +
+                    "only works while this app is on screen.",
+            )
+            .setPositiveButton("Open Accessibility settings") { _, _ ->
+                AccessibilityPttHelper.openAccessibilitySettings(this)
+            }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
     private fun applyVolumePttUi() {
         ignoreSwitchCallback = true
         volumePttSwitch.isChecked = volumePttEnabled
         ignoreSwitchCallback = false
-        volumePttDesc.text = if (volumePttEnabled) {
-            "On — hold Volume Up to talk · Down cancels TX"
-        } else {
-            "Off — volume keys change volume (recommended)"
+        val a11yOn = AccessibilityPttHelper.isServiceEnabled(this)
+        volumePttDesc.text = when {
+            !volumePttEnabled ->
+                "Off — volume keys change volume (recommended)"
+            a11yOn ->
+                "On — Volume Up talks anywhere · Accessibility enabled"
+            else ->
+                "On — in-app only · enable Accessibility for lock/background"
         }
         refreshRadioHint()
     }
@@ -329,10 +362,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshRadioHint() {
         if (RadioBus.state.value.transmitting || RadioBus.state.value.receiving) return
-        radioHint.text = if (volumePttEnabled) {
-            "Hold Volume Up to talk to dispatch"
-        } else {
-            "Listening for dispatch · enable volume PTT to talk"
+        radioHint.text = when {
+            !volumePttEnabled ->
+                "Listening for dispatch · enable volume PTT to talk"
+            AccessibilityPttHelper.isServiceEnabled(this) ->
+                "Hold Volume Up to talk — works in other apps / lock screen"
+            else ->
+                "Hold Volume Up to talk (enable Accessibility for anywhere)"
         }
     }
 
@@ -395,6 +431,16 @@ class MainActivity : AppCompatActivity() {
         mark(permNotifications, hasNotificationPermission(), "Notifications — “radio live” banner")
         mark(permBattery, isBatteryUnrestricted(), "Battery unrestricted — keep radio alive")
         mark(permOverlay, canDrawOverlays(), "Overlay HUD — flash when dispatch speaks")
+        val a11y = AccessibilityPttHelper.isServiceEnabled(this)
+        mark(
+            permAccessibility,
+            a11y,
+            if (a11y) {
+                "Accessibility — volume PTT anywhere (lock screen) · Enabled"
+            } else {
+                "Accessibility — volume PTT anywhere (lock screen) · Needed"
+            },
+        )
     }
 
     private fun mark(view: TextView, ok: Boolean, label: String) {

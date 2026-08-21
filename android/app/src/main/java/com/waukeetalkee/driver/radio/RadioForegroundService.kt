@@ -15,10 +15,13 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.waukeetalkee.driver.MainActivity
 import com.waukeetalkee.driver.R
+import com.waukeetalkee.driver.data.DriverPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Keeps Firestore radio listen + playback alive while the app is backgrounded
@@ -30,6 +33,9 @@ class RadioForegroundService : Service() {
     private var radio: RadioController? = null
     private var overlay: RadioOverlayHelper? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var pttStandbyWakeLock: PowerManager.WakeLock? = null
+    private var volumePttEnabled = false
+    private var prefsJob: Job? = null
     private var orgId: String? = null
     private var driverId: String? = null
     private var transmitting = false
@@ -41,6 +47,12 @@ class RadioForegroundService : Service() {
         super.onCreate()
         overlay = RadioOverlayHelper(applicationContext)
         ensureChannels()
+        prefsJob = scope.launch {
+            DriverPrefs(applicationContext).volumePttEnabled.collect { enabled ->
+                volumePttEnabled = enabled
+                updatePttStandbyWakeLock()
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -95,9 +107,10 @@ class RadioForegroundService : Service() {
                 transmitting = tx
                 if (tx) {
                     acquireWakeLock()
+                    overlay?.showTransmitting()
+                } else {
                     overlay?.hide()
-                } else if (!receiving) {
-                    releaseWakeLock()
+                    if (!receiving) releaseWakeLock()
                 }
                 updateNotification()
                 publish()
@@ -120,6 +133,7 @@ class RadioForegroundService : Service() {
             },
         )
         radio?.start(o, d)
+        updatePttStandbyWakeLock()
         publish()
     }
 
@@ -226,6 +240,35 @@ class RadioForegroundService : Service() {
         wakeLock = null
     }
 
+    /**
+     * While volume PTT is on and the radio channel is live, keep the CPU awake so
+     * Accessibility key filtering and mic start remain responsive with the screen off.
+     * Some OEMs still swallow volume keys when fully asleep — documented in the UI.
+     */
+    private fun updatePttStandbyWakeLock() {
+        if (volumePttEnabled && radio != null) {
+            if (pttStandbyWakeLock?.isHeld == true) return
+            val pm = getSystemService(PowerManager::class.java) ?: return
+            pttStandbyWakeLock = pm.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "WaukeeTalkee:VolumePttStandby",
+            ).also {
+                it.setReferenceCounted(false)
+                it.acquire()
+            }
+        } else {
+            releasePttStandbyWakeLock()
+        }
+    }
+
+    private fun releasePttStandbyWakeLock() {
+        try {
+            if (pttStandbyWakeLock?.isHeld == true) pttStandbyWakeLock?.release()
+        } catch (_: Exception) {
+        }
+        pttStandbyWakeLock = null
+    }
+
     private fun tearDown() {
         overlay?.hide()
         radio?.stop()
@@ -233,11 +276,13 @@ class RadioForegroundService : Service() {
         transmitting = false
         receiving = false
         releaseWakeLock()
+        releasePttStandbyWakeLock()
         RadioBus.clear()
         getSystemService(NotificationManager::class.java).cancel(INCOMING_NOTIFICATION_ID)
     }
 
     override fun onDestroy() {
+        prefsJob?.cancel()
         tearDown()
         scope.cancel()
         super.onDestroy()
