@@ -285,8 +285,9 @@ th {
 
 .map-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 380px) 1fr;
+  grid-template-columns: minmax(320px, 400px) 1fr;
   height: calc(100vh - 66px);
+  min-height: 560px;
 }
 
 .map-side {
@@ -294,6 +295,9 @@ th {
   border-right: 1px solid var(--line);
   overflow: auto;
   background: linear-gradient(180deg, #141922 0%, #10141a 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .map-side h1 {
@@ -306,7 +310,7 @@ th {
 }
 
 .map-kicker {
-  margin: 0.15rem 0 0;
+  margin: 0;
   color: var(--amber);
   font-size: 0.78rem;
   letter-spacing: 0.12em;
@@ -314,10 +318,19 @@ th {
   font-weight: 700;
 }
 
+.list-label {
+  margin: 0.75rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
 .driver-list {
   list-style: none;
   padding: 0;
-  margin: 1rem 0;
+  margin: 0;
   display: grid;
   gap: 0.45rem;
 }
@@ -340,17 +353,41 @@ th {
   box-shadow: 0 0 0 1px rgba(240, 180, 41, 0.25);
 }
 
-.map-canvas {
-  min-height: 320px;
-  position: relative;
+.talk-hint {
+  color: var(--amber);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.map-canvas::after {
-  content: "";
-  pointer-events: none;
+.map-stage {
+  position: relative;
+  min-height: 360px;
+  height: 100%;
+  background: #0a0d11;
+}
+
+.map-canvas {
   position: absolute;
   inset: 0;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  height: 100%;
+}
+
+.map-canvas .maplibregl-map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .map-marker {
@@ -369,8 +406,13 @@ th {
 }
 
 .detail {
-  margin-top: 0.5rem;
+  margin-top: 0.65rem;
   background: #12171f;
+}
+
+.radio-panel {
+  order: 0;
+  border-color: rgba(240, 180, 41, 0.35);
 }
 
 .detail h2 {
@@ -463,8 +505,12 @@ th {
 
   .map-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 52vh;
+    grid-template-rows: auto minmax(420px, 55vh);
     height: auto;
+  }
+
+  .map-stage {
+    min-height: 420px;
   }
 
   .topbar {

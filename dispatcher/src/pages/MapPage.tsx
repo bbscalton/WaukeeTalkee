@@ -16,6 +16,7 @@ export function MapPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
@@ -25,9 +26,18 @@ export function MapPage() {
       center: [-93.62, 41.58],
       zoom: 11,
     });
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.on("load", () => {
+      map.resize();
+      setMapReady(true);
+    });
     mapRef.current = map;
+
+    const onWinResize = () => map.resize();
+    window.addEventListener("resize", onWinResize);
+
     return () => {
+      window.removeEventListener("resize", onWinResize);
       markersRef.current.forEach((m) => m.remove());
       markersRef.current.clear();
       map.remove();
@@ -57,6 +67,11 @@ export function MapPage() {
           };
         });
         setDrivers(rows);
+        setSelectedId((prev) => {
+          if (prev && rows.some((r) => r.id === prev)) return prev;
+          const first = rows.find((r) => r.pairStatus === "paired");
+          return first?.id ?? null;
+        });
       },
       (err) => setError(err.message)
     );
@@ -64,7 +79,7 @@ export function MapPage() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     const active = drivers.filter(
       (d) => d.onDuty && d.lastLat != null && d.lastLng != null
@@ -99,8 +114,19 @@ export function MapPage() {
         markersRef.current.delete(id);
       }
     }
-  }, [drivers, selectedId]);
 
+    if (active.length === 1) {
+      map.easeTo({ center: [active[0]!.lastLng!, active[0]!.lastLat!], zoom: 13 });
+    } else if (active.length > 1) {
+      const bounds = new maplibregl.LngLatBounds();
+      active.forEach((d) => bounds.extend([d.lastLng!, d.lastLat!]));
+      map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+    }
+
+    map.resize();
+  }, [drivers, selectedId, mapReady]);
+
+  const paired = drivers.filter((d) => d.pairStatus === "paired");
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
   const onDutyCount = drivers.filter((d) => d.onDuty).length;
 
@@ -108,54 +134,58 @@ export function MapPage() {
     <div className="map-layout">
       <aside className="map-side">
         <p className="map-kicker">Fleet radio</p>
-        <h1>Command map</h1>
+        <h1>Talk to drivers</h1>
         <p className="muted">
-          {onDutyCount} on duty · {drivers.filter((d) => d.pairStatus === "paired").length}{" "}
-          paired — select a unit, then hold to talk
+          {onDutyCount} on duty · {paired.length} paired
         </p>
         {error && <p className="error">{error}</p>}
-        <ul className="driver-list">
-          {drivers
-            .filter((d) => d.pairStatus === "paired")
-            .map((d) => (
-              <li key={d.id}>
-                <button
-                  type="button"
-                  className={selectedId === d.id ? "selected" : ""}
-                  onClick={() => setSelectedId(d.id)}
-                >
-                  <strong>{d.displayName}</strong>
-                  <span>{d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}</span>
-                  <span className="muted">{formatAge(d.lastTelemetryAt)}</span>
-                </button>
-              </li>
-            ))}
-          {drivers.filter((d) => d.pairStatus === "paired").length === 0 && (
-            <li className="muted">No paired drivers yet.</li>
-          )}
-        </ul>
-        {selected && (
-          <div className="panel detail">
+
+        {selected ? (
+          <div className="panel detail radio-panel">
+            <p className="map-kicker">Channel open</p>
             <h2>{selected.displayName}</h2>
             <div className="detail-meta">
+              <span>{selected.onDuty ? "On duty" : "Off duty"}</span>
               <span>Speed: {formatSpeed(selected.lastSpeed)}</span>
-              <span>
-                Position:{" "}
-                {selected.lastLat != null && selected.lastLng != null
-                  ? `${selected.lastLat.toFixed(5)}, ${selected.lastLng.toFixed(5)}`
-                  : "—"}
-              </span>
               <span>Updated {formatAge(selected.lastTelemetryAt)}</span>
-              {!selected.onDuty && <span>Currently off duty</span>}
             </div>
             <PushToTalk driverId={selected.id} driverName={selected.displayName} />
           </div>
+        ) : (
+          <div className="panel detail">
+            <p className="muted">
+              No paired driver yet. Open Drivers, create a pair code, connect the
+              phone.
+            </p>
+          </div>
         )}
-        {!selected && (
-          <p className="muted">Select a driver to open the radio channel.</p>
-        )}
+
+        <p className="list-label">Units</p>
+        <ul className="driver-list">
+          {paired.map((d) => (
+            <li key={d.id}>
+              <button
+                type="button"
+                className={selectedId === d.id ? "selected" : ""}
+                onClick={() => setSelectedId(d.id)}
+              >
+                <strong>{d.displayName}</strong>
+                <span>{d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}</span>
+                <span className="talk-hint">
+                  {selectedId === d.id ? "Radio open ↓" : "Tap to talk"}
+                </span>
+              </button>
+            </li>
+          ))}
+          {paired.length === 0 && (
+            <li className="muted">No paired drivers yet.</li>
+          )}
+        </ul>
       </aside>
-      <div className="map-canvas" ref={mapNode} />
+      <div className="map-stage">
+        <div className="map-canvas" ref={mapNode} />
+        {!mapReady && <div className="map-loading">Loading map…</div>}
+      </div>
     </div>
   );
 }
