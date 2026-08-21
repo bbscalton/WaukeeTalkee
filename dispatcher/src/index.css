@@ -877,6 +877,44 @@ button.danger-ghost {
   font-size: 1.6rem;
 }
 
+.inbox-unheard-summary {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+}
+
+.inbox-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inbox-recordings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.inbox-recordings-head .list-label {
+  margin: 0;
+}
+
+.inbox-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.inbox-filter input {
+  accent-color: var(--amber);
+}
+
 .ghost-link {
   color: var(--amber);
   font-weight: 700;
@@ -911,13 +949,38 @@ button.danger-ghost {
   font-size: 0.82rem;
 }
 
+.clip-heard {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+}
+
+.clip-heard-yes {
+  color: rgba(160, 176, 196, 0.85);
+}
+
+.clip-heard-no {
+  color: rgba(200, 168, 120, 0.9);
+}
+
 .clip-row.unread {
   border-color: rgba(240, 180, 41, 0.45);
   background: rgba(240, 180, 41, 0.08);
 }
 
+.clip-row.unheard-out:not(.unread) {
+  border-color: rgba(200, 168, 120, 0.28);
+}
+
 .clip-row.playing {
   border-color: rgba(61, 214, 140, 0.45);
+}
+
+.clip-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
 }
 
 .clip-row button.ghost {

@@ -4,8 +4,11 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
 import {
   clipTimeMs,
+  deleteRadioClip,
+  driverHeardLabel,
   formatClipTime,
   formatDuration,
+  isUnheardOutbound,
   isUnreadForDispatch,
   markDispatchHeard,
   playClipAudio,
@@ -30,9 +33,12 @@ const emptyClip: RadioClip = {
 export function RadioInboxPage() {
   const [search, setSearch] = useSearchParams();
   const selectedId = search.get("driver") || null;
-  const { clips, unreadByDriver, error } = useRadioArchive();
+  const { clips, unreadByDriver, unheardOutboundByDriver, error } =
+    useRadioArchive();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [onlyUnheard, setOnlyUnheard] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -74,7 +80,14 @@ export function RadioInboxPage() {
   const threads = useMemo(() => {
     const map = new Map<
       string,
-      { driverId: string; name: string; last: RadioClip | null; unread: number; count: number }
+      {
+        driverId: string;
+        name: string;
+        last: RadioClip | null;
+        unread: number;
+        unheard: number;
+        count: number;
+      }
     >();
     for (const d of drivers.filter((x) => x.pairStatus === "paired")) {
       map.set(d.id, {
@@ -82,6 +95,7 @@ export function RadioInboxPage() {
         name: d.displayName,
         last: null,
         unread: unreadByDriver.get(d.id) ?? 0,
+        unheard: unheardOutboundByDriver.get(d.id) ?? 0,
         count: 0,
       });
     }
@@ -93,6 +107,7 @@ export function RadioInboxPage() {
           name: nameById.get(c.driverId) || "Driver",
           last: null,
           unread: unreadByDriver.get(c.driverId) ?? 0,
+          unheard: unheardOutboundByDriver.get(c.driverId) ?? 0,
           count: 0,
         };
         map.set(c.driverId, row);
@@ -102,9 +117,10 @@ export function RadioInboxPage() {
     }
     return [...map.values()].sort((a, b) => {
       if (b.unread !== a.unread) return b.unread - a.unread;
+      if (b.unheard !== a.unheard) return b.unheard - a.unheard;
       return clipTimeMs(b.last ?? emptyClip) - clipTimeMs(a.last ?? emptyClip);
     });
-  }, [clips, drivers, nameById, unreadByDriver]);
+  }, [clips, drivers, nameById, unreadByDriver, unheardOutboundByDriver]);
 
   const selected =
     threads.find((t) => t.driverId === selectedId) ?? threads[0] ?? null;
@@ -119,8 +135,9 @@ export function RadioInboxPage() {
     if (!selected) return [];
     return clips
       .filter((c) => c.driverId === selected.driverId)
+      .filter((c) => (onlyUnheard ? isUnheardOutbound(c) : true))
       .sort((a, b) => clipTimeMs(b) - clipTimeMs(a));
-  }, [clips, selected]);
+  }, [clips, selected, onlyUnheard]);
 
   const play = async (clip: RadioClip) => {
     audioRef.current?.pause();
@@ -136,6 +153,58 @@ export function RadioInboxPage() {
       } catch {
         /* ignore */
       }
+    }
+  };
+
+  const removeClip = async (clip: RadioClip) => {
+    const who = speakerLabel(clip.from, selected?.name || "Driver");
+    if (
+      !window.confirm(
+        `Delete this recording from ${who}? It will disappear for the driver too.`
+      )
+    ) {
+      return;
+    }
+    setBusyId(clip.id);
+    try {
+      if (playingId === clip.id) {
+        audioRef.current?.pause();
+        setPlayingId(null);
+      }
+      await deleteRadioClip(clip.id);
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not delete recording."
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const clearThread = async () => {
+    if (!selected) return;
+    const all = clips.filter((c) => c.driverId === selected.driverId);
+    if (all.length === 0) return;
+    if (
+      !window.confirm(
+        `Delete all ${all.length} recording${all.length === 1 ? "" : "s"} with ${selected.name}? They will disappear for the driver too.`
+      )
+    ) {
+      return;
+    }
+    setBusyId("thread");
+    try {
+      audioRef.current?.pause();
+      setPlayingId(null);
+      for (const c of all) {
+        await deleteRadioClip(c.id);
+      }
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not clear thread."
+      );
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -167,12 +236,18 @@ export function RadioInboxPage() {
                   </strong>
                   <span>
                     {t.count} clip{t.count === 1 ? "" : "s"}
-                    {t.last
-                      ? ` · ${speakerLabel(t.last.from, t.name)} ${formatClipTime(t.last)}`
-                      : ""}
+                    {t.unheard > 0
+                      ? ` · ${t.unheard} unheard`
+                      : t.last
+                        ? ` · ${speakerLabel(t.last.from, t.name)} ${formatClipTime(t.last)}`
+                        : ""}
                   </span>
                   <span className="talk-hint">
-                    {t.unread > 0 ? "New message" : "Open thread"}
+                    {t.unread > 0
+                      ? "New message"
+                      : t.unheard > 0
+                        ? "Outbound unheard"
+                        : "Open thread"}
                   </span>
                 </button>
               </li>
@@ -190,24 +265,56 @@ export function RadioInboxPage() {
                 <div>
                   <p className="map-kicker">Thread</p>
                   <h2>{selected.name}</h2>
+                  {selected.unheard > 0 && (
+                    <p className="inbox-unheard-summary muted">
+                      {selected.unheard} unheard outbound
+                    </p>
+                  )}
                 </div>
-                <Link className="ghost-link" to={`/map?driver=${selected.driverId}`}>
-                  Open on map
-                </Link>
+                <div className="inbox-detail-actions">
+                  <Link
+                    className="ghost-link"
+                    to={`/map?driver=${selected.driverId}`}
+                  >
+                    Open on map
+                  </Link>
+                  {selected.count > 0 && (
+                    <button
+                      type="button"
+                      className="ghost danger-ghost"
+                      disabled={busyId === "thread"}
+                      onClick={() => void clearThread()}
+                    >
+                      Clear thread
+                    </button>
+                  )}
+                </div>
               </div>
 
               <PushToTalk driverId={selected.driverId} driverName={selected.name} />
 
-              <p className="list-label">Recordings</p>
+              <div className="inbox-recordings-head">
+                <p className="list-label">Recordings</p>
+                <label className="inbox-filter">
+                  <input
+                    type="checkbox"
+                    checked={onlyUnheard}
+                    onChange={(e) => setOnlyUnheard(e.target.checked)}
+                  />
+                  Unheard only
+                </label>
+              </div>
               <ul className="clip-list">
                 {threadClips.map((c) => {
                   const unread = isUnreadForDispatch(c);
+                  const heard = driverHeardLabel(c);
+                  const unheardOut = isUnheardOutbound(c);
                   return (
                     <li
                       key={c.id}
                       className={`clip-row ${unread ? "unread" : ""} ${
-                        playingId === c.id ? "playing" : ""
-                      }`}
+                        unheardOut ? "unheard-out" : ""
+                      } ${playingId === c.id ? "playing" : ""}`}
                     >
                       <div>
                         <strong>{speakerLabel(c.from, selected.name)}</strong>
@@ -215,15 +322,42 @@ export function RadioInboxPage() {
                           {formatClipTime(c)} · {formatDuration(c.durationMs)}
                           {unread ? " · new" : ""}
                         </span>
+                        {heard && (
+                          <span
+                            className={`clip-heard ${
+                              unheardOut ? "clip-heard-no" : "clip-heard-yes"
+                            }`}
+                          >
+                            {heard}
+                          </span>
+                        )}
                       </div>
-                      <button type="button" className="ghost" onClick={() => void play(c)}>
-                        {playingId === c.id ? "Playing…" : "Play"}
-                      </button>
+                      <div className="clip-actions">
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => void play(c)}
+                        >
+                          {playingId === c.id ? "Playing…" : "Play"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost danger-ghost"
+                          disabled={busyId === c.id}
+                          onClick={() => void removeClip(c)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </li>
                   );
                 })}
                 {threadClips.length === 0 && (
-                  <li className="muted">No clips in this thread yet.</li>
+                  <li className="muted">
+                    {onlyUnheard
+                      ? "No unheard outbound clips in this thread."
+                      : "No clips in this thread yet."}
+                  </li>
                 )}
               </ul>
             </>

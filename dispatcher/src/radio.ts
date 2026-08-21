@@ -1,4 +1,5 @@
 import {
+  deleteDoc,
   doc,
   serverTimestamp,
   updateDoc,
@@ -60,6 +61,36 @@ export function isUnreadForDriver(clip: RadioClip): boolean {
   return clip.from === "dispatch" && !clip.driverHeardAt;
 }
 
+/** Dispatch→driver clip the driver has not played / live-heard yet. */
+export function isUnheardOutbound(clip: RadioClip): boolean {
+  return isUnreadForDriver(clip);
+}
+
+function timestampMs(
+  ts: RadioClip["driverHeardAt"] | RadioClip["createdAt"]
+): number {
+  if (!ts) return 0;
+  if ("toMillis" in ts && typeof (ts as Timestamp).toMillis === "function") {
+    return (ts as Timestamp).toMillis();
+  }
+  if ("seconds" in ts) return ts.seconds * 1000;
+  return 0;
+}
+
+/** Discreet label for outbound clips only (dispatcher UI). */
+export function driverHeardLabel(clip: RadioClip): string | null {
+  if (clip.from !== "dispatch") return null;
+  const heardMs = timestampMs(clip.driverHeardAt);
+  if (!heardMs) return "Not heard";
+  const when = new Date(heardMs).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `Heard · ${when}`;
+}
+
 export function playClipAudio(clip: RadioClip): HTMLAudioElement {
   const audio = new Audio(`data:${clip.contentType};base64,${clip.audioBase64}`);
   void audio.play();
@@ -70,6 +101,11 @@ export async function markDispatchHeard(clipId: string): Promise<void> {
   await updateDoc(doc(db, "orgs", ORG_ID, "radio", clipId), {
     dispatchHeardAt: serverTimestamp(),
   });
+}
+
+/** Hard-delete clip for both dispatcher and driver (same Firestore doc). */
+export async function deleteRadioClip(clipId: string): Promise<void> {
+  await deleteDoc(doc(db, "orgs", ORG_ID, "radio", clipId));
 }
 
 export function speakerLabel(
