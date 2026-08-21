@@ -134,6 +134,9 @@ export function toDayKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Inclusive local-midnight window for a yyyy-MM-dd calendar day in the
+ *  browser's timezone. Firestore Timestamps are absolute UTC; comparing
+ *  local midnights keeps "Today" aligned with what the dispatcher sees. */
 export function dayBounds(dayKey: string): { start: Date; end: Date } {
   const [y, m, d] = dayKey.split("-").map(Number);
   const start = new Date(y!, m! - 1, d!, 0, 0, 0, 0);

@@ -48,6 +48,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     false
                 }
                 _state.value = UiState(ready = true, session = session, onDuty = onDuty)
+                // Resume GPS + track breadcrumbs after process death / relaunch.
+                if (onDuty && session != null) {
+                    DutyLocationService.start(
+                        getApplication(),
+                        session.orgId,
+                        session.driverId,
+                    )
+                }
             }
         }
     }

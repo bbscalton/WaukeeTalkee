@@ -116,10 +116,13 @@ service cloud.firestore {
       match /tracks/{driverId}/points/{pointId} {
         allow read: if isDispatcher(orgId) || isDriver(orgId, driverId);
 
+        // Drivers create breadcrumbs while on duty (t usually FieldValue.serverTimestamp()).
+        // heading/speed may be omitted or null when GPS lacks bearing/speed.
         allow create: if isDriver(orgId, driverId)
           && request.resource.data.keys().hasOnly([
             't', 'lat', 'lng', 'speed', 'heading'
           ])
+          && request.resource.data.keys().hasAll(['t', 'lat', 'lng'])
           && request.resource.data.t is timestamp
           && request.resource.data.lat is number
           && request.resource.data.lng is number
@@ -127,8 +130,12 @@ service cloud.firestore {
           && request.resource.data.lat <= 90
           && request.resource.data.lng >= -180
           && request.resource.data.lng <= 180
-          && (request.resource.data.speed == null || request.resource.data.speed is number)
-          && (request.resource.data.heading == null || request.resource.data.heading is number);
+          && (!('speed' in request.resource.data)
+            || request.resource.data.speed == null
+            || request.resource.data.speed is number)
+          && (!('heading' in request.resource.data)
+            || request.resource.data.heading == null
+            || request.resource.data.heading is number);
 
         allow update, delete: if isDispatcher(orgId);
       }

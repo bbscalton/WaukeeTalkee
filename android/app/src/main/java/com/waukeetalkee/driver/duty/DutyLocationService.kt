@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.google.android.gms.location.LocationCallback
@@ -32,6 +33,8 @@ class DutyLocationService : Service() {
     private var lastTrackAt = 0L
     private var lastTrackLat = Double.NaN
     private var lastTrackLng = Double.NaN
+    /** True only when the driver explicitly goes off duty (ACTION_STOP). */
+    private var clearingDuty = false
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -51,6 +54,9 @@ class DutyLocationService : Service() {
                         "lastTelemetryAt" to FieldValue.serverTimestamp(),
                     )
                 )
+                .addOnFailureListener { e ->
+                    Log.w(TAG, "driver telemetry update failed", e)
+                }
             maybeAppendTrackPoint(o, d, loc.latitude, loc.longitude, speed, heading)
         }
     }
@@ -76,16 +82,18 @@ class DutyLocationService : Service() {
         lastTrackAt = now
         lastTrackLat = lat
         lastTrackLng = lng
+        val payload = buildMap<String, Any> {
+            put("t", FieldValue.serverTimestamp())
+            put("lat", lat)
+            put("lng", lng)
+            put("speed", speed)
+            if (heading != null) put("heading", heading)
+        }
         Firebase.firestore.collection("orgs/$orgId/tracks/$driverId/points")
-            .add(
-                mapOf(
-                    "t" to FieldValue.serverTimestamp(),
-                    "lat" to lat,
-                    "lng" to lng,
-                    "speed" to speed,
-                    "heading" to heading,
-                )
-            )
+            .add(payload)
+            .addOnFailureListener { e ->
+                Log.e(TAG, "track point write failed org=$orgId driver=$driverId", e)
+            }
     }
 
     private fun haversineMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
@@ -103,24 +111,32 @@ class DutyLocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
-                orgId = intent.getStringExtra(EXTRA_ORG_ID) ?: orgId
-                driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: driverId
+                clearingDuty = true
+                orgId = intent.getStringExtra(EXTRA_ORG_ID) ?: orgId ?: readPrefs().first
+                driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: driverId ?: readPrefs().second
                 stopDuty()
+                clearDutyPrefs()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
             else -> {
-                orgId = intent?.getStringExtra(EXTRA_ORG_ID)
-                driverId = intent?.getStringExtra(EXTRA_DRIVER_ID)
+                val prefs = readPrefs()
+                orgId = intent?.getStringExtra(EXTRA_ORG_ID) ?: prefs.first
+                driverId = intent?.getStringExtra(EXTRA_DRIVER_ID) ?: prefs.second
                 if (orgId.isNullOrBlank() || driverId.isNullOrBlank()) {
+                    Log.w(TAG, "missing org/driver ids; stopping")
                     stopSelf()
                     return START_NOT_STICKY
                 }
+                persistDutyPrefs(orgId!!, driverId!!)
                 startForegroundNotification()
                 startUpdates()
                 Firebase.firestore.document("orgs/$orgId/drivers/$driverId")
                     .update("onDuty", true)
+                    .addOnFailureListener { e ->
+                        Log.w(TAG, "failed to set onDuty=true", e)
+                    }
             }
         }
         return START_STICKY
@@ -161,7 +177,8 @@ class DutyLocationService : Service() {
             .build()
         try {
             fused.requestLocationUpdates(request, callback, Looper.getMainLooper())
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
+            Log.e(TAG, "location permission missing", e)
             stopSelf()
         }
     }
@@ -173,12 +190,40 @@ class DutyLocationService : Service() {
         if (!o.isNullOrBlank() && !d.isNullOrBlank()) {
             Firebase.firestore.document("orgs/$o/drivers/$d")
                 .update("onDuty", false)
+                .addOnFailureListener { e ->
+                    Log.w(TAG, "failed to set onDuty=false", e)
+                }
         }
     }
 
     override fun onDestroy() {
-        stopDuty()
+        fused.removeLocationUpdates(callback)
+        // Do not clear Firestore onDuty on sticky/system teardown — only ACTION_STOP.
+        if (clearingDuty) {
+            // stopDuty already ran for explicit off-duty
+        }
         super.onDestroy()
+    }
+
+    private fun prefs() =
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun persistDutyPrefs(org: String, driver: String) {
+        prefs().edit()
+            .putString(KEY_ORG, org)
+            .putString(KEY_DRIVER, driver)
+            .putBoolean(KEY_ACTIVE, true)
+            .apply()
+    }
+
+    private fun clearDutyPrefs() {
+        prefs().edit().clear().apply()
+    }
+
+    private fun readPrefs(): Pair<String?, String?> {
+        val p = prefs()
+        if (!p.getBoolean(KEY_ACTIVE, false)) return null to null
+        return p.getString(KEY_ORG, null) to p.getString(KEY_DRIVER, null)
     }
 
     private fun ensureChannel() {
@@ -192,6 +237,7 @@ class DutyLocationService : Service() {
     }
 
     companion object {
+        private const val TAG = "DutyLocation"
         const val ACTION_STOP = "com.waukeetalkee.driver.STOP_DUTY"
         const val EXTRA_ORG_ID = "orgId"
         const val EXTRA_DRIVER_ID = "driverId"
@@ -199,6 +245,10 @@ class DutyLocationService : Service() {
         private const val NOTIFICATION_ID = 42
         private const val TRACK_INTERVAL_MS = 10_000L
         private const val TRACK_MOVE_METERS = 25.0
+        private const val PREFS = "duty_location"
+        private const val KEY_ORG = "orgId"
+        private const val KEY_DRIVER = "driverId"
+        private const val KEY_ACTIVE = "active"
 
         fun start(context: Context, orgId: String, driverId: String) {
             val intent = Intent(context, DutyLocationService::class.java).apply {
