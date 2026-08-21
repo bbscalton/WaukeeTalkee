@@ -46,6 +46,15 @@ cd website && npx --yes serve .
 cd dispatcher && npm run dev
 ```
 
+## Google Maps (dispatcher)
+
+Live map (`#/map`) and Map DVR (`#/replay`) use the Google Maps JavaScript API (hybrid/satellite default + Street View).
+
+1. Enable **Maps JavaScript API** in Google Cloud Console for the key used by `VITE_GOOGLE_MAPS_API_KEY`.
+2. Restrict the key: HTTP referrers `https://bbscalton.github.io/*` (plus `http://localhost:*` for local).
+3. API restrictions: Maps JavaScript API (Street View panoramas use the same API).
+4. Local: set `VITE_GOOGLE_MAPS_API_KEY` in `dispatcher/.env` (gitignored). Pages deploy injects the same name from GitHub Actions secrets.
+
 
 ## Later slices
 

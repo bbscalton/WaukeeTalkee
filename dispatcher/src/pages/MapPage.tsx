@@ -1,39 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
 import { PushToTalk } from "../components/PushToTalk";
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  driverMarkerFill,
+  hasGoogleMapsApiKey,
+  loadMapsLibrary,
+  loadStreetViewLibrary,
+  MAP_UI_OPTIONS,
+  markerIcon,
+} from "../googleMaps";
 import { formatAge, formatSpeed, RADIO_RETENTION_DAYS, type Driver } from "../types";
 import { useRadioArchive } from "../useRadioArchive";
 
 type MapMode = "streets" | "satellite";
-
-const STREET_STYLE =
-  "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
-
-const SATELLITE_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    esri: {
-      type: "raster",
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      ],
-      tileSize: 256,
-      attribution: "Tiles © Esri",
-      maxzoom: 19,
-    },
-  },
-  layers: [
-    {
-      id: "esri-satellite",
-      type: "raster",
-      source: "esri",
-    },
-  ],
-};
 
 function hasFix(d: Driver): boolean {
   return (
@@ -45,66 +28,82 @@ function hasFix(d: Driver): boolean {
   );
 }
 
-function streetViewUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+function mapTypeForMode(mode: MapMode): string {
+  return mode === "satellite" ? "hybrid" : "roadmap";
 }
 
 export function MapPage() {
   const [search, setSearch] = useSearchParams();
   const mapNode = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const panoNode = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
+  const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(
     search.get("driver")
   );
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [mapMode, setMapMode] = useState<MapMode>("streets");
+  const [mapMode, setMapMode] = useState<MapMode>("satellite");
+  const [streetViewOpen, setStreetViewOpen] = useState(false);
+  const [streetViewStatus, setStreetViewStatus] = useState<string | null>(null);
   const { unreadByDriver } = useRadioArchive();
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
-    const map = new maplibregl.Map({
-      container: mapNode.current,
-      style: STREET_STYLE,
-      center: [-93.62, 41.58],
-      zoom: 11,
-    });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    map.on("load", () => {
-      map.resize();
-      setMapReady(true);
-    });
-    mapRef.current = map;
+    if (!hasGoogleMapsApiKey()) {
+      setError(
+        "Google Maps API key missing. Set VITE_GOOGLE_MAPS_API_KEY in dispatcher/.env."
+      );
+      return;
+    }
 
-    const onWinResize = () => map.resize();
+    let cancelled = false;
+    const container = mapNode.current;
+
+    (async () => {
+      try {
+        const { Map } = await loadMapsLibrary();
+        if (cancelled || !container) return;
+        const map = new Map(container, {
+          ...MAP_UI_OPTIONS,
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
+          mapTypeId: mapTypeForMode("satellite"),
+        });
+        mapRef.current = map;
+        google.maps.event.addListenerOnce(map, "idle", () => {
+          if (!cancelled) setMapReady(true);
+        });
+        google.maps.event.trigger(map, "resize");
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load Google Maps");
+        }
+      }
+    })();
+
+    const onWinResize = () => {
+      const map = mapRef.current;
+      if (map) google.maps.event.trigger(map, "resize");
+    };
     window.addEventListener("resize", onWinResize);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("resize", onWinResize);
-      markersRef.current.forEach((m) => m.remove());
+      markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current.clear();
-      map.remove();
+      panoramaRef.current = null;
       mapRef.current = null;
     };
   }, []);
 
-  const mapModeInit = useRef(true);
   useEffect(() => {
-    if (mapModeInit.current) {
-      mapModeInit.current = false;
-      return;
-    }
     const map = mapRef.current;
     if (!map) return;
-    setMapReady(false);
-    const style = mapMode === "satellite" ? SATELLITE_STYLE : STREET_STYLE;
-    map.setStyle(style);
-    map.once("style.load", () => {
-      map.resize();
-      setMapReady(true);
-    });
+    map.setMapTypeId(mapTypeForMode(mapMode));
   }, [mapMode]);
 
   useEffect(() => {
@@ -163,30 +162,31 @@ export function MapPage() {
 
     for (const d of located) {
       seen.add(d.id);
-      const lng = d.lastLng!;
-      const lat = d.lastLat!;
+      const position = { lat: d.lastLat!, lng: d.lastLng! };
+      const selected = selectedId === d.id;
+      const fill = driverMarkerFill(d.onDuty, selected);
       let marker = markersRef.current.get(d.id);
       if (!marker) {
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = "map-marker";
-        el.title = d.displayName;
-        el.addEventListener("click", () => selectDriverRef.current(d.id));
-        marker = new maplibregl.Marker({ element: el })
-          .setLngLat([lng, lat])
-          .addTo(map);
+        marker = new google.maps.Marker({
+          map,
+          position,
+          title: d.displayName,
+          icon: markerIcon(fill, selected),
+          zIndex: selected ? 10 : 1,
+        });
+        marker.addListener("click", () => selectDriverRef.current(d.id));
         markersRef.current.set(d.id, marker);
       } else {
-        marker.setLngLat([lng, lat]);
+        marker.setPosition(position);
+        marker.setIcon(markerIcon(fill, selected));
+        marker.setZIndex(selected ? 10 : 1);
+        marker.setTitle(d.displayName);
       }
-      const el = marker.getElement();
-      el.classList.toggle("selected", selectedId === d.id);
-      el.classList.toggle("off-duty", !d.onDuty);
     }
 
     for (const [id, marker] of markersRef.current) {
       if (!seen.has(id)) {
-        marker.remove();
+        marker.setMap(null);
         markersRef.current.delete(id);
       }
     }
@@ -195,15 +195,87 @@ export function MapPage() {
     const flyKey = focus ? `${focus.id}:${selectedId ?? ""}` : null;
     if (focus && flyKey !== lastFlyRef.current) {
       lastFlyRef.current = flyKey;
-      map.easeTo({
-        center: [focus.lastLng!, focus.lastLat!],
-        zoom: Math.max(map.getZoom(), 14),
-        duration: 600,
-      });
+      map.panTo({ lat: focus.lastLat!, lng: focus.lastLng! });
+      if ((map.getZoom() ?? DEFAULT_ZOOM) < 14) {
+        map.setZoom(14);
+      }
     }
 
-    map.resize();
+    google.maps.event.trigger(map, "resize");
   }, [drivers, selectedId, mapReady]);
+
+  useEffect(() => {
+    if (!streetViewOpen || !panoNode.current) return;
+    const selected = drivers.find((d) => d.id === selectedId);
+    if (!selected || !hasFix(selected)) {
+      setStreetViewStatus("Select a driver with GPS to open Street View.");
+      return;
+    }
+
+    let cancelled = false;
+    const position = { lat: selected.lastLat!, lng: selected.lastLng! };
+
+    (async () => {
+      try {
+        const { StreetViewPanorama, StreetViewService } =
+          await loadStreetViewLibrary();
+        if (cancelled || !panoNode.current) return;
+
+        const service = new StreetViewService();
+        const result = await service.getPanorama({
+          location: position,
+          radius: 80,
+          source: google.maps.StreetViewSource.OUTDOOR,
+        });
+
+        if (cancelled || !panoNode.current) return;
+        const location = result.data.location?.latLng;
+        if (!location) {
+          setStreetViewStatus("No Street View imagery near this driver.");
+          return;
+        }
+
+        setStreetViewStatus(null);
+        if (!panoramaRef.current) {
+          panoramaRef.current = new StreetViewPanorama(panoNode.current, {
+            position: location,
+            pov: { heading: selected.lastHeading ?? 0, pitch: 0 },
+            zoom: 1,
+            addressControl: true,
+            linksControl: true,
+            panControl: true,
+            enableCloseButton: false,
+          });
+          mapRef.current?.setStreetView(panoramaRef.current);
+        } else {
+          panoramaRef.current.setPosition(location);
+          panoramaRef.current.setPov({
+            heading: selected.lastHeading ?? 0,
+            pitch: 0,
+          });
+          panoramaRef.current.setVisible(true);
+        }
+        requestAnimationFrame(() => {
+          google.maps.event.trigger(panoramaRef.current!, "resize");
+        });
+      } catch {
+        if (!cancelled) {
+          setStreetViewStatus("No Street View imagery near this driver.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [streetViewOpen, selectedId, drivers]);
+
+  useEffect(() => {
+    if (streetViewOpen) return;
+    panoramaRef.current?.setVisible(false);
+    mapRef.current?.setStreetView(null);
+    setStreetViewStatus(null);
+  }, [streetViewOpen]);
 
   const paired = drivers.filter((d) => d.pairStatus === "paired");
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
@@ -253,14 +325,13 @@ export function MapPage() {
               )}
             </div>
             {selectedHasFix && (
-              <a
+              <button
+                type="button"
                 className="street-link"
-                href={streetViewUrl(selected.lastLat!, selected.lastLng!)}
-                target="_blank"
-                rel="noreferrer"
+                onClick={() => setStreetViewOpen(true)}
               >
                 Open Street View here
-              </a>
+              </button>
             )}
             <PushToTalk driverId={selected.id} driverName={selected.displayName} />
           </div>
@@ -308,7 +379,7 @@ export function MapPage() {
           )}
         </ul>
       </aside>
-      <div className="map-stage">
+      <div className={`map-stage${streetViewOpen ? " street-split" : ""}`}>
         <div className="map-modes" role="group" aria-label="Map style">
           <button
             type="button"
@@ -326,7 +397,21 @@ export function MapPage() {
           </button>
         </div>
         <div className="map-canvas" ref={mapNode} />
-        {!mapReady && <div className="map-loading">Loading map…</div>}
+        {streetViewOpen && (
+          <div className="street-view-pane">
+            <div className="street-view-toolbar">
+              <span>Street View</span>
+              <button type="button" className="ghost" onClick={() => setStreetViewOpen(false)}>
+                Close
+              </button>
+            </div>
+            {streetViewStatus && (
+              <p className="street-view-status">{streetViewStatus}</p>
+            )}
+            <div className="street-view-canvas" ref={panoNode} />
+          </div>
+        )}
+        {!mapReady && !error && <div className="map-loading">Loading map…</div>}
       </div>
     </div>
   );

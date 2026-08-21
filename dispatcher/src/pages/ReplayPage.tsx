@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import {
   collection,
   onSnapshot,
@@ -11,7 +9,14 @@ import {
   where,
 } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
-import type { FeatureCollection } from "geojson";
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  hasGoogleMapsApiKey,
+  loadMapsLibrary,
+  MAP_UI_OPTIONS,
+  markerIcon,
+} from "../googleMaps";
 import {
   dayBounds,
   formatDayLabel,
@@ -19,11 +24,7 @@ import {
 } from "../radio";
 import { RADIO_RETENTION_DAYS, type Driver, type TrackPoint } from "../types";
 
-const STREET_STYLE =
-  "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
-
-const SOURCE_ID = "dvr-track";
-const LINE_ID = "dvr-line";
+type MapMode = "streets" | "satellite";
 
 function pointMs(p: TrackPoint): number {
   const ts = p.t;
@@ -35,6 +36,10 @@ function pointMs(p: TrackPoint): number {
   return 0;
 }
 
+function mapTypeForMode(mode: MapMode): string {
+  return mode === "satellite" ? "hybrid" : "roadmap";
+}
+
 export function ReplayPage() {
   const [search, setSearch] = useSearchParams();
   const dayKeys = useMemo(() => lastSevenDayKeys(), []);
@@ -42,15 +47,18 @@ export function ReplayPage() {
   const driverParam = search.get("driver");
 
   const mapNode = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const markerRef = useRef<maplibregl.Marker | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markerRef = useRef<google.maps.Marker | null>(null);
+  const pathRef = useRef<google.maps.Polyline | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapMode, setMapMode] = useState<MapMode>("satellite");
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [points, setPoints] = useState<TrackPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
   const playRef = useRef<number | null>(null);
+  const lastFitKey = useRef<string | null>(null);
 
   const selectedId =
     driverParam && drivers.some((d) => d.id === driverParam)
@@ -83,25 +91,61 @@ export function ReplayPage() {
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
-    const map = new maplibregl.Map({
-      container: mapNode.current,
-      style: STREET_STYLE,
-      center: [-93.62, 41.58],
-      zoom: 11,
-    });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    map.on("load", () => {
-      map.resize();
-      setMapReady(true);
-    });
-    mapRef.current = map;
+    if (!hasGoogleMapsApiKey()) {
+      setError(
+        "Google Maps API key missing. Set VITE_GOOGLE_MAPS_API_KEY in dispatcher/.env."
+      );
+      return;
+    }
+
+    let cancelled = false;
+    const container = mapNode.current;
+
+    (async () => {
+      try {
+        const { Map } = await loadMapsLibrary();
+        if (cancelled || !container) return;
+        const map = new Map(container, {
+          ...MAP_UI_OPTIONS,
+          streetViewControl: false,
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
+          mapTypeId: mapTypeForMode("satellite"),
+        });
+        mapRef.current = map;
+        pathRef.current = new google.maps.Polyline({
+          map,
+          path: [],
+          strokeColor: "#f0b429",
+          strokeOpacity: 0.85,
+          strokeWeight: 4,
+        });
+        google.maps.event.addListenerOnce(map, "idle", () => {
+          if (!cancelled) setMapReady(true);
+        });
+        google.maps.event.trigger(map, "resize");
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load Google Maps");
+        }
+      }
+    })();
+
     return () => {
-      markerRef.current?.remove();
+      cancelled = true;
+      markerRef.current?.setMap(null);
       markerRef.current = null;
-      map.remove();
+      pathRef.current?.setMap(null);
+      pathRef.current = null;
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setMapTypeId(mapTypeForMode(mapMode));
+  }, [mapMode]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -134,6 +178,7 @@ export function ReplayPage() {
         setCursor(0);
         setPlaying(false);
         setError(null);
+        lastFitKey.current = null;
       },
       (err) => setError(err.message)
     );
@@ -141,67 +186,44 @@ export function ReplayPage() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady) return;
+    const path = pathRef.current;
+    if (!map || !path || !mapReady) return;
 
     const coords = points
       .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
-      .map((p) => [p.lng, p.lat] as [number, number]);
+      .map((p) => ({ lat: p.lat, lng: p.lng }));
 
-    const geojson: FeatureCollection = {
-      type: "FeatureCollection",
-      features:
-        coords.length >= 2
-          ? [
-              {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "LineString", coordinates: coords },
-              },
-            ]
-          : [],
-    };
+    path.setPath(coords);
 
-    if (map.getSource(SOURCE_ID)) {
-      (map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource).setData(geojson);
-    } else {
-      map.addSource(SOURCE_ID, { type: "geojson", data: geojson });
-      map.addLayer({
-        id: LINE_ID,
-        type: "line",
-        source: SOURCE_ID,
-        paint: {
-          "line-color": "#f0b429",
-          "line-width": 4,
-          "line-opacity": 0.85,
-        },
-      });
-    }
-
-    if (coords.length) {
-      const bounds = coords.reduce(
-        (b, c) => b.extend(c),
-        new maplibregl.LngLatBounds(coords[0], coords[0])
-      );
-      map.fitBounds(bounds, { padding: 56, maxZoom: 15, duration: 500 });
+    const fitKey = `${selectedId ?? ""}:${day}:${coords.length}`;
+    if (coords.length && fitKey !== lastFitKey.current) {
+      lastFitKey.current = fitKey;
+      const bounds = new google.maps.LatLngBounds();
+      for (const c of coords) bounds.extend(c);
+      map.fitBounds(bounds, 56);
+      const z = map.getZoom();
+      if (z != null && z > 15) map.setZoom(15);
     }
 
     const idx = Math.min(cursor, Math.max(0, points.length - 1));
     const here = points[idx];
     if (here && Number.isFinite(here.lat) && Number.isFinite(here.lng)) {
+      const position = { lat: here.lat, lng: here.lng };
       if (!markerRef.current) {
-        const el = document.createElement("div");
-        el.className = "map-marker dvr-marker";
-        markerRef.current = new maplibregl.Marker({ element: el })
-          .setLngLat([here.lng, here.lat])
-          .addTo(map);
+        markerRef.current = new google.maps.Marker({
+          map,
+          position,
+          icon: markerIcon("#f0b429", true),
+          zIndex: 5,
+        });
       } else {
-        markerRef.current.setLngLat([here.lng, here.lat]);
+        markerRef.current.setPosition(position);
       }
     } else {
-      markerRef.current?.remove();
+      markerRef.current?.setMap(null);
       markerRef.current = null;
     }
-  }, [points, cursor, mapReady]);
+  }, [points, cursor, mapReady, selectedId, day]);
 
   useEffect(() => {
     if (!playing || points.length < 2) {
@@ -334,8 +356,24 @@ export function ReplayPage() {
         </div>
       </aside>
       <div className="map-stage">
+        <div className="map-modes" role="group" aria-label="Map style">
+          <button
+            type="button"
+            className={mapMode === "streets" ? "active" : ""}
+            onClick={() => setMapMode("streets")}
+          >
+            Streets
+          </button>
+          <button
+            type="button"
+            className={mapMode === "satellite" ? "active" : ""}
+            onClick={() => setMapMode("satellite")}
+          >
+            Satellite
+          </button>
+        </div>
         <div className="map-canvas" ref={mapNode} />
-        {!mapReady && <div className="map-loading">Loading map…</div>}
+        {!mapReady && !error && <div className="map-loading">Loading map…</div>}
       </div>
     </div>
   );

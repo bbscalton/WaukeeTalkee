@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_ORG_ID?: string;
   readonly VITE_USE_EMULATORS?: string;
   readonly VITE_BASE_PATH?: string;
+  readonly VITE_GOOGLE_MAPS_API_KEY?: string;
 }
 
 interface ImportMeta {
