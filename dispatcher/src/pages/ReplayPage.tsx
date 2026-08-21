@@ -14,8 +14,10 @@ import {
   DEFAULT_ZOOM,
   hasGoogleMapsApiKey,
   loadMapsLibrary,
+  MAP_LOAD_TIMEOUT_MESSAGE,
   MAP_UI_OPTIONS,
   markerIcon,
+  onGoogleMapsAuthFailure,
 } from "../googleMaps";
 import {
   dayBounds,
@@ -99,7 +101,16 @@ export function ReplayPage() {
     }
 
     let cancelled = false;
+    let mapCreated = false;
     const container = mapNode.current;
+    const unsubAuth = onGoogleMapsAuthFailure((message) => {
+      if (!cancelled) setError(message);
+    });
+    const loadTimer = window.setTimeout(() => {
+      if (!cancelled && !mapCreated) {
+        setError(MAP_LOAD_TIMEOUT_MESSAGE);
+      }
+    }, 15000);
 
     (async () => {
       try {
@@ -113,6 +124,8 @@ export function ReplayPage() {
           mapTypeId: mapTypeForMode("satellite"),
         });
         mapRef.current = map;
+        mapCreated = true;
+        window.clearTimeout(loadTimer);
         pathRef.current = new google.maps.Polyline({
           map,
           path: [],
@@ -125,6 +138,7 @@ export function ReplayPage() {
         });
         google.maps.event.trigger(map, "resize");
       } catch (err) {
+        window.clearTimeout(loadTimer);
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load Google Maps");
         }
@@ -133,6 +147,8 @@ export function ReplayPage() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(loadTimer);
+      unsubAuth();
       markerRef.current?.setMap(null);
       markerRef.current = null;
       pathRef.current?.setMap(null);
@@ -177,7 +193,11 @@ export function ReplayPage() {
         );
         setCursor(0);
         setPlaying(false);
-        setError(null);
+        setError((prev) =>
+          prev && /Google Maps|VITE_GOOGLE_MAPS|authorization failed/i.test(prev)
+            ? prev
+            : null
+        );
         lastFitKey.current = null;
       },
       (err) => setError(err.message)
@@ -373,6 +393,12 @@ export function ReplayPage() {
           </button>
         </div>
         <div className="map-canvas" ref={mapNode} />
+        {error && (
+          <div className="map-error-overlay" role="alert">
+            <p className="map-error-title">Map unavailable</p>
+            <p>{error}</p>
+          </div>
+        )}
         {!mapReady && !error && <div className="map-loading">Loading map…</div>}
       </div>
     </div>

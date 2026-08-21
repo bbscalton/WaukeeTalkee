@@ -457,6 +457,34 @@ th {
   z-index: 2;
 }
 
+.map-error-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(10, 13, 17, 0.92);
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.map-error-overlay p {
+  margin: 0;
+  max-width: 28rem;
+  line-height: 1.45;
+}
+
+.map-error-title {
+  color: var(--danger);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
 .map-marker {
   width: 18px;
   height: 18px;

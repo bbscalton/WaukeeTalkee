@@ -10,8 +10,10 @@ import {
   hasGoogleMapsApiKey,
   loadMapsLibrary,
   loadStreetViewLibrary,
+  MAP_LOAD_TIMEOUT_MESSAGE,
   MAP_UI_OPTIONS,
   markerIcon,
+  onGoogleMapsAuthFailure,
 } from "../googleMaps";
 import { formatAge, formatSpeed, RADIO_RETENTION_DAYS, type Driver } from "../types";
 import { useRadioArchive } from "../useRadioArchive";
@@ -60,7 +62,16 @@ export function MapPage() {
     }
 
     let cancelled = false;
+    let mapCreated = false;
     const container = mapNode.current;
+    const unsubAuth = onGoogleMapsAuthFailure((message) => {
+      if (!cancelled) setError(message);
+    });
+    const loadTimer = window.setTimeout(() => {
+      if (!cancelled && !mapCreated) {
+        setError(MAP_LOAD_TIMEOUT_MESSAGE);
+      }
+    }, 15000);
 
     (async () => {
       try {
@@ -73,11 +84,14 @@ export function MapPage() {
           mapTypeId: mapTypeForMode("satellite"),
         });
         mapRef.current = map;
+        mapCreated = true;
+        window.clearTimeout(loadTimer);
         google.maps.event.addListenerOnce(map, "idle", () => {
           if (!cancelled) setMapReady(true);
         });
         google.maps.event.trigger(map, "resize");
       } catch (err) {
+        window.clearTimeout(loadTimer);
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load Google Maps");
         }
@@ -92,6 +106,8 @@ export function MapPage() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(loadTimer);
+      unsubAuth();
       window.removeEventListener("resize", onWinResize);
       markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current.clear();
@@ -409,6 +425,12 @@ export function MapPage() {
               <p className="street-view-status">{streetViewStatus}</p>
             )}
             <div className="street-view-canvas" ref={panoNode} />
+          </div>
+        )}
+        {error && (
+          <div className="map-error-overlay" role="alert">
+            <p className="map-error-title">Map unavailable</p>
+            <p>{error}</p>
           </div>
         )}
         {!mapReady && !error && <div className="map-loading">Loading map…</div>}

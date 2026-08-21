@@ -50,10 +50,14 @@ cd dispatcher && npm run dev
 
 Live map (`#/map`) and Map DVR (`#/replay`) use the Google Maps JavaScript API (hybrid/satellite default + Street View).
 
-1. Enable **Maps JavaScript API** in Google Cloud Console for the key used by `VITE_GOOGLE_MAPS_API_KEY`.
-2. Restrict the key: HTTP referrers `https://bbscalton.github.io/*` (plus `http://localhost:*` for local).
-3. API restrictions: Maps JavaScript API (Street View panoramas use the same API).
-4. Local: set `VITE_GOOGLE_MAPS_API_KEY` in `dispatcher/.env` (gitignored). Pages deploy injects the same name from GitHub Actions secrets.
+**Required Google Cloud setup** (project `waukee-talkee`):
+
+1. Enable **Maps JavaScript API** (`maps-backend.googleapis.com`). Billing must be on (already linked for Firebase).
+2. On the **Browser key** (Firebase auto-created), allow API target `maps-backend.googleapis.com` in addition to Firebase APIs.
+3. HTTP referrers on that key: `https://bbscalton.github.io/*`, `http://localhost:*`, `http://127.0.0.1:*`.
+4. Local: set `VITE_GOOGLE_MAPS_API_KEY` in `dispatcher/.env` to the Browser key. Pages deploy injects the same name from GitHub Actions secrets (`VITE_GOOGLE_MAPS_API_KEY`).
+
+If the map shows a red “Map unavailable” overlay, check the browser console for `RefererNotAllowedMapError` / `ApiNotActivatedMapError` / billing errors.
 
 
 ## Later slices
