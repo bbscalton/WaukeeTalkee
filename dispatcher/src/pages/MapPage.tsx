@@ -84,9 +84,14 @@ export function MapPage() {
     };
   }, []);
 
+  const mapModeInit = useRef(true);
   useEffect(() => {
+    if (mapModeInit.current) {
+      mapModeInit.current = false;
+      return;
+    }
     const map = mapRef.current;
-    if (!map || !mapReady) return;
+    if (!map) return;
     setMapReady(false);
     const style = mapMode === "satellite" ? SATELLITE_STYLE : STREET_STYLE;
     map.setStyle(style);
@@ -127,6 +132,8 @@ export function MapPage() {
       (err) => setError(err.message)
     );
   }, []);
+
+  const lastFlyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -169,7 +176,9 @@ export function MapPage() {
     }
 
     const focus = located.find((d) => d.id === selectedId) ?? located[0];
-    if (focus) {
+    const flyKey = focus ? `${focus.id}:${selectedId ?? ""}` : null;
+    if (focus && flyKey !== lastFlyRef.current) {
+      lastFlyRef.current = flyKey;
       map.easeTo({
         center: [focus.lastLng!, focus.lastLat!],
         zoom: Math.max(map.getZoom(), 14),
