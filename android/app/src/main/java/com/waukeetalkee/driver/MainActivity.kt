@@ -368,6 +368,9 @@ class MainActivity : AppCompatActivity() {
         }
         if (!hasCorePermissions()) return
         RadioForegroundService.start(this, session.orgId, session.driverId)
+        if (state.onDuty && hasLocationPermission()) {
+            vm.resumeDutyTrackingIfNeeded()
+        }
     }
 
     override fun onDestroy() {

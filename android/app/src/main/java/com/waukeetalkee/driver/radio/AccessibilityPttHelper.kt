@@ -9,13 +9,17 @@ import android.view.accessibility.AccessibilityManager
 
 object AccessibilityPttHelper {
     fun isServiceEnabled(context: Context): Boolean {
-        val am = context.getSystemService(AccessibilityManager::class.java) ?: return false
-        val expected = ComponentName(context, RadioPttAccessibilityService::class.java)
-        return am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-            .any { info ->
-                val si = info.resolveInfo?.serviceInfo ?: return@any false
-                ComponentName(si.packageName, si.name) == expected
-            }
+        return try {
+            val am = context.getSystemService(AccessibilityManager::class.java) ?: return false
+            val expected = ComponentName(context, RadioPttAccessibilityService::class.java)
+            am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                .any { info ->
+                    val si = info.resolveInfo?.serviceInfo ?: return@any false
+                    ComponentName(si.packageName, si.name) == expected
+                }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun openAccessibilitySettings(context: Context) {

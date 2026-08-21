@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.waukeetalkee.driver.MainActivity
 import com.waukeetalkee.driver.R
 import com.waukeetalkee.driver.data.DriverPrefs
@@ -40,6 +41,7 @@ class RadioForegroundService : Service() {
     private var driverId: String? = null
     private var transmitting = false
     private var receiving = false
+    private var startedInForeground = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -48,9 +50,13 @@ class RadioForegroundService : Service() {
         overlay = RadioOverlayHelper(applicationContext)
         ensureChannels()
         prefsJob = scope.launch {
-            DriverPrefs(applicationContext).volumePttEnabled.collect { enabled ->
-                volumePttEnabled = enabled
-                updatePttStandbyWakeLock()
+            try {
+                DriverPrefs(applicationContext).volumePttEnabled.collect { enabled ->
+                    volumePttEnabled = enabled
+                    updatePttStandbyWakeLock()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "prefs collect failed", e)
             }
         }
     }
@@ -58,12 +64,24 @@ class RadioForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                ensureForegroundOrBail()
                 tearDown()
-                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopForegroundSafe()
+                clearRadioPrefs()
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_BEGIN_TX -> {
+                // Sticky / cold start may deliver TX before START with extras.
+                restoreIdsFromPrefsIfNeeded()
+                if (orgId.isNullOrBlank() || driverId.isNullOrBlank()) {
+                    return START_NOT_STICKY
+                }
+                if (!ensureForegroundOrBail()) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                ensureRadioStarted()
                 radio?.beginTransmit()
                 return START_STICKY
             }
@@ -81,16 +99,55 @@ class RadioForegroundService : Service() {
                 if (!o.isNullOrBlank() && !d.isNullOrBlank()) {
                     orgId = o
                     driverId = d
+                    persistRadioPrefs(o, d)
+                } else {
+                    restoreIdsFromPrefsIfNeeded()
                 }
                 if (orgId.isNullOrBlank() || driverId.isNullOrBlank()) {
+                    // Must call startForeground after startForegroundService or the process dies.
+                    ensureForegroundOrBail()
+                    stopForegroundSafe()
                     stopSelf()
                     return START_NOT_STICKY
                 }
-                startAsForeground()
+                if (!ensureForegroundOrBail()) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
                 ensureRadioStarted()
             }
         }
         return START_STICKY
+    }
+
+    private fun restoreIdsFromPrefsIfNeeded() {
+        if (!orgId.isNullOrBlank() && !driverId.isNullOrBlank()) return
+        val prefs = readRadioPrefs()
+        if (orgId.isNullOrBlank()) orgId = prefs.first
+        if (driverId.isNullOrBlank()) driverId = prefs.second
+    }
+
+    private fun ensureForegroundOrBail(): Boolean {
+        if (startedInForeground) return true
+        return try {
+            startAsForeground()
+            startedInForeground = true
+            true
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "startForeground failed", e)
+            false
+        }
+    }
+
+    private fun stopForegroundSafe() {
+        try {
+            if (startedInForeground) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                startedInForeground = false
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "stopForeground failed", e)
+        }
     }
 
     private fun ensureRadioStarted() {
@@ -143,23 +200,38 @@ class RadioForegroundService : Service() {
 
     private fun startAsForeground() {
         val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= 34) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                )
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
-            )
-        } else if (Build.VERSION.SDK_INT >= 29) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: SecurityException) {
+            // Mic type can fail without RECORD_AUDIO — fall back to playback-only.
+            android.util.Log.w(TAG, "mic FGS type blocked; falling back to mediaPlayback", e)
+            if (Build.VERSION.SDK_INT >= 29) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
         }
     }
 
@@ -183,7 +255,7 @@ class RadioForegroundService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_LIVE)
             .setContentTitle(getString(R.string.radio_notification_title))
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -209,7 +281,7 @@ class RadioForegroundService : Service() {
         val n = NotificationCompat.Builder(this, CHANNEL_INCOMING)
             .setContentTitle(getString(R.string.radio_notification_rx))
             .setContentText(getString(R.string.radio_notification_title))
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentIntent(open)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -310,7 +382,29 @@ class RadioForegroundService : Service() {
         )
     }
 
+    private fun radioPrefs() =
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun persistRadioPrefs(org: String, driver: String) {
+        radioPrefs().edit()
+            .putString(KEY_ORG, org)
+            .putString(KEY_DRIVER, driver)
+            .putBoolean(KEY_ACTIVE, true)
+            .apply()
+    }
+
+    private fun clearRadioPrefs() {
+        radioPrefs().edit().clear().apply()
+    }
+
+    private fun readRadioPrefs(): Pair<String?, String?> {
+        val p = radioPrefs()
+        if (!p.getBoolean(KEY_ACTIVE, false)) return null to null
+        return p.getString(KEY_ORG, null) to p.getString(KEY_DRIVER, null)
+    }
+
     companion object {
+        private const val TAG = "RadioFgService"
         const val ACTION_STOP = "com.waukeetalkee.driver.STOP_RADIO"
         const val ACTION_BEGIN_TX = "com.waukeetalkee.driver.BEGIN_TX"
         const val ACTION_END_TX = "com.waukeetalkee.driver.END_TX"
@@ -322,38 +416,62 @@ class RadioForegroundService : Service() {
         private const val CHANNEL_INCOMING = "radio_incoming"
         private const val NOTIFICATION_ID = 77
         private const val INCOMING_NOTIFICATION_ID = 78
+        private const val PREFS = "radio_foreground"
+        private const val KEY_ORG = "orgId"
+        private const val KEY_DRIVER = "driverId"
+        private const val KEY_ACTIVE = "active"
 
         fun start(context: Context, orgId: String, driverId: String) {
             val intent = Intent(context, RadioForegroundService::class.java).apply {
                 putExtra(EXTRA_ORG_ID, orgId)
                 putExtra(EXTRA_DRIVER_ID, driverId)
             }
-            context.startForegroundService(intent)
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "startForegroundService failed", e)
+            }
         }
 
         fun stop(context: Context) {
             val intent = Intent(context, RadioForegroundService::class.java).apply {
                 action = ACTION_STOP
             }
-            context.startService(intent)
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "stop startService failed", e)
+            }
         }
 
         fun beginTransmit(context: Context) {
-            context.startService(
-                Intent(context, RadioForegroundService::class.java).setAction(ACTION_BEGIN_TX),
-            )
+            try {
+                context.startService(
+                    Intent(context, RadioForegroundService::class.java).setAction(ACTION_BEGIN_TX),
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "beginTransmit failed", e)
+            }
         }
 
         fun endTransmit(context: Context) {
-            context.startService(
-                Intent(context, RadioForegroundService::class.java).setAction(ACTION_END_TX),
-            )
+            try {
+                context.startService(
+                    Intent(context, RadioForegroundService::class.java).setAction(ACTION_END_TX),
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "endTransmit failed", e)
+            }
         }
 
         fun cancelTransmit(context: Context) {
-            context.startService(
-                Intent(context, RadioForegroundService::class.java).setAction(ACTION_CANCEL_TX),
-            )
+            try {
+                context.startService(
+                    Intent(context, RadioForegroundService::class.java).setAction(ACTION_CANCEL_TX),
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "cancelTransmit failed", e)
+            }
         }
     }
 }

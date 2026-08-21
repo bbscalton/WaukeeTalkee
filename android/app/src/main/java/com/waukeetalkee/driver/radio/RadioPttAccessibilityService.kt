@@ -98,7 +98,10 @@ class RadioPttAccessibilityService : AccessibilityService() {
 
     private fun ensureRadioRunning(session: DriverSession) {
         if (RadioBus.state.value.live) return
-        RadioForegroundService.start(this, session.orgId, session.driverId)
+        try {
+            RadioForegroundService.start(this, session.orgId, session.driverId)
+        } catch (_: Exception) {
+        }
     }
 
     private fun launchTransmitUi() {

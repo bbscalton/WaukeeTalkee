@@ -48,14 +48,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     false
                 }
                 _state.value = UiState(ready = true, session = session, onDuty = onDuty)
-                // Resume GPS + track breadcrumbs after process death / relaunch.
-                if (onDuty && session != null) {
-                    DutyLocationService.start(
-                        getApplication(),
-                        session.orgId,
-                        session.driverId,
-                    )
-                }
+                // Duty GPS is resumed from MainActivity once location permission is confirmed.
+                // Starting a location FGS here crashed open on Android 14+ when permission
+                // was missing or the process was not yet considered foreground.
             }
         }
     }
@@ -109,12 +104,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val session = _state.value.session ?: return
         val ctx = getApplication<Application>()
         if (enabled) {
-            DutyLocationService.start(ctx, session.orgId, session.driverId)
+            if (!DutyLocationService.start(ctx, session.orgId, session.driverId)) {
+                _state.value = _state.value.copy(
+                    error = "Location permission required to go on duty",
+                )
+                return
+            }
             _state.value = _state.value.copy(onDuty = true)
         } else {
             DutyLocationService.stop(ctx, session.orgId, session.driverId)
             _state.value = _state.value.copy(onDuty = false)
         }
+    }
+
+    /** Safe resume after Activity is up and location permission is granted. */
+    fun resumeDutyTrackingIfNeeded() {
+        val session = _state.value.session ?: return
+        if (!_state.value.onDuty) return
+        DutyLocationService.start(getApplication(), session.orgId, session.driverId)
     }
 
     fun clearError() {

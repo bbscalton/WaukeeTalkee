@@ -1,5 +1,6 @@
 package com.waukeetalkee.driver.duty
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -14,6 +16,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -35,6 +38,7 @@ class DutyLocationService : Service() {
     private var lastTrackLng = Double.NaN
     /** True only when the driver explicitly goes off duty (ACTION_STOP). */
     private var clearingDuty = false
+    private var startedInForeground = false
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -111,26 +115,41 @@ class DutyLocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                // Satisfy FGS contract if system delivered a sticky restart into STOP.
+                ensureForegroundOrBail()
                 clearingDuty = true
                 orgId = intent.getStringExtra(EXTRA_ORG_ID) ?: orgId ?: readPrefs().first
                 driverId = intent.getStringExtra(EXTRA_DRIVER_ID) ?: driverId ?: readPrefs().second
                 stopDuty()
                 clearDutyPrefs()
-                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopForegroundSafe()
                 stopSelf()
                 return START_NOT_STICKY
             }
             else -> {
                 val prefs = readPrefs()
-                orgId = intent?.getStringExtra(EXTRA_ORG_ID) ?: prefs.first
-                driverId = intent?.getStringExtra(EXTRA_DRIVER_ID) ?: prefs.second
+                orgId = intent?.getStringExtra(EXTRA_ORG_ID) ?: orgId ?: prefs.first
+                driverId = intent?.getStringExtra(EXTRA_DRIVER_ID) ?: driverId ?: prefs.second
                 if (orgId.isNullOrBlank() || driverId.isNullOrBlank()) {
                     Log.w(TAG, "missing org/driver ids; stopping")
+                    ensureForegroundOrBail()
+                    stopForegroundSafe()
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                if (!hasLocationPermission()) {
+                    Log.w(TAG, "location permission missing; not starting duty FGS")
+                    clearDutyPrefs()
+                    ensureForegroundOrBail()
+                    stopForegroundSafe()
                     stopSelf()
                     return START_NOT_STICKY
                 }
                 persistDutyPrefs(orgId!!, driverId!!)
-                startForegroundNotification()
+                if (!ensureForegroundOrBail()) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
                 startUpdates()
                 Firebase.firestore.document("orgs/$orgId/drivers/$driverId")
                     .update("onDuty", true)
@@ -140,6 +159,30 @@ class DutyLocationService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    /** Always promote to foreground before any early exit after startForegroundService. */
+    private fun ensureForegroundOrBail(): Boolean {
+        if (startedInForeground) return true
+        return try {
+            startForegroundNotification()
+            startedInForeground = true
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed", e)
+            false
+        }
+    }
+
+    private fun stopForegroundSafe() {
+        try {
+            if (startedInForeground) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                startedInForeground = false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "stopForeground failed", e)
+        }
     }
 
     private fun startForegroundNotification() {
@@ -153,7 +196,7 @@ class DutyLocationService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.duty_notification_title))
             .setContentText(getString(R.string.duty_notification_text))
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentIntent(open)
             .setOngoing(true)
             .build()
@@ -179,12 +222,21 @@ class DutyLocationService : Service() {
             fused.requestLocationUpdates(request, callback, Looper.getMainLooper())
         } catch (e: SecurityException) {
             Log.e(TAG, "location permission missing", e)
+            stopForegroundSafe()
+            stopSelf()
+        } catch (e: Exception) {
+            Log.e(TAG, "requestLocationUpdates failed", e)
+            stopForegroundSafe()
             stopSelf()
         }
     }
 
     private fun stopDuty() {
-        fused.removeLocationUpdates(callback)
+        try {
+            fused.removeLocationUpdates(callback)
+        } catch (e: Exception) {
+            Log.w(TAG, "removeLocationUpdates failed", e)
+        }
         val o = orgId
         val d = driverId
         if (!o.isNullOrBlank() && !d.isNullOrBlank()) {
@@ -197,7 +249,10 @@ class DutyLocationService : Service() {
     }
 
     override fun onDestroy() {
-        fused.removeLocationUpdates(callback)
+        try {
+            fused.removeLocationUpdates(callback)
+        } catch (_: Exception) {
+        }
         // Do not clear Firestore onDuty on sticky/system teardown — only ACTION_STOP.
         if (clearingDuty) {
             // stopDuty already ran for explicit off-duty
@@ -226,6 +281,13 @@ class DutyLocationService : Service() {
         return p.getString(KEY_ORG, null) to p.getString(KEY_DRIVER, null)
     }
 
+    private fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
     private fun ensureChannel() {
         val mgr = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
@@ -250,12 +312,27 @@ class DutyLocationService : Service() {
         private const val KEY_DRIVER = "driverId"
         private const val KEY_ACTIVE = "active"
 
-        fun start(context: Context, orgId: String, driverId: String) {
+        /** @return false if the service could not be started (missing permission / OS block). */
+        fun start(context: Context, orgId: String, driverId: String): Boolean {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.w(TAG, "start skipped: no location permission")
+                return false
+            }
             val intent = Intent(context, DutyLocationService::class.java).apply {
                 putExtra(EXTRA_ORG_ID, orgId)
                 putExtra(EXTRA_DRIVER_ID, driverId)
             }
-            context.startForegroundService(intent)
+            return try {
+                ContextCompat.startForegroundService(context, intent)
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "startForegroundService failed", e)
+                false
+            }
         }
 
         fun stop(context: Context, orgId: String? = null, driverId: String? = null) {
@@ -264,7 +341,11 @@ class DutyLocationService : Service() {
                 if (orgId != null) putExtra(EXTRA_ORG_ID, orgId)
                 if (driverId != null) putExtra(EXTRA_DRIVER_ID, driverId)
             }
-            context.startService(intent)
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "stop startService failed", e)
+            }
         }
     }
 }
