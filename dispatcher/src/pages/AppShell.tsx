@@ -15,6 +15,8 @@ export function AppShell() {
         <nav>
           <NavLink to="/map">Radio map</NavLink>
           <NavLink to="/drivers">Drivers</NavLink>
+          <NavLink to="/contacts">Contacts</NavLink>
+          <NavLink to="/bookings">Bookings</NavLink>
         </nav>
         <div className="topbar-user">
           <span className="muted">{user?.email}</span>

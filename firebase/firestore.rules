@@ -58,6 +58,14 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      match /contacts/{contactId} {
+        allow read, write: if isDispatcher(orgId);
+      }
+
+      match /bookings/{bookingId} {
+        allow read, write: if isDispatcher(orgId);
+      }
+
       match /radio/{clipId} {
         allow read: if isDispatcher(orgId)
           || (isDriver(orgId, resource.data.driverId));

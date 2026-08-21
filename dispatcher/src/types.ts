@@ -12,6 +12,76 @@ export type Driver = {
   lastTelemetryAt: { seconds: number; nanoseconds: number } | null;
 };
 
+export type ContactType = "customer" | "hotel" | "account";
+
+export type Contact = {
+  id: string;
+  name: string;
+  phone: string;
+  notes: string;
+  address: string;
+  pickupPreference: string;
+  type: ContactType;
+  tags: string[];
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export type BookingStatus =
+  | "new"
+  | "assigned"
+  | "en_route"
+  | "completed"
+  | "cancelled";
+
+export type BookingPickupMode = "asap" | "scheduled";
+
+export type Booking = {
+  id: string;
+  passengerName: string;
+  phone: string;
+  contactId: string | null;
+  pickupAddress: string;
+  dropoffAddress: string;
+  pickupMode: BookingPickupMode;
+  pickupAt: { seconds: number; nanoseconds: number } | null;
+  status: BookingStatus;
+  assignedDriverId: string | null;
+  notes: string;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export const CONTACT_TYPES: ContactType[] = ["customer", "hotel", "account"];
+
+export const BOOKING_STATUSES: BookingStatus[] = [
+  "new",
+  "assigned",
+  "en_route",
+  "completed",
+  "cancelled",
+];
+
+export function formatBookingStatus(status: BookingStatus): string {
+  switch (status) {
+    case "new":
+      return "New";
+    case "assigned":
+      return "Assigned";
+    case "en_route":
+      return "En route";
+    case "completed":
+      return "Completed";
+    case "cancelled":
+      return "Cancelled";
+  }
+}
+
+export function telHref(phone: string): string {
+  const digits = phone.replace(/[^\d+]/g, "");
+  return digits ? `tel:${digits}` : "#";
+}
+
 export function speedKmh(mps: number | null | undefined): number | null {
   if (mps == null || Number.isNaN(mps)) return null;
   return mps * 3.6;
