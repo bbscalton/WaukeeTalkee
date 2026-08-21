@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
@@ -10,10 +10,9 @@ import {
   formatDuration,
   isUnheardOutbound,
   isUnreadForDispatch,
-  markDispatchHeard,
-  playClipAudio,
   speakerLabel,
 } from "../radio";
+import { useRadioLive } from "../RadioLiveProvider";
 import { RADIO_RETENTION_DAYS, type Driver, type RadioClip } from "../types";
 import { useRadioArchive } from "../useRadioArchive";
 import { PushToTalk } from "../components/PushToTalk";
@@ -35,11 +34,11 @@ export function RadioInboxPage() {
   const selectedId = search.get("driver") || null;
   const { clips, unreadByDriver, unheardOutboundByDriver, error } =
     useRadioArchive();
+  const { queue, enqueueManual } = useRadioLive();
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [playingId, setPlayingId] = useState<string | null>(null);
   const [onlyUnheard, setOnlyUnheard] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playingId = queue.current?.id ?? null;
 
   useEffect(() => {
     return onSnapshot(collection(db, "orgs", ORG_ID, "drivers"), (snap) => {
@@ -63,12 +62,6 @@ export function RadioInboxPage() {
         })
       );
     });
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      audioRef.current?.pause();
-    };
   }, []);
 
   const nameById = useMemo(() => {
@@ -139,21 +132,9 @@ export function RadioInboxPage() {
       .sort((a, b) => clipTimeMs(b) - clipTimeMs(a));
   }, [clips, selected, onlyUnheard]);
 
-  const play = async (clip: RadioClip) => {
-    audioRef.current?.pause();
-    if (!clip.audioBase64) return;
-    setPlayingId(clip.id);
-    const audio = playClipAudio(clip);
-    audioRef.current = audio;
-    audio.onended = () => setPlayingId(null);
-    audio.onerror = () => setPlayingId(null);
-    if (isUnreadForDispatch(clip)) {
-      try {
-        await markDispatchHeard(clip.id);
-      } catch {
-        /* ignore */
-      }
-    }
+  const play = (clip: RadioClip) => {
+    if (!clip.audioBase64 || !selected) return;
+    enqueueManual(clip, selected.name);
   };
 
   const removeClip = async (clip: RadioClip) => {
@@ -167,10 +148,6 @@ export function RadioInboxPage() {
     }
     setBusyId(clip.id);
     try {
-      if (playingId === clip.id) {
-        audioRef.current?.pause();
-        setPlayingId(null);
-      }
       await deleteRadioClip(clip.id);
     } catch (err) {
       window.alert(
@@ -194,8 +171,6 @@ export function RadioInboxPage() {
     }
     setBusyId("thread");
     try {
-      audioRef.current?.pause();
-      setPlayingId(null);
       for (const c of all) {
         await deleteRadioClip(c.id);
       }
@@ -336,7 +311,7 @@ export function RadioInboxPage() {
                         <button
                           type="button"
                           className="ghost"
-                          onClick={() => void play(c)}
+                          onClick={() => play(c)}
                         >
                           {playingId === c.id ? "Playing…" : "Play"}
                         </button>

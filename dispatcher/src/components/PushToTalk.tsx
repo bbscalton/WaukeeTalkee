@@ -2,14 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addDoc,
   collection,
-  onSnapshot,
-  orderBy,
-  query,
   serverTimestamp,
-  where,
 } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
-import { markDispatchHeard } from "../radio";
+import { useRadioLive } from "../RadioLiveProvider";
 
 type Props = {
   driverId: string;
@@ -37,18 +33,29 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export function PushToTalk({ driverId, driverName }: Props) {
+  const { queue } = useRadioLive();
   const [tx, setTx] = useState(false);
-  const [rx, setRx] = useState(false);
   const [status, setStatus] = useState("Hold to talk");
   const [error, setError] = useState<string | null>(null);
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const seenRef = useRef<Set<string>>(new Set());
-  const readyAtRef = useRef(Date.now());
   const startedAtRef = useRef(0);
+
+  const rx =
+    queue.playing &&
+    queue.current?.driverId === driverId &&
+    queue.current?.source === "live";
+  const audioBusy = queue.playing;
+
+  useEffect(() => {
+    if (rx) {
+      setStatus(`Receiving from ${driverName}…`);
+    } else if (!tx) {
+      setStatus("Hold to talk");
+    }
+  }, [rx, driverName, tx]);
 
   const stopMic = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -57,7 +64,7 @@ export function PushToTalk({ driverId, driverName }: Props) {
 
   const startTalk = useCallback(async () => {
     setError(null);
-    if (tx || rx) return;
+    if (tx || audioBusy) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -110,7 +117,7 @@ export function PushToTalk({ driverId, driverName }: Props) {
           : "Microphone permission needed for push-to-talk"
       );
     }
-  }, [driverId, rx, tx]);
+  }, [driverId, audioBusy, tx]);
 
   const stopTalk = useCallback(() => {
     const rec = mediaRef.current;
@@ -125,56 +132,8 @@ export function PushToTalk({ driverId, driverName }: Props) {
   }, []);
 
   useEffect(() => {
-    readyAtRef.current = Date.now();
-    seenRef.current = new Set();
-    setStatus("Hold to talk");
-    setError(null);
-
-    const q = query(
-      collection(db, "orgs", ORG_ID, "radio"),
-      where("driverId", "==", driverId),
-      where("from", "==", "driver"),
-      orderBy("createdAt", "desc")
-    );
-
-    return onSnapshot(q, (snap) => {
-      snap.docChanges().forEach((change) => {
-        if (change.type !== "added") return;
-        if (seenRef.current.has(change.doc.id)) return;
-        seenRef.current.add(change.doc.id);
-        const data = change.doc.data();
-        const created = data.createdAt?.toMillis?.() ?? 0;
-        if (created && created < readyAtRef.current - 2000) return;
-        const b64 = String(data.audioBase64 || "");
-        const contentType = String(data.contentType || "audio/mp4");
-        if (!b64) return;
-        setRx(true);
-        setStatus(`Receiving from ${driverName}…`);
-        const audio = new Audio(`data:${contentType};base64,${b64}`);
-        audioRef.current = audio;
-        void markDispatchHeard(change.doc.id).catch(() => undefined);
-        audio.onended = () => {
-          setRx(false);
-          setStatus("Hold to talk");
-        };
-        audio.onerror = () => {
-          setRx(false);
-          setStatus("Hold to talk");
-          setError("Could not play driver audio");
-        };
-        void audio.play().catch(() => {
-          setRx(false);
-          setError("Click once on the page, then try again (browser blocked audio)");
-          setStatus("Hold to talk");
-        });
-      });
-    });
-  }, [driverId, driverName]);
-
-  useEffect(() => {
     return () => {
       stopMic();
-      audioRef.current?.pause();
     };
   }, []);
 
@@ -186,7 +145,7 @@ export function PushToTalk({ driverId, driverName }: Props) {
       <button
         type="button"
         className={`ptt-btn ${tx ? "hot" : ""}`}
-        disabled={rx}
+        disabled={audioBusy}
         onMouseDown={(e) => {
           e.preventDefault();
           void startTalk();
