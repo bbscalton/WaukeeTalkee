@@ -16,14 +16,15 @@ class PairingRepository {
 
     suspend fun redeem(orgId: String, code: String, deviceId: String): RedeemResult {
         val callable = functions.getHttpsCallable("redeemPairCode")
-        @Suppress("UNCHECKED_CAST")
-        val data = callable.call(
+        val result = callable.call(
             hashMapOf(
                 "orgId" to orgId,
                 "code" to code.trim().uppercase(),
                 "deviceId" to deviceId,
             )
-        ).await().data as Map<String, Any?>
+        ).await()
+        @Suppress("UNCHECKED_CAST")
+        val data = result.getData() as Map<String, Any?>
 
         return RedeemResult(
             orgId = data["orgId"] as String,

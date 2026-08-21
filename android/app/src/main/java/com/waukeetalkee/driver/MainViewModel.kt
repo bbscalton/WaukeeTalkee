@@ -83,9 +83,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 store.save(session)
                 _state.value = UiState(ready = true, session = session, onDuty = false)
             } catch (e: Exception) {
+                val msg = when {
+                    e.message?.contains("INTERNAL", ignoreCase = true) == true ->
+                        "Pairing failed on server. Wait a minute and try again, or ask dispatch for a new code."
+                    else -> e.message ?: "Pairing failed"
+                }
                 _state.value = _state.value.copy(
                     pairing = false,
-                    error = e.message ?: "Pairing failed",
+                    error = msg,
                 )
             }
         }

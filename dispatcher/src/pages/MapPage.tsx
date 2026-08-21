@@ -3,6 +3,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
+import { PushToTalk } from "../components/PushToTalk";
 import { formatAge, formatSpeed, type Driver } from "../types";
 
 const STYLE =
@@ -111,7 +112,7 @@ export function MapPage() {
         {error && <p className="error">{error}</p>}
         <ul className="driver-list">
           {drivers
-            .filter((d) => d.onDuty)
+            .filter((d) => d.pairStatus === "paired")
             .map((d) => (
               <li key={d.id}>
                 <button
@@ -120,13 +121,13 @@ export function MapPage() {
                   onClick={() => setSelectedId(d.id)}
                 >
                   <strong>{d.displayName}</strong>
-                  <span>{formatSpeed(d.lastSpeed)}</span>
+                  <span>{d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}</span>
                   <span className="muted">{formatAge(d.lastTelemetryAt)}</span>
                 </button>
               </li>
             ))}
-          {onDutyCount === 0 && (
-            <li className="muted">No drivers on duty yet.</li>
+          {drivers.filter((d) => d.pairStatus === "paired").length === 0 && (
+            <li className="muted">No paired drivers yet.</li>
           )}
         </ul>
         {selected && (
@@ -141,7 +142,11 @@ export function MapPage() {
             </p>
             <p className="muted">Updated {formatAge(selected.lastTelemetryAt)}</p>
             {!selected.onDuty && <p className="muted">Currently off duty</p>}
+            <PushToTalk driverId={selected.id} driverName={selected.displayName} />
           </div>
+        )}
+        {!selected && (
+          <p className="muted">Select a driver to push-to-talk.</p>
         )}
       </aside>
       <div className="map-canvas" ref={mapNode} />

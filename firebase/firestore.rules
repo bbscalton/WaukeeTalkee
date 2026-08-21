@@ -57,6 +57,31 @@ service cloud.firestore {
       match /pairCodes/{code} {
         allow read, write: if false;
       }
+
+      match /radio/{clipId} {
+        allow read: if isDispatcher(orgId)
+          || (isDriver(orgId, resource.data.driverId));
+
+        allow create: if (isDispatcher(orgId)
+          && request.resource.data.from == 'dispatch'
+          && request.resource.data.keys().hasOnly([
+            'from', 'driverId', 'audioBase64', 'createdAt', 'contentType'
+          ])
+          && request.resource.data.audioBase64 is string
+          && request.resource.data.audioBase64.size() < 900000)
+          || (signedIn()
+            && token().role == 'driver'
+            && token().orgId == orgId
+            && request.resource.data.driverId == token().driverId
+            && request.resource.data.from == 'driver'
+            && request.resource.data.keys().hasOnly([
+              'from', 'driverId', 'audioBase64', 'createdAt', 'contentType'
+            ])
+            && request.resource.data.audioBase64 is string
+            && request.resource.data.audioBase64.size() < 900000);
+
+        allow update, delete: if isDispatcher(orgId);
+      }
     }
   }
 }

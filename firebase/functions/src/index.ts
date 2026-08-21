@@ -171,6 +171,9 @@ export const createDriverWithPairCode = onCall(async (request) => {
 /**
  * Driver redeems pair code. Returns custom token with claims
  * { role: "driver", orgId, driverId }.
+ *
+ * If a previous attempt marked the code used but token creation failed,
+ * the same code can still finish pairing for that driver.
  */
 export const redeemPairCode = onCall(async (request) => {
   const orgId = String(request.data?.orgId || DEFAULT_ORG);
@@ -187,66 +190,89 @@ export const redeemPairCode = onCall(async (request) => {
   }
 
   const codeRef = db.doc(`orgs/${orgId}/pairCodes/${code}`);
+  const codeSnap = await codeRef.get();
+  if (!codeSnap.exists) {
+    throw new HttpsError("not-found", "Invalid pair code.");
+  }
 
-  const result = await db.runTransaction(async (tx: Transaction) => {
-    const codeSnap = await tx.get(codeRef);
-    if (!codeSnap.exists) {
+  const codeData = codeSnap.data()!;
+  const expiresAt = codeData.expiresAt as Timestamp;
+  if (expiresAt.toMillis() < Date.now()) {
+    throw new HttpsError("failed-precondition", "This pair code has expired. Ask dispatch for a new one.");
+  }
+
+  const driverId = String(codeData.driverId);
+  const driverRef = db.doc(`orgs/${orgId}/drivers/${driverId}`);
+  const driverSnap = await driverRef.get();
+  if (!driverSnap.exists) {
+    throw new HttpsError("not-found", "Driver profile missing.");
+  }
+
+  const driver = driverSnap.data()!;
+  const authUid = `driver_${orgId}_${driverId}`;
+  const displayName = String(driver.displayName || "Driver");
+
+  // Create/ensure Auth user + custom token BEFORE finalizing pair,
+  // so a permission failure does not leave the phone stuck.
+  try {
+    await auth.getUser(authUid);
+  } catch {
+    await auth.createUser({
+      uid: authUid,
+      displayName,
+      disabled: false,
+    });
+  }
+
+  let customToken: string;
+  try {
+    customToken = await auth.createCustomToken(authUid, {
+      role: "driver",
+      orgId,
+      driverId,
+    });
+  } catch (err) {
+    console.error("createCustomToken failed", err);
+    throw new HttpsError(
+      "internal",
+      "Could not create driver login. Try again in a minute, or ask dispatch for a new code."
+    );
+  }
+
+  await db.runTransaction(async (tx: Transaction) => {
+    const freshCode = await tx.get(codeRef);
+    if (!freshCode.exists) {
       throw new HttpsError("not-found", "Invalid pair code.");
     }
-    const data = codeSnap.data()!;
-    if (data.usedAt) {
-      throw new HttpsError("failed-precondition", "This pair code was already used.");
-    }
-    const expiresAt = data.expiresAt as Timestamp;
-    if (expiresAt.toMillis() < Date.now()) {
-      throw new HttpsError("failed-precondition", "This pair code has expired.");
-    }
-
-    const driverId = String(data.driverId);
-    const driverRef = db.doc(`orgs/${orgId}/drivers/${driverId}`);
-    const driverSnap = await tx.get(driverRef);
-    if (!driverSnap.exists) {
-      throw new HttpsError("not-found", "Driver profile missing.");
+    const fresh = freshCode.data()!;
+    // Allow retry if already marked used (failed client after server success).
+    if (fresh.usedAt && fresh.deviceId && fresh.deviceId !== deviceId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This pair code was already used on another phone. Ask dispatch for a new one."
+      );
     }
 
-    const driver = driverSnap.data()!;
-    const authUid = `driver_${orgId}_${driverId}`;
-
-    tx.update(codeRef, { usedAt: FieldValue.serverTimestamp(), deviceId });
+    tx.set(
+      codeRef,
+      {
+        usedAt: FieldValue.serverTimestamp(),
+        deviceId,
+      },
+      { merge: true }
+    );
     tx.update(driverRef, {
       pairStatus: "paired",
       deviceId,
       authUid,
       onDuty: false,
     });
-
-    return {
-      driverId,
-      displayName: String(driver.displayName || "Driver"),
-      authUid,
-    };
-  });
-
-  try {
-    await auth.getUser(result.authUid);
-  } catch {
-    await auth.createUser({
-      uid: result.authUid,
-      displayName: result.displayName,
-      disabled: false,
-    });
-  }
-
-  const customToken = await auth.createCustomToken(result.authUid, {
-    role: "driver",
-    orgId,
-    driverId: result.driverId,
   });
 
   return {
     orgId,
-    driverId: result.driverId,
-    displayName: result.displayName,
+    driverId,
+    displayName,
     customToken,
   };
 });

@@ -282,6 +282,40 @@ td {
   margin-top: 0;
 }
 
+.ptt {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ptt-status {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+}
+
+.ptt-btn {
+  width: 100%;
+  min-height: 72px;
+  border-radius: 16px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: #0f6e56;
+  user-select: none;
+  touch-action: none;
+}
+
+.ptt-btn.hot {
+  background: #9b1c1c;
+}
+
+.ptt .small {
+  font-size: 0.82rem;
+}
+
 @media (max-width: 860px) {
   .form-row {
     grid-template-columns: 1fr;
