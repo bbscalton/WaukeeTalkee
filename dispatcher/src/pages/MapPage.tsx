@@ -6,8 +6,46 @@ import { db, ORG_ID } from "../firebase";
 import { PushToTalk } from "../components/PushToTalk";
 import { formatAge, formatSpeed, type Driver } from "../types";
 
-const STYLE =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+type MapMode = "streets" | "satellite";
+
+const STREET_STYLE =
+  "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+
+const SATELLITE_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    esri: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri",
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: "esri-satellite",
+      type: "raster",
+      source: "esri",
+    },
+  ],
+};
+
+function hasFix(d: Driver): boolean {
+  return (
+    d.lastLat != null &&
+    d.lastLng != null &&
+    Number.isFinite(d.lastLat) &&
+    Number.isFinite(d.lastLng) &&
+    !(d.lastLat === 0 && d.lastLng === 0)
+  );
+}
+
+function streetViewUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+}
 
 export function MapPage() {
   const mapNode = useRef<HTMLDivElement | null>(null);
@@ -17,12 +55,13 @@ export function MapPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapMode, setMapMode] = useState<MapMode>("streets");
 
   useEffect(() => {
     if (!mapNode.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapNode.current,
-      style: STYLE,
+      style: STREET_STYLE,
       center: [-93.62, 41.58],
       zoom: 11,
     });
@@ -44,6 +83,18 @@ export function MapPage() {
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    setMapReady(false);
+    const style = mapMode === "satellite" ? SATELLITE_STYLE : STREET_STYLE;
+    map.setStyle(style);
+    map.once("style.load", () => {
+      map.resize();
+      setMapReady(true);
+    });
+  }, [mapMode]);
 
   useEffect(() => {
     return onSnapshot(
@@ -81,12 +132,13 @@ export function MapPage() {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const active = drivers.filter(
-      (d) => d.onDuty && d.lastLat != null && d.lastLng != null
+    // Show any paired (or on-duty) driver that has a GPS fix — not only on-duty.
+    const located = drivers.filter(
+      (d) => (d.pairStatus === "paired" || d.onDuty) && hasFix(d)
     );
     const seen = new Set<string>();
 
-    for (const d of active) {
+    for (const d of located) {
       seen.add(d.id);
       const lng = d.lastLng!;
       const lat = d.lastLat!;
@@ -103,9 +155,10 @@ export function MapPage() {
         markersRef.current.set(d.id, marker);
       } else {
         marker.setLngLat([lng, lat]);
-        const el = marker.getElement();
-        el.classList.toggle("selected", selectedId === d.id);
       }
+      const el = marker.getElement();
+      el.classList.toggle("selected", selectedId === d.id);
+      el.classList.toggle("off-duty", !d.onDuty);
     }
 
     for (const [id, marker] of markersRef.current) {
@@ -115,12 +168,13 @@ export function MapPage() {
       }
     }
 
-    if (active.length === 1) {
-      map.easeTo({ center: [active[0]!.lastLng!, active[0]!.lastLat!], zoom: 13 });
-    } else if (active.length > 1) {
-      const bounds = new maplibregl.LngLatBounds();
-      active.forEach((d) => bounds.extend([d.lastLng!, d.lastLat!]));
-      map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+    const focus = located.find((d) => d.id === selectedId) ?? located[0];
+    if (focus) {
+      map.easeTo({
+        center: [focus.lastLng!, focus.lastLat!],
+        zoom: Math.max(map.getZoom(), 14),
+        duration: 600,
+      });
     }
 
     map.resize();
@@ -129,6 +183,7 @@ export function MapPage() {
   const paired = drivers.filter((d) => d.pairStatus === "paired");
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
   const onDutyCount = drivers.filter((d) => d.onDuty).length;
+  const selectedHasFix = selected ? hasFix(selected) : false;
 
   return (
     <div className="map-layout">
@@ -148,7 +203,26 @@ export function MapPage() {
               <span>{selected.onDuty ? "On duty" : "Off duty"}</span>
               <span>Speed: {formatSpeed(selected.lastSpeed)}</span>
               <span>Updated {formatAge(selected.lastTelemetryAt)}</span>
+              {selectedHasFix ? (
+                <span>
+                  GPS: {selected.lastLat!.toFixed(5)}, {selected.lastLng!.toFixed(5)}
+                </span>
+              ) : (
+                <span className="error">
+                  No map pin yet — on the phone tap On Duty and allow location.
+                </span>
+              )}
             </div>
+            {selectedHasFix && (
+              <a
+                className="street-link"
+                href={streetViewUrl(selected.lastLat!, selected.lastLng!)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Street View here
+              </a>
+            )}
             <PushToTalk driverId={selected.id} driverName={selected.displayName} />
           </div>
         ) : (
@@ -170,9 +244,12 @@ export function MapPage() {
                 onClick={() => setSelectedId(d.id)}
               >
                 <strong>{d.displayName}</strong>
-                <span>{d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}</span>
+                <span>
+                  {d.onDuty ? formatSpeed(d.lastSpeed) : "Off duty"}
+                  {hasFix(d) ? "" : " · no GPS"}
+                </span>
                 <span className="talk-hint">
-                  {selectedId === d.id ? "Radio open ↓" : "Tap to talk"}
+                  {selectedId === d.id ? "Radio open" : "Tap to talk"}
                 </span>
               </button>
             </li>
@@ -183,6 +260,22 @@ export function MapPage() {
         </ul>
       </aside>
       <div className="map-stage">
+        <div className="map-modes" role="group" aria-label="Map style">
+          <button
+            type="button"
+            className={mapMode === "streets" ? "active" : ""}
+            onClick={() => setMapMode("streets")}
+          >
+            Streets
+          </button>
+          <button
+            type="button"
+            className={mapMode === "satellite" ? "active" : ""}
+            onClick={() => setMapMode("satellite")}
+          >
+            Satellite
+          </button>
+        </div>
         <div className="map-canvas" ref={mapNode} />
         {!mapReady && <div className="map-loading">Loading map…</div>}
       </div>
