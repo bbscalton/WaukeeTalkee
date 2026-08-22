@@ -19,8 +19,6 @@ const ARRIVE_MIN_DWELL_MS = 20_000;
 const EXIT_BUFFER_M = 30;
 const OFF_ROUTE_THROTTLE_MS = 3 * 60 * 1000;
 const SPEED_ALERT_THROTTLE_MS = 2 * 60 * 1000;
-/** Periodic dwell refresh while still inside after arrived (anti-spam). */
-const DWELL_UPDATE_MS = 10 * 60 * 1000;
 
 type PlacePresence = {
   inside: boolean;
@@ -222,7 +220,6 @@ export const onDriverTelemetryWritten = onDocumentWritten(
             now - prevPresence.enteredAtMs >= ARRIVE_MIN_DWELL_MS
           ) {
             next.arrivedAtMs = now;
-            next.lastDwellEventAtMs = now;
             dirty = true;
             await emitEvent(orgId, {
               type: "place_arrived",
@@ -234,28 +231,6 @@ export const onDriverTelemetryWritten = onDocumentWritten(
               dwellMs: now - prevPresence.enteredAtMs,
               meta: {
                 message: `${driverName} arrived at ${placeName}`,
-                lat,
-                lng,
-              },
-            });
-          } else if (
-            prevPresence.arrivedAtMs != null &&
-            (prevPresence.lastDwellEventAtMs == null ||
-              now - prevPresence.lastDwellEventAtMs >= DWELL_UPDATE_MS)
-          ) {
-            const dwellMs = Math.max(0, now - prevPresence.arrivedAtMs);
-            next.lastDwellEventAtMs = now;
-            dirty = true;
-            await emitEvent(orgId, {
-              type: "place_dwell",
-              driverId,
-              driverName,
-              placeId: placeDoc.id,
-              placeName,
-              placeType,
-              dwellMs,
-              meta: {
-                message: `${driverName} still at ${placeName} (${formatDwell(dwellMs)})`,
                 lat,
                 lng,
               },
