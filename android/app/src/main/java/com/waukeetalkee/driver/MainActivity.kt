@@ -762,7 +762,7 @@ class MainActivity : AppCompatActivity() {
                 nameText.text = state.session.displayName
                 pairStatusText.text = "Paired · radio channel open"
                 if (state.onDuty) {
-                    dutyText.text = "ON DUTY — location sharing"
+                    dutyText.text = "ON DUTY"
                     dutyText.setTextColor(ContextCompat.getColor(this, R.color.amber))
                     dutyButton.text = "GO OFF DUTY"
                     dutyButton.setBackgroundResource(R.drawable.bg_duty_on)
