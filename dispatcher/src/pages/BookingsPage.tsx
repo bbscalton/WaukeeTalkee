@@ -21,6 +21,7 @@ import {
   type BookingStatus,
   type Driver,
 } from "../types";
+import { useSolutionProfile } from "../useSolutionProfile";
 
 type ContactPrefill = {
   contactId?: string;
@@ -38,6 +39,9 @@ const emptyForm = {
   pickupMode: "asap" as BookingPickupMode,
   pickupAtLocal: "",
   notes: "",
+  jobSiteName: "",
+  yards: "",
+  mixNotes: "",
 };
 
 function mapBooking(id: string, data: Record<string, unknown>): Booking {
@@ -64,6 +68,9 @@ function mapBooking(id: string, data: Record<string, unknown>): Booking {
       ? String(data.assignedDriverId)
       : null,
     notes: String(data.notes || ""),
+    jobSiteName: data.jobSiteName ? String(data.jobSiteName) : undefined,
+    yards: data.yards ? String(data.yards) : undefined,
+    mixNotes: data.mixNotes ? String(data.mixNotes) : undefined,
     createdAt: (data.createdAt as Timestamp | null) ?? null,
     updatedAt: (data.updatedAt as Timestamp | null) ?? null,
   };
@@ -78,6 +85,8 @@ function formatPickup(b: Booking): string {
 export function BookingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { profile, label } = useSolutionProfile();
+  const isConcrete = profile.id === "concrete";
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [statusFilter, setStatusFilter] = useState<"active" | BookingStatus | "all">(
@@ -192,7 +201,7 @@ export function BookingsPage() {
     setBusy(true);
     setError(null);
     try {
-      await addDoc(collection(db, "orgs", ORG_ID, "bookings"), {
+      const payload: Record<string, unknown> = {
         passengerName,
         phone: form.phone.trim(),
         contactId: form.contactId.trim() || null,
@@ -208,7 +217,13 @@ export function BookingsPage() {
         notes: form.notes.trim(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (isConcrete) {
+        payload.jobSiteName = form.jobSiteName.trim() || null;
+        payload.yards = form.yards.trim() || null;
+        payload.mixNotes = form.mixNotes.trim() || null;
+      }
+      await addDoc(collection(db, "orgs", ORG_ID, "bookings"), payload);
       setForm(emptyForm);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
@@ -252,27 +267,29 @@ export function BookingsPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Bookings</h1>
+        <h1>{label("bookings")}</h1>
         <p className="muted">
-          Job board for the desk — create, assign paired drivers, move status.
+          {isConcrete
+            ? "Order board — schedule pours, assign mixer drivers and field crew."
+            : "Job board for the desk — create, assign paired drivers, move status."}
         </p>
       </div>
 
       <form className="panel form-grid" onSubmit={createBooking}>
         <div className="form-grid-head">
-          <strong>New booking</strong>
+          <strong>{label("newBooking")}</strong>
           {form.contactId && (
             <span className="muted">Linked contact · {form.contactId.slice(0, 8)}…</span>
           )}
         </div>
         <label>
-          Passenger / contact
+          {isConcrete ? "Customer / contractor" : "Passenger / contact"}
           <input
             value={form.passengerName}
             onChange={(e) =>
               setForm((f) => ({ ...f, passengerName: e.target.value }))
             }
-            placeholder="Name on the job"
+            placeholder={isConcrete ? "Contractor or customer name" : "Name on the job"}
             required
           />
         </label>
@@ -285,26 +302,50 @@ export function BookingsPage() {
           />
         </label>
         <label>
-          Pickup address
+          {isConcrete ? "Plant / pickup" : "Pickup address"}
           <input
             value={form.pickupAddress}
             onChange={(e) =>
               setForm((f) => ({ ...f, pickupAddress: e.target.value }))
             }
-            placeholder="Where to pick up"
+            placeholder={isConcrete ? "Batch plant or yard" : "Where to pick up"}
             required
           />
         </label>
         <label>
-          Dropoff (optional)
+          {isConcrete ? "Job site" : "Dropoff (optional)"}
           <input
-            value={form.dropoffAddress}
+            value={isConcrete ? form.jobSiteName : form.dropoffAddress}
             onChange={(e) =>
-              setForm((f) => ({ ...f, dropoffAddress: e.target.value }))
+              setForm((f) =>
+                isConcrete
+                  ? { ...f, jobSiteName: e.target.value, dropoffAddress: e.target.value }
+                  : { ...f, dropoffAddress: e.target.value }
+              )
             }
-            placeholder="Where to drop off"
+            placeholder={isConcrete ? "Pour location" : "Where to drop off"}
           />
         </label>
+        {isConcrete && (
+          <>
+            <label>
+              Yards (optional)
+              <input
+                value={form.yards}
+                onChange={(e) => setForm((f) => ({ ...f, yards: e.target.value }))}
+                placeholder="e.g. 8"
+              />
+            </label>
+            <label>
+              Mix notes (optional)
+              <input
+                value={form.mixNotes}
+                onChange={(e) => setForm((f) => ({ ...f, mixNotes: e.target.value }))}
+                placeholder="4000 PSI, fiber, slump…"
+              />
+            </label>
+          </>
+        )}
         <label>
           Timing
           <select
@@ -338,17 +379,21 @@ export function BookingsPage() {
           <input
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            placeholder="Luggage, flight number, gate…"
+            placeholder={
+              isConcrete
+                ? "Gate code, pump truck, special access…"
+                : "Luggage, flight number, gate…"
+            }
           />
         </label>
         <div className="form-actions">
           <button type="submit" disabled={busy}>
-            {busy ? "Saving…" : "Create booking"}
+            {busy ? "Saving…" : label("createBooking")}
           </button>
         </div>
       </form>
 
-      <div className="status-tabs" role="tablist" aria-label="Booking status">
+      <div className="status-tabs" role="tablist" aria-label={`${label("bookings")} status`}>
         <button
           type="button"
           className={statusFilter === "active" ? "active" : ""}
@@ -379,7 +424,7 @@ export function BookingsPage() {
 
       <div className="booking-board">
         {filtered.length === 0 && (
-          <div className="panel muted">No bookings in this view.</div>
+          <div className="panel muted">No {label("bookings").toLowerCase()} in this view.</div>
         )}
         {filtered.map((b) => (
           <article key={b.id} className={`panel booking-card status-${b.status}`}>
@@ -405,25 +450,35 @@ export function BookingsPage() {
 
             <div className="booking-meta">
               <div>
-                <span className="list-label">Pickup</span>
+                <span className="list-label">{isConcrete ? "Plant / pickup" : "Pickup"}</span>
                 <p>{b.pickupAddress}</p>
               </div>
               <div>
-                <span className="list-label">Dropoff</span>
-                <p>{b.dropoffAddress || "—"}</p>
+                <span className="list-label">{isConcrete ? "Job site" : "Dropoff"}</span>
+                <p>{b.jobSiteName || b.dropoffAddress || "—"}</p>
               </div>
+              {isConcrete && b.yards && (
+                <div>
+                  <span className="list-label">Yards</span>
+                  <p>{b.yards}</p>
+                </div>
+              )}
               <div>
-                <span className="list-label">Driver</span>
+                <span className="list-label">{isConcrete ? "Team member" : "Driver"}</span>
                 <p>{driverName(b.assignedDriverId)}</p>
               </div>
             </div>
 
-            {b.notes && <p className="muted booking-notes">{b.notes}</p>}
+            {(b.notes || b.mixNotes) && (
+              <p className="muted booking-notes">
+                {[b.mixNotes, b.notes].filter(Boolean).join(" · ")}
+              </p>
+            )}
 
             {b.status !== "cancelled" && b.status !== "completed" && (
               <div className="booking-actions">
                 <label>
-                  Assign driver
+                  {label("assignDriver")}
                   <select
                     value={b.assignedDriverId || ""}
                     disabled={busy}
@@ -433,7 +488,7 @@ export function BookingsPage() {
                     {pairedDrivers.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.displayName}
-                        {d.onDuty ? "" : " (off duty)"}
+                        {d.onDuty ? "" : ` (${label("offDuty")})`}
                         {d.plate ? ` · ${d.plate}` : ""}
                       </option>
                     ))}

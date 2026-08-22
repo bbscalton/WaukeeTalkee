@@ -18,6 +18,7 @@ import {
 } from "../googleMaps";
 import { formatAge, formatSpeed, RADIO_RETENTION_DAYS, type Driver } from "../types";
 import { useRadioArchive } from "../useRadioArchive";
+import { useSolutionProfile } from "../useSolutionProfile";
 
 type MapMode = "streets" | "satellite";
 
@@ -36,6 +37,7 @@ function mapTypeForMode(mode: MapMode): string {
 }
 
 export function MapPage() {
+  const { label } = useSolutionProfile();
   const [search, setSearch] = useSearchParams();
   const mapNode = useRef<HTMLDivElement | null>(null);
   const panoNode = useRef<HTMLDivElement | null>(null);
@@ -308,9 +310,9 @@ export function MapPage() {
     <div className="map-layout">
       <aside className="map-side">
         <p className="map-kicker">Fleet radio</p>
-        <h1>Talk to drivers</h1>
+        <h1>Talk to {label("drivers").toLowerCase()}</h1>
         <p className="muted">
-          {onDutyCount} on duty · {paired.length} paired · archive {RADIO_RETENTION_DAYS}d
+          {onDutyCount} {label("onDuty")} · {paired.length} paired · archive {RADIO_RETENTION_DAYS}d
         </p>
         <div className="map-quick-links">
           <Link to={selected ? `/inbox?driver=${selected.id}` : "/inbox"}>

@@ -11,6 +11,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { db, functions, ORG_ID } from "../firebase";
 import { formatAge, formatSpeed, type Driver } from "../types";
+import { useSolutionProfile } from "../useSolutionProfile";
 
 type PairResult = {
   code: string;
@@ -38,6 +39,8 @@ function mapDriver(id: string, data: Record<string, unknown>): Driver {
 }
 
 export function DriversPage() {
+  const { label, profile } = useSolutionProfile();
+  const isConcrete = profile.id === "concrete";
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [name, setName] = useState("");
   const [plate, setPlate] = useState("");
@@ -137,10 +140,11 @@ export function DriversPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Drivers</h1>
+        <h1>{label("drivers")}</h1>
         <p className="muted">
-          Assign a name, generate a pair code, set an optional speed limit
-          (km/h) for fleet alerts.
+          {isConcrete
+            ? "Pair mixer drivers and field workers, generate codes, set speed limits for alerts."
+            : "Assign a name, generate a pair code, set an optional speed limit (km/h) for fleet alerts."}
         </p>
       </div>
 

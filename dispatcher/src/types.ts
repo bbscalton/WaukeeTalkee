@@ -208,6 +208,12 @@ export type Booking = {
   status: BookingStatus;
   assignedDriverId: string | null;
   notes: string;
+  /** Concrete solution: job site name (optional). */
+  jobSiteName?: string;
+  /** Concrete solution: cubic yards ordered (optional). */
+  yards?: string;
+  /** Concrete solution: mix design notes (optional). */
+  mixNotes?: string;
   createdAt: { seconds: number; nanoseconds: number } | null;
   updatedAt: { seconds: number; nanoseconds: number } | null;
 };

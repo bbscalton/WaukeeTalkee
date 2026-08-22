@@ -13,7 +13,15 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const ORG_ID = import.meta.env.VITE_ORG_ID || "demo";
+function resolveOrgId(): string {
+  if (typeof window !== "undefined") {
+    const fromUrl = new URLSearchParams(window.location.search).get("org");
+    if (fromUrl && /^[a-z0-9_-]+$/i.test(fromUrl)) return fromUrl;
+  }
+  return import.meta.env.VITE_ORG_ID || "demo";
+}
+
+export const ORG_ID = resolveOrgId();
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

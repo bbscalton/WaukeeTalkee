@@ -14,20 +14,35 @@ async function main() {
   const orgId = process.env.ORG_ID || "demo";
   const uid = process.env.DISPATCHER_UID;
   const email = process.env.DISPATCHER_EMAIL || "dispatcher@waukeetalkee.local";
+  const solution = process.env.SOLUTION as string | undefined;
 
   if (!uid) {
     console.error("Set DISPATCHER_UID to the Firebase Auth uid of the dispatcher user.");
     process.exit(1);
   }
 
-  await db.doc(`orgs/${orgId}`).set(
-    {
-      name: "Waukee Talkee Demo",
-      settings: { speedUnit: "kmh" },
-      createdAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const orgPayload: Record<string, unknown> = {
+    settings: { speedUnit: "kmh" },
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  if (orgId === "rebert") {
+    orgPayload.name = "Rebert Construction";
+    orgPayload.displayName = "Rebert Construction";
+    orgPayload.solution = "concrete";
+    orgPayload.features = {
+      plantQueue: false,
+      billingReports: false,
+      detentionBilling: false,
+      podSignature: false,
+      contacts: false,
+    };
+  } else {
+    orgPayload.name = "Waukee Talkee Demo";
+    if (solution) orgPayload.solution = solution;
+  }
+
+  await db.doc(`orgs/${orgId}`).set(orgPayload, { merge: true });
 
   await db.doc(`orgs/${orgId}/dispatchers/${uid}`).set(
     {

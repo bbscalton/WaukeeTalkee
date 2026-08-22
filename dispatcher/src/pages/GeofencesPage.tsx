@@ -23,6 +23,7 @@ import {
   onGoogleMapsAuthFailure,
 } from "../googleMaps";
 import type { Driver, Place, PlaceType, SavedRoute } from "../types";
+import { useSolutionProfile } from "../useSolutionProfile";
 
 type MapMode = "streets" | "satellite";
 
@@ -31,6 +32,8 @@ function mapTypeForMode(mode: MapMode): string {
 }
 
 export function GeofencesPage() {
+  const { label, profile } = useSolutionProfile();
+  const isConcrete = profile.id === "concrete";
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const circlesRef = useRef<Map<string, google.maps.Circle>>(new Map());
@@ -452,10 +455,11 @@ export function GeofencesPage() {
     <div className="map-layout geofence-layout">
       <aside className="map-side geofence-side">
         <p className="map-kicker">Compliance</p>
-        <h1>Bases &amp; routes</h1>
+        <h1>{label("geofences")}</h1>
         <p className="muted">
-          Drop home bases and checkpoints, then save a corridor home → checkpoint.
-          Cloud Functions watch live GPS for arrive / leave / off-route / speed.
+          {isConcrete
+            ? "Mark batch plants and job sites, then save corridors. Cloud Functions watch GPS for arrive / leave / off-route / speed."
+            : "Drop home bases and checkpoints, then save a corridor home → checkpoint. Cloud Functions watch live GPS for arrive / leave / off-route / speed."}
         </p>
         {error && <p className="error">{error}</p>}
 

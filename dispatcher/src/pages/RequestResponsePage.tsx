@@ -17,6 +17,7 @@ import {
   type RadioRequest,
   type RadioRequestStatus,
 } from "../types";
+import { useSolutionProfile } from "../useSolutionProfile";
 
 function mapDriver(id: string, data: Record<string, unknown>): Driver {
   return {
@@ -71,6 +72,8 @@ function effectiveStatus(req: RadioRequest): RadioRequestStatus {
 }
 
 export function RequestResponsePage() {
+  const { label, profile } = useSolutionProfile();
+  const isConcrete = profile.id === "concrete";
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [requests, setRequests] = useState<RadioRequest[]>([]);
   const [driverFilter, setDriverFilter] = useState("");
@@ -128,11 +131,11 @@ export function RequestResponsePage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <h1>Request / Response</h1>
+          <h1>{label("requestResponse")}</h1>
           <p className="muted">
-            Direct push-to-talk to a selected driver counts as a request. A driver
-            reply within 3 minutes is logged as a response. Fleet broadcasts track
-            responses from on-duty drivers only.
+            {isConcrete
+              ? "Radio call-outs to drivers and crew. A reply within 3 minutes is logged as confirmed."
+              : "Direct push-to-talk to a selected driver counts as a request. A driver reply within 3 minutes is logged as a response. Fleet broadcasts track responses from on-duty drivers only."}
           </p>
         </div>
       </header>
