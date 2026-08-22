@@ -138,6 +138,10 @@ export function BookingsPage() {
               lastSpeed: data.lastSpeed ?? null,
               lastHeading: data.lastHeading ?? null,
               lastTelemetryAt: (data.lastTelemetryAt as Timestamp | null) ?? null,
+              speedLimitKmh:
+                typeof data.speedLimitKmh === "number"
+                  ? data.speedLimitKmh
+                  : null,
             };
           })
         );

@@ -1123,6 +1123,158 @@ button.danger-ghost {
   font-size: 0.82rem;
 }
 
+.fleet-alert-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 41;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: min(92vw, 520px);
+  padding: 0.65rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(240, 180, 41, 0.4);
+  background: rgba(14, 17, 22, 0.94);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  text-decoration: none;
+  animation: radioToastIn 0.22s ease-out;
+}
+
+.fleet-alert-toast-kind {
+  flex-shrink: 0;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(240, 180, 41, 0.18);
+  color: var(--amber);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fleet-alert-toast-speed_alert {
+  border-color: rgba(255, 93, 93, 0.45);
+}
+
+.fleet-alert-toast-speed_alert .fleet-alert-toast-kind {
+  background: rgba(255, 93, 93, 0.18);
+  color: var(--danger);
+}
+
+.fleet-alert-toast-off_route {
+  border-color: rgba(240, 180, 41, 0.55);
+}
+
+.fleet-alert-toast-place_arrived .fleet-alert-toast-kind,
+.fleet-alert-toast-place_left .fleet-alert-toast-kind {
+  background: rgba(61, 214, 140, 0.16);
+  color: var(--green);
+}
+
+.fleet-pill-place_arrived,
+.fleet-pill-place_left {
+  background: rgba(61, 214, 140, 0.14);
+  color: var(--green);
+}
+
+.fleet-pill-place_dwell {
+  background: rgba(168, 160, 147, 0.16);
+  color: var(--muted);
+}
+
+.fleet-pill-off_route {
+  background: rgba(240, 180, 41, 0.16);
+  color: var(--amber);
+}
+
+.fleet-pill-speed_alert {
+  background: rgba(255, 93, 93, 0.16);
+  color: var(--danger);
+}
+
+.geofence-layout .geofence-side {
+  overflow: auto;
+  max-height: calc(100vh - 4.5rem);
+}
+
+.stack-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.geofence-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.geofence-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.geofence-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.checkbox-row input {
+  width: auto;
+  margin: 0;
+}
+
+.speed-limit-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 9rem;
+}
+
+.speed-limit-cell input {
+  margin: 0;
+  width: 4.5rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.dvr-overlay-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.1rem;
+  margin-top: 0.55rem;
+}
+
+.dvr-jump {
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+}
+
+.dvr-radio-driver {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.dvr-radio-dispatch {
+  color: #5b8cff;
+  font-weight: 700;
+}
+
 @media (max-width: 860px) {
   .form-row {
     grid-template-columns: 1fr;

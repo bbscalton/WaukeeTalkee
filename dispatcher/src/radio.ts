@@ -23,6 +23,8 @@ export function parseRadioClip(
     durationMs: typeof data.durationMs === "number" ? data.durationMs : null,
     dispatchHeardAt: (data.dispatchHeardAt as Timestamp | null) ?? null,
     driverHeardAt: (data.driverHeardAt as Timestamp | null) ?? null,
+    lat: typeof data.lat === "number" ? data.lat : null,
+    lng: typeof data.lng === "number" ? data.lng : null,
   };
 }
 

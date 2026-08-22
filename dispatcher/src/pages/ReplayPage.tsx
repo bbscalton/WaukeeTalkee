@@ -9,6 +9,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
+import { detectStops, type DetectedStop } from "../geo";
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
@@ -20,14 +21,29 @@ import {
   onGoogleMapsAuthFailure,
 } from "../googleMaps";
 import {
+  clipTimeMs,
   dayBounds,
   formatDayLabel,
   lastSevenDayKeys,
+  parseRadioClip,
 } from "../radio";
 import { clearMapDvrAll, clearMapDvrDay } from "../tracks";
-import { RADIO_RETENTION_DAYS, type Driver, type TrackPoint } from "../types";
+import {
+  formatDwellMs,
+  RADIO_RETENTION_DAYS,
+  type Driver,
+  type RadioClip,
+  type TrackPoint,
+} from "../types";
 
 type MapMode = "streets" | "satellite";
+
+type RadioPin = {
+  clip: RadioClip;
+  lat: number;
+  lng: number;
+  pointIndex: number;
+};
 
 function pointMs(p: TrackPoint): number {
   const ts = p.t;
@@ -59,6 +75,20 @@ function mapPoints(
   });
 }
 
+function nearestPointIndex(points: TrackPoint[], atMs: number): number {
+  if (!points.length) return -1;
+  let best = 0;
+  let bestDiff = Math.abs(pointMs(points[0]!) - atMs);
+  for (let i = 1; i < points.length; i++) {
+    const diff = Math.abs(pointMs(points[i]!) - atMs);
+    if (diff < bestDiff) {
+      best = i;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
 export function ReplayPage() {
   const [search, setSearch] = useSearchParams();
   const [dayClock, setDayClock] = useState(() => Date.now());
@@ -73,14 +103,19 @@ export function ReplayPage() {
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const pathRef = useRef<google.maps.Polyline | null>(null);
+  const stopMarkersRef = useRef<google.maps.Marker[]>([]);
+  const radioMarkersRef = useRef<google.maps.Marker[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapMode, setMapMode] = useState<MapMode>("satellite");
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [points, setPoints] = useState<TrackPoint[]>([]);
+  const [dayClips, setDayClips] = useState<RadioClip[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [clearing, setClearing] = useState<"day" | "all" | null>(null);
+  const [showStops, setShowStops] = useState(true);
+  const [showRadio, setShowRadio] = useState(true);
   const playRef = useRef<number | null>(null);
   const lastFitKey = useRef<string | null>(null);
   const playingRef = useRef(false);
@@ -93,7 +128,6 @@ export function ReplayPage() {
     cursorRef.current = cursor;
   }, [cursor]);
 
-  // Refresh day list past midnight so "Today" stays correct on long-open tabs.
   useEffect(() => {
     const id = window.setInterval(() => setDayClock(Date.now()), 60_000);
     return () => window.clearInterval(id);
@@ -122,6 +156,10 @@ export function ReplayPage() {
             lastHeading:
               typeof data.lastHeading === "number" ? data.lastHeading : null,
             lastTelemetryAt: data.lastTelemetryAt ?? null,
+            speedLimitKmh:
+              typeof data.speedLimitKmh === "number"
+                ? data.speedLimitKmh
+                : null,
           };
         })
       );
@@ -177,7 +215,9 @@ export function ReplayPage() {
       } catch (err) {
         window.clearTimeout(loadTimer);
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load Google Maps");
+          setError(
+            err instanceof Error ? err.message : "Failed to load Google Maps"
+          );
         }
       }
     })();
@@ -190,6 +230,10 @@ export function ReplayPage() {
       markerRef.current = null;
       pathRef.current?.setMap(null);
       pathRef.current = null;
+      for (const m of stopMarkersRef.current) m.setMap(null);
+      stopMarkersRef.current = [];
+      for (const m of radioMarkersRef.current) m.setMap(null);
+      radioMarkersRef.current = [];
       mapRef.current = null;
     };
   }, []);
@@ -208,7 +252,6 @@ export function ReplayPage() {
       return;
     }
 
-    // Reset playback only when day/driver changes — not on live breadcrumb appends.
     setCursor(0);
     setPlaying(false);
     lastFitKey.current = null;
@@ -227,7 +270,6 @@ export function ReplayPage() {
         setPoints(next);
         setCursor(() => {
           if (!next.length) return 0;
-          // Keep scrub position while playing or paused mid-timeline; clamp if shortened.
           const keep = playingRef.current || cursorRef.current > 0;
           if (!keep) return 0;
           return Math.min(cursorRef.current, next.length - 1);
@@ -241,6 +283,74 @@ export function ReplayPage() {
       (err) => setError(err.message)
     );
   }, [selectedId, day]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDayClips([]);
+      return;
+    }
+    const { start, end } = dayBounds(day);
+    const q = query(
+      collection(db, "orgs", ORG_ID, "radio"),
+      where("driverId", "==", selectedId),
+      where("createdAt", ">=", Timestamp.fromDate(start)),
+      where("createdAt", "<", Timestamp.fromDate(end)),
+      orderBy("createdAt", "asc")
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        setDayClips(
+          snap.docs.map((d) =>
+            parseRadioClip(d.id, d.data() as Record<string, unknown>)
+          )
+        );
+      },
+      () => setDayClips([])
+    );
+  }, [selectedId, day]);
+
+  const stops: DetectedStop[] = useMemo(() => {
+    const timed = points.map((p, i) => ({
+      lat: p.lat,
+      lng: p.lng,
+      speed: p.speed,
+      tMs: pointMs(p) || i,
+      _i: i,
+    }));
+    const raw = detectStops(timed);
+    return raw.map((s) => ({
+      ...s,
+      pointIndex: timed[s.pointIndex]?._i ?? s.pointIndex,
+    }));
+  }, [points]);
+
+  const radioPins: RadioPin[] = useMemo(() => {
+    const pins: RadioPin[] = [];
+    for (const clip of dayClips) {
+      const at = clipTimeMs(clip);
+      if (!at) continue;
+      let lat = clip.lat;
+      let lng = clip.lng;
+      let pointIndex = -1;
+      if (
+        typeof lat !== "number" ||
+        typeof lng !== "number" ||
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lng)
+      ) {
+        pointIndex = nearestPointIndex(points, at);
+        if (pointIndex < 0) continue;
+        const p = points[pointIndex]!;
+        lat = p.lat;
+        lng = p.lng;
+      } else {
+        pointIndex = nearestPointIndex(points, at);
+      }
+      pins.push({ clip, lat, lng, pointIndex: Math.max(0, pointIndex) });
+    }
+    return pins;
+  }, [dayClips, points]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -282,6 +392,51 @@ export function ReplayPage() {
       markerRef.current = null;
     }
   }, [points, cursor, mapReady, selectedId, day]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    for (const m of stopMarkersRef.current) m.setMap(null);
+    stopMarkersRef.current = [];
+    if (!showStops) return;
+    for (const s of stops) {
+      const m = new google.maps.Marker({
+        map,
+        position: { lat: s.lat, lng: s.lng },
+        icon: markerIcon("#8a93a0", false),
+        title: `Stop ${formatDwellMs(s.durationMs)}`,
+        zIndex: 3,
+      });
+      m.addListener("click", () => {
+        setPlaying(false);
+        setCursor(s.pointIndex);
+      });
+      stopMarkersRef.current.push(m);
+    }
+  }, [stops, showStops, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    for (const m of radioMarkersRef.current) m.setMap(null);
+    radioMarkersRef.current = [];
+    if (!showRadio) return;
+    for (const pin of radioPins) {
+      const fromDriver = pin.clip.from === "driver";
+      const m = new google.maps.Marker({
+        map,
+        position: { lat: pin.lat, lng: pin.lng },
+        icon: markerIcon(fromDriver ? "#3dd68c" : "#5b8cff", false),
+        title: fromDriver ? "Driver TX" : "Dispatch TX",
+        zIndex: 4,
+      });
+      m.addListener("click", () => {
+        setPlaying(false);
+        if (pin.pointIndex >= 0) setCursor(pin.pointIndex);
+      });
+      radioMarkersRef.current.push(m);
+    }
+  }, [radioPins, showRadio, mapReady]);
 
   useEffect(() => {
     if (!playing || points.length < 2) {
@@ -393,7 +548,7 @@ export function ReplayPage() {
         <h1>Day replay</h1>
         <p className="muted">
           Scrub a driver’s path for any of the last {RADIO_RETENTION_DAYS} days
-          (browser local calendar day). Oldest day rolls off automatically.
+          (browser local calendar day). Stops and radio pins overlay the track.
         </p>
         {error && <p className="error">{error}</p>}
 
@@ -480,8 +635,86 @@ export function ReplayPage() {
               disabled={!canPlay}
             />
           </label>
+          <div className="dvr-overlay-toggles">
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={showStops}
+                onChange={(e) => setShowStops(e.target.checked)}
+              />
+              Stops ({stops.length})
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={showRadio}
+                onChange={(e) => setShowRadio(e.target.checked)}
+              />
+              Radio ({radioPins.length})
+            </label>
+          </div>
           {emptyHint && <p className="muted small">{emptyHint}</p>}
         </div>
+
+        {showStops && stops.length > 0 && (
+          <div className="panel dvr-panel">
+            <p className="map-kicker">Stops</p>
+            <ul className="geofence-list">
+              {stops.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className="ghost dvr-jump"
+                    onClick={() => {
+                      setPlaying(false);
+                      setCursor(s.pointIndex);
+                    }}
+                  >
+                    {new Date(s.startMs).toLocaleTimeString(undefined, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}{" "}
+                    · {formatDwellMs(s.durationMs)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {showRadio && radioPins.length > 0 && (
+          <div className="panel dvr-panel">
+            <p className="map-kicker">Radio on path</p>
+            <ul className="geofence-list">
+              {radioPins.map((pin) => (
+                <li key={pin.clip.id}>
+                  <button
+                    type="button"
+                    className="ghost dvr-jump"
+                    onClick={() => {
+                      setPlaying(false);
+                      if (pin.pointIndex >= 0) setCursor(pin.pointIndex);
+                    }}
+                  >
+                    <span
+                      className={
+                        pin.clip.from === "driver"
+                          ? "dvr-radio-driver"
+                          : "dvr-radio-dispatch"
+                      }
+                    >
+                      {pin.clip.from === "driver" ? "Driver" : "Dispatch"}
+                    </span>{" "}
+                    {new Date(clipTimeMs(pin.clip)).toLocaleTimeString(
+                      undefined,
+                      { hour: "numeric", minute: "2-digit" }
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="panel dvr-danger-panel">
           <p className="map-kicker">Clear recordings</p>

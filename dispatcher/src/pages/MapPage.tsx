@@ -141,6 +141,10 @@ export function MapPage() {
             lastHeading:
               typeof data.lastHeading === "number" ? data.lastHeading : null,
             lastTelemetryAt: (data.lastTelemetryAt as Timestamp | null) ?? null,
+            speedLimitKmh:
+              typeof data.speedLimitKmh === "number"
+                ? data.speedLimitKmh
+                : null,
           };
         });
         setDrivers(rows);
@@ -349,7 +353,12 @@ export function MapPage() {
                 Open Street View here
               </button>
             )}
-            <PushToTalk driverId={selected.id} driverName={selected.displayName} />
+            <PushToTalk
+              driverId={selected.id}
+              driverName={selected.displayName}
+              lat={selected.lastLat}
+              lng={selected.lastLng}
+            />
           </div>
         ) : (
           <div className="panel detail">

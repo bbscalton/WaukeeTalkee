@@ -27,6 +27,8 @@ const emptyClip: RadioClip = {
   durationMs: null,
   dispatchHeardAt: null,
   driverHeardAt: null,
+  lat: null,
+  lng: null,
 };
 
 export function RadioInboxPage() {
@@ -58,6 +60,10 @@ export function RadioInboxPage() {
             lastHeading:
               typeof data.lastHeading === "number" ? data.lastHeading : null,
             lastTelemetryAt: data.lastTelemetryAt ?? null,
+            speedLimitKmh:
+              typeof data.speedLimitKmh === "number"
+                ? data.speedLimitKmh
+                : null,
           };
         })
       );
@@ -266,7 +272,18 @@ export function RadioInboxPage() {
                 </div>
               </div>
 
-              <PushToTalk driverId={selected.driverId} driverName={selected.name} />
+              <PushToTalk
+                driverId={selected.driverId}
+                driverName={selected.name}
+                lat={
+                  drivers.find((d) => d.id === selected.driverId)?.lastLat ??
+                  null
+                }
+                lng={
+                  drivers.find((d) => d.id === selected.driverId)?.lastLng ??
+                  null
+                }
+              />
 
               <div className="inbox-recordings-head">
                 <p className="list-label">Recordings</p>

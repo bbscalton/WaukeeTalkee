@@ -10,6 +10,8 @@ export type Driver = {
   lastSpeed: number | null;
   lastHeading: number | null;
   lastTelemetryAt: { seconds: number; nanoseconds: number } | null;
+  /** Dispatcher-set recommended speed limit (km/h). Null = no alert. */
+  speedLimitKmh: number | null;
 };
 
 export type RadioFrom = "dispatch" | "driver";
@@ -25,6 +27,9 @@ export type RadioClip = {
   durationMs: number | null;
   dispatchHeardAt: { seconds: number; nanoseconds: number } | null;
   driverHeardAt: { seconds: number; nanoseconds: number } | null;
+  /** Optional GPS at send time (driver or mapped from live position). */
+  lat: number | null;
+  lng: number | null;
 };
 
 export type TrackPoint = {
@@ -34,6 +39,55 @@ export type TrackPoint = {
   lng: number;
   speed: number | null;
   heading: number | null;
+};
+
+export type PlaceType = "home_base" | "checkpoint";
+
+export type Place = {
+  id: string;
+  type: PlaceType;
+  name: string;
+  lat: number;
+  lng: number;
+  radiusM: number;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export type RoutePathPoint = { lat: number; lng: number };
+
+export type SavedRoute = {
+  id: string;
+  name: string;
+  fromPlaceId: string;
+  toPlaceId: string;
+  polyline: string | null;
+  path: RoutePathPoint[];
+  corridorWidthM: number;
+  driverId: string | null;
+  monitor: boolean;
+  speedLimitKmh: number | null;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export type FleetEventType =
+  | "place_arrived"
+  | "place_dwell"
+  | "place_left"
+  | "off_route"
+  | "speed_alert";
+
+export type FleetEvent = {
+  id: string;
+  type: FleetEventType;
+  driverId: string;
+  driverName: string;
+  placeId: string | null;
+  placeName: string | null;
+  placeType: PlaceType | null;
+  dwellMs: number | null;
+  at: { seconds: number; nanoseconds: number } | null;
+  meta: Record<string, unknown> | null;
 };
 
 export const RADIO_RETENTION_DAYS = 7;
@@ -117,6 +171,33 @@ export function formatSpeed(mps: number | null | undefined): string {
   const kmh = speedKmh(mps);
   if (kmh == null) return "—";
   return `${kmh.toFixed(0)} km/h`;
+}
+
+export function formatDwellMs(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms)) return "—";
+  const sec = Math.max(0, Math.round(ms / 1000));
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m < 60) return s ? `${m}m ${s}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm ? `${h}h ${rm}m` : `${h}h`;
+}
+
+export function formatFleetEventType(type: FleetEventType): string {
+  switch (type) {
+    case "place_arrived":
+      return "Arrived";
+    case "place_dwell":
+      return "Dwell";
+    case "place_left":
+      return "Left";
+    case "off_route":
+      return "Off route";
+    case "speed_alert":
+      return "Speed";
+  }
 }
 
 export function formatAge(ts: Driver["lastTelemetryAt"] | { toMillis: () => number } | null): string {

@@ -10,6 +10,9 @@ import { useRadioLive } from "../RadioLiveProvider";
 type Props = {
   driverId: string;
   driverName: string;
+  /** Optional GPS to pin this clip on Map DVR. */
+  lat?: number | null;
+  lng?: number | null;
 };
 
 function pickMime(): string {
@@ -32,7 +35,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
-export function PushToTalk({ driverId, driverName }: Props) {
+export function PushToTalk({ driverId, driverName, lat, lng }: Props) {
   const { queue } = useRadioLive();
   const [tx, setTx] = useState(false);
   const [status, setStatus] = useState("Hold to talk");
@@ -92,14 +95,24 @@ export function PushToTalk({ driverId, driverName }: Props) {
           }
           const durationMs = Math.max(0, Date.now() - startedAtRef.current);
           const audioBase64 = await blobToBase64(blob);
-          await addDoc(collection(db, "orgs", ORG_ID, "radio"), {
+          const payload: Record<string, unknown> = {
             from: "dispatch",
             driverId,
             audioBase64,
             contentType: mime,
             durationMs,
             createdAt: serverTimestamp(),
-          });
+          };
+          if (
+            typeof lat === "number" &&
+            typeof lng === "number" &&
+            Number.isFinite(lat) &&
+            Number.isFinite(lng)
+          ) {
+            payload.lat = lat;
+            payload.lng = lng;
+          }
+          await addDoc(collection(db, "orgs", ORG_ID, "radio"), payload);
           setStatus("Sent — hold to talk again");
         } catch (e) {
           setError(e instanceof Error ? e.message : "Send failed");
@@ -117,7 +130,7 @@ export function PushToTalk({ driverId, driverName }: Props) {
           : "Microphone permission needed for push-to-talk"
       );
     }
-  }, [driverId, audioBusy, tx]);
+  }, [driverId, audioBusy, tx, lat, lng]);
 
   const stopTalk = useCallback(() => {
     const rec = mediaRef.current;

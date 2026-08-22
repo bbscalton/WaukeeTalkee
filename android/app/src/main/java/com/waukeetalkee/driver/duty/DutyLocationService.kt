@@ -47,6 +47,7 @@ class DutyLocationService : Service() {
             val d = driverId ?: return
             val speed = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0
             val heading = if (loc.hasBearing()) loc.bearing.toDouble() else null
+            lastKnownLocation = loc.latitude to loc.longitude
             Firebase.firestore.document("orgs/$o/drivers/$d")
                 .update(
                     mapOf(
@@ -311,6 +312,11 @@ class DutyLocationService : Service() {
         private const val KEY_ORG = "orgId"
         private const val KEY_DRIVER = "driverId"
         private const val KEY_ACTIVE = "active"
+
+        /** Latest on-duty fix for radio clip geotagging (lat to lng). */
+        @Volatile
+        var lastKnownLocation: Pair<Double, Double>? = null
+            private set
 
         /** @return false if the service could not be started (missing permission / OS block). */
         fun start(context: Context, orgId: String, driverId: String): Boolean {

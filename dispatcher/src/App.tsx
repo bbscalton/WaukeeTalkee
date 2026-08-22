@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
+import { AlertsPage } from "./pages/AlertsPage";
 import { AppShell } from "./pages/AppShell";
 import { BookingsPage } from "./pages/BookingsPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { DriversPage } from "./pages/DriversPage";
+import { GeofencesPage } from "./pages/GeofencesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
 import { RadioInboxPage } from "./pages/RadioInboxPage";
@@ -34,6 +36,8 @@ export default function App() {
           <Route path="map" element={<MapPage />} />
           <Route path="inbox" element={<RadioInboxPage />} />
           <Route path="replay" element={<ReplayPage />} />
+          <Route path="geofences" element={<GeofencesPage />} />
+          <Route path="alerts" element={<AlertsPage />} />
           <Route path="drivers" element={<DriversPage />} />
           <Route path="contacts" element={<ContactsPage />} />
           <Route path="bookings" element={<BookingsPage />} />

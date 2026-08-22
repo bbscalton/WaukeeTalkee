@@ -8,6 +8,7 @@ import android.util.Base64
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.waukeetalkee.driver.duty.DutyLocationService
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -143,16 +144,20 @@ class RadioController(
             try {
                 val bytes = file.readBytes()
                 val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                Firebase.firestore.collection("orgs/$o/radio").add(
-                    mapOf(
-                        "from" to "driver",
-                        "driverId" to d,
-                        "audioBase64" to b64,
-                        "contentType" to "audio/mp4",
-                        "durationMs" to durationMs,
-                        "createdAt" to FieldValue.serverTimestamp(),
-                    )
-                ).await()
+                val payload = mutableMapOf<String, Any>(
+                    "from" to "driver",
+                    "driverId" to d,
+                    "audioBase64" to b64,
+                    "contentType" to "audio/mp4",
+                    "durationMs" to durationMs,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                )
+                val loc = DutyLocationService.lastKnownLocation
+                if (loc != null) {
+                    payload["lat"] = loc.first
+                    payload["lng"] = loc.second
+                }
+                Firebase.firestore.collection("orgs/$o/radio").add(payload).await()
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
                     onError(e.message ?: "Could not send talkback")

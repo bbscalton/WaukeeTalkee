@@ -11,6 +11,8 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
+export { onDriverTelemetryWritten } from "./fleetCompliance";
+
 initializeApp();
 setGlobalOptions({ region: "us-central1" });
 
@@ -83,6 +85,7 @@ export const createDriver = onCall(async (request) => {
     lastSpeed: null,
     lastHeading: null,
     lastTelemetryAt: null,
+    speedLimitKmh: null,
     createdAt: FieldValue.serverTimestamp(),
   });
 
@@ -154,6 +157,7 @@ export const createDriverWithPairCode = onCall(async (request) => {
     lastSpeed: null,
     lastHeading: null,
     lastTelemetryAt: null,
+    speedLimitKmh: null,
     createdAt: FieldValue.serverTimestamp(),
   });
   batch.set(db.doc(`orgs/${orgId}/pairCodes/${code}`), {
@@ -360,8 +364,8 @@ export const clearMapDvrTracks = onCall(
 );
 
 /**
- * Daily job: drop radio clips and map track points older than 7 days
- * so archive + DVR stay a rolling window.
+ * Daily job: drop radio clips, map track points, and fleet events older than 7 days
+ * so archive + DVR + alerts stay a rolling window.
  */
 export const purgeExpiredArchive = onSchedule(
   {
@@ -373,11 +377,17 @@ export const purgeExpiredArchive = onSchedule(
     const orgs = await db.collection("orgs").listDocuments();
     let radioTotal = 0;
     let trackTotal = 0;
+    let eventTotal = 0;
 
     for (const orgRef of orgs) {
       radioTotal += await deleteQueryBatch(
         orgRef.collection("radio").where("createdAt", "<", cutoff),
         `radio clips in ${orgRef.id}`
+      );
+
+      eventTotal += await deleteQueryBatch(
+        orgRef.collection("fleetEvents").where("at", "<", cutoff),
+        `fleet events in ${orgRef.id}`
       );
 
       const trackDrivers = await orgRef.collection("tracks").listDocuments();
@@ -390,7 +400,7 @@ export const purgeExpiredArchive = onSchedule(
     }
 
     console.log(
-      `Retention purge done (${RETENTION_DAYS}d). radio=${radioTotal} tracks=${trackTotal}`
+      `Retention purge done (${RETENTION_DAYS}d). radio=${radioTotal} tracks=${trackTotal} events=${eventTotal}`
     );
   }
 );

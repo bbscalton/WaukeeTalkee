@@ -21,9 +21,16 @@ service cloud.firestore {
         && token().driverId == driverId;
     }
 
+    function isOrgDriver(orgId) {
+      return signedIn()
+        && token().role == 'driver'
+        && token().orgId == orgId;
+    }
+
     function radioCreateKeysOk() {
       return request.resource.data.keys().hasOnly([
-        'from', 'driverId', 'audioBase64', 'createdAt', 'contentType', 'durationMs'
+        'from', 'driverId', 'audioBase64', 'createdAt', 'contentType', 'durationMs',
+        'lat', 'lng'
       ]);
     }
 
@@ -34,7 +41,21 @@ service cloud.firestore {
         && (!('durationMs' in request.resource.data)
           || (request.resource.data.durationMs is number
             && request.resource.data.durationMs >= 0
-            && request.resource.data.durationMs < 120000));
+            && request.resource.data.durationMs < 120000))
+        && (!('lat' in request.resource.data)
+          || request.resource.data.lat == null
+          || (request.resource.data.lat is number
+            && request.resource.data.lat >= -90
+            && request.resource.data.lat <= 90))
+        && (!('lng' in request.resource.data)
+          || request.resource.data.lng == null
+          || (request.resource.data.lng is number
+            && request.resource.data.lng >= -180
+            && request.resource.data.lng <= 180));
+    }
+
+    function placeTypeOk() {
+      return request.resource.data.type in ['home_base', 'checkpoint'];
     }
 
     match /orgs/{orgId} {
@@ -80,6 +101,39 @@ service cloud.firestore {
 
       match /bookings/{bookingId} {
         allow read, write: if isDispatcher(orgId);
+      }
+
+      // Home bases + checkpoints (circular geofences)
+      match /places/{placeId} {
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+        allow create, update: if isDispatcher(orgId)
+          && placeTypeOk()
+          && request.resource.data.keys().hasAll(['type', 'name', 'lat', 'lng', 'radiusM'])
+          && request.resource.data.name is string
+          && request.resource.data.lat is number
+          && request.resource.data.lng is number
+          && request.resource.data.radiusM is number
+          && request.resource.data.radiusM > 0
+          && request.resource.data.radiusM <= 50000;
+        allow delete: if isDispatcher(orgId);
+      }
+
+      // Saved corridors (home → checkpoint)
+      match /routes/{routeId} {
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+        allow create, update, delete: if isDispatcher(orgId);
+      }
+
+      // Arrive / leave / dwell / off-route / speed alerts (written by Cloud Functions)
+      match /fleetEvents/{eventId} {
+        allow read: if isDispatcher(orgId);
+        allow create, update: if false;
+        allow delete: if isDispatcher(orgId);
+      }
+
+      // Per-driver presence / throttle state (Cloud Functions only)
+      match /fleetState/{driverId} {
+        allow read, write: if false;
       }
 
       // Live PTT + 7-day archive (base64 clips; Storage optional later)

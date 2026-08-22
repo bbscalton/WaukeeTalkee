@@ -1,9 +1,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import {
   collection,
+  doc,
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
   type Timestamp,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -17,6 +19,24 @@ type PairResult = {
   displayName?: string;
 };
 
+function mapDriver(id: string, data: Record<string, unknown>): Driver {
+  return {
+    id,
+    displayName: String(data.displayName || "Driver"),
+    plate: (data.plate as string | null) ?? null,
+    pairStatus: data.pairStatus === "paired" ? "paired" : "unpaired",
+    deviceId: (data.deviceId as string | null) ?? null,
+    onDuty: Boolean(data.onDuty),
+    lastLat: typeof data.lastLat === "number" ? data.lastLat : null,
+    lastLng: typeof data.lastLng === "number" ? data.lastLng : null,
+    lastSpeed: typeof data.lastSpeed === "number" ? data.lastSpeed : null,
+    lastHeading: typeof data.lastHeading === "number" ? data.lastHeading : null,
+    lastTelemetryAt: (data.lastTelemetryAt as Timestamp | null) ?? null,
+    speedLimitKmh:
+      typeof data.speedLimitKmh === "number" ? data.speedLimitKmh : null,
+  };
+}
+
 export function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [name, setName] = useState("");
@@ -24,6 +44,7 @@ export function DriversPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPair, setLastPair] = useState<PairResult | null>(null);
+  const [speedDraft, setSpeedDraft] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const q = query(
@@ -33,23 +54,20 @@ export function DriversPage() {
     return onSnapshot(
       q,
       (snap) => {
-        const rows: Driver[] = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            displayName: String(data.displayName || "Driver"),
-            plate: data.plate ?? null,
-            pairStatus: data.pairStatus === "paired" ? "paired" : "unpaired",
-            deviceId: data.deviceId ?? null,
-            onDuty: Boolean(data.onDuty),
-            lastLat: data.lastLat ?? null,
-            lastLng: data.lastLng ?? null,
-            lastSpeed: data.lastSpeed ?? null,
-            lastHeading: data.lastHeading ?? null,
-            lastTelemetryAt: (data.lastTelemetryAt as Timestamp | null) ?? null,
-          };
-        });
+        const rows = snap.docs.map((d) =>
+          mapDriver(d.id, d.data() as Record<string, unknown>)
+        );
         setDrivers(rows);
+        setSpeedDraft((prev) => {
+          const next = { ...prev };
+          for (const d of rows) {
+            if (next[d.id] === undefined) {
+              next[d.id] =
+                d.speedLimitKmh != null ? String(d.speedLimitKmh) : "";
+            }
+          }
+          return next;
+        });
       },
       (err) => setError(err.message)
     );
@@ -97,12 +115,32 @@ export function DriversPage() {
     }
   }
 
+  async function saveSpeedLimit(driverId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const raw = (speedDraft[driverId] ?? "").trim();
+      const n = raw === "" ? null : Number(raw);
+      if (n != null && (!Number.isFinite(n) || n < 1 || n > 200)) {
+        throw new Error("Speed limit must be 1–200 km/h or empty");
+      }
+      await updateDoc(doc(db, "orgs", ORG_ID, "drivers", driverId), {
+        speedLimitKmh: n == null ? null : Math.round(n),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speed limit save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-head">
         <h1>Drivers</h1>
         <p className="muted">
-          Assign a name, generate a pair code, give it to the phone.
+          Assign a name, generate a pair code, set an optional speed limit
+          (km/h) for fleet alerts.
         </p>
       </div>
 
@@ -152,6 +190,7 @@ export function DriversPage() {
               <th>Status</th>
               <th>Duty</th>
               <th>Speed</th>
+              <th>Limit km/h</th>
               <th>Last update</th>
               <th />
             </tr>
@@ -159,7 +198,7 @@ export function DriversPage() {
           <tbody>
             {drivers.length === 0 && (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   No drivers yet.
                 </td>
               </tr>
@@ -175,6 +214,31 @@ export function DriversPage() {
                 </td>
                 <td>{d.onDuty ? "On duty" : "Off"}</td>
                 <td>{formatSpeed(d.lastSpeed)}</td>
+                <td>
+                  <div className="speed-limit-cell">
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      placeholder="—"
+                      value={speedDraft[d.id] ?? ""}
+                      onChange={(e) =>
+                        setSpeedDraft((prev) => ({
+                          ...prev,
+                          [d.id]: e.target.value,
+                        }))
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={busy}
+                      onClick={() => void saveSpeedLimit(d.id)}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </td>
                 <td>{formatAge(d.lastTelemetryAt)}</td>
                 <td>
                   <button
