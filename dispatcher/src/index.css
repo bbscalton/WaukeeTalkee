@@ -355,6 +355,14 @@ th {
   letter-spacing: 0.06em;
 }
 
+.status-ok {
+  color: var(--rx-green, #3dd68c);
+}
+
+.status-warn {
+  color: var(--amber);
+}
+
 .pill {
   display: inline-block;
   padding: 0.18rem 0.6rem;

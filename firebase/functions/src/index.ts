@@ -12,6 +12,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
 export { onDriverTelemetryWritten } from "./fleetCompliance";
+export { onDriverRadioReply, expireRadioRequests } from "./radioRequests";
 
 initializeApp();
 setGlobalOptions({ region: "us-central1" });
@@ -404,6 +405,11 @@ export const purgeExpiredArchive = onSchedule(
       radioTotal += await deleteQueryBatch(
         orgRef.collection("radio").where("createdAt", "<", cutoff),
         `radio clips in ${orgRef.id}`
+      );
+
+      await deleteQueryBatch(
+        orgRef.collection("radioRequests").where("createdAt", "<", cutoff),
+        `radio requests in ${orgRef.id}`
       );
 
       eventTotal += await deleteQueryBatch(

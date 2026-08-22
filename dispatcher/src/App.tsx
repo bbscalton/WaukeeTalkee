@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from "./auth";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AppShell } from "./pages/AppShell";
 import { BookingsPage } from "./pages/BookingsPage";
-import { ContactsPage } from "./pages/ContactsPage";
+import { RequestResponsePage } from "./pages/RequestResponsePage";
 import { DriversPage } from "./pages/DriversPage";
 import { GeofencesPage } from "./pages/GeofencesPage";
 import { GroupsPage } from "./pages/GroupsPage";
@@ -41,7 +41,7 @@ export default function App() {
           <Route path="groups" element={<GroupsPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="drivers" element={<DriversPage />} />
-          <Route path="contacts" element={<ContactsPage />} />
+          <Route path="requests" element={<RequestResponsePage />} />
           <Route path="bookings" element={<BookingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -135,6 +135,24 @@ service cloud.firestore {
         allow read, write: if isDispatcher(orgId);
       }
 
+      // Dispatcher→driver PTT request/response tracking (3 min window)
+      match /radioRequests/{requestId} {
+        allow read: if isDispatcher(orgId);
+        allow create: if isDispatcher(orgId)
+          && request.resource.data.keys().hasOnly([
+            'kind', 'driverId', 'driverName', 'outboundClipId', 'replyClipId',
+            'status', 'createdAt', 'expiresAt', 'respondedAt', 'broadcastBatchId', 'groupId'
+          ])
+          && request.resource.data.kind in ['direct', 'broadcast']
+          && request.resource.data.status == 'pending'
+          && request.resource.data.driverId is string
+          && request.resource.data.driverName is string
+          && request.resource.data.outboundClipId is string
+          && request.resource.data.replyClipId == null
+          && request.resource.data.respondedAt == null;
+        allow update, delete: if false;
+      }
+
       // Home bases + checkpoints (circular geofences)
       match /places/{placeId} {
         allow read: if isDispatcher(orgId) || isOrgDriver(orgId);

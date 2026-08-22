@@ -20,7 +20,12 @@ export type RadioSendPayload = {
   groupId?: string;
 };
 
-async function writeClip(payload: RadioSendPayload): Promise<void> {
+export type RadioClipRef = {
+  driverId: string;
+  clipId: string;
+};
+
+async function writeClip(payload: RadioSendPayload): Promise<string> {
   const doc: Record<string, unknown> = {
     from: payload.from,
     driverId: payload.driverId,
@@ -37,7 +42,8 @@ async function writeClip(payload: RadioSendPayload): Promise<void> {
   if (payload.senderDriverId) doc.senderDriverId = payload.senderDriverId;
   if (payload.senderDisplayName) doc.senderDisplayName = payload.senderDisplayName;
   if (payload.groupId) doc.groupId = payload.groupId;
-  await addDoc(collection(db, "orgs", ORG_ID, "radio"), doc);
+  const ref = await addDoc(collection(db, "orgs", ORG_ID, "radio"), doc);
+  return ref.id;
 }
 
 /** Dispatch → one driver (direct). */
@@ -45,22 +51,28 @@ export async function sendDirectToDriver(
   payload: Omit<RadioSendPayload, "from" | "audience" | "driverId"> & {
     driverId: string;
   }
-): Promise<void> {
-  await writeClip({ ...payload, from: "dispatch", audience: "direct" });
+): Promise<string> {
+  return writeClip({ ...payload, from: "dispatch", audience: "direct" });
 }
 
 /** Dispatch → every paired driver in the org. */
 export async function broadcastToAllDrivers(
   memberIds: string[],
   payload: Omit<RadioSendPayload, "from" | "audience" | "driverId">
-): Promise<number> {
+): Promise<{ sent: number; clips: RadioClipRef[] }> {
   const ids = [...new Set(memberIds.filter(Boolean))];
-  await Promise.all(
-    ids.map((driverId) =>
-      writeClip({ ...payload, from: "dispatch", driverId, audience: "all" })
-    )
+  const clips = await Promise.all(
+    ids.map(async (driverId) => ({
+      driverId,
+      clipId: await writeClip({
+        ...payload,
+        from: "dispatch",
+        driverId,
+        audience: "all",
+      }),
+    }))
   );
-  return ids.length;
+  return { sent: ids.length, clips };
 }
 
 /** Dispatch → each member of a group. */
@@ -68,18 +80,19 @@ export async function broadcastToGroupMembers(
   memberIds: string[],
   groupId: string,
   payload: Omit<RadioSendPayload, "from" | "audience" | "driverId" | "groupId">
-): Promise<number> {
+): Promise<{ sent: number; clips: RadioClipRef[] }> {
   const ids = [...new Set(memberIds.filter(Boolean))];
-  await Promise.all(
-    ids.map((driverId) =>
-      writeClip({
+  const clips = await Promise.all(
+    ids.map(async (driverId) => ({
+      driverId,
+      clipId: await writeClip({
         ...payload,
         from: "dispatch",
         driverId,
         audience: "group",
         groupId,
-      })
-    )
+      }),
+    }))
   );
-  return ids.length;
+  return { sent: ids.length, clips };
 }

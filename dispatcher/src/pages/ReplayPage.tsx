@@ -530,7 +530,7 @@ export function ReplayPage() {
 
   let emptyHint: string | null = null;
   if (!paired.length) {
-    emptyHint = "No paired drivers yet. Pair a phone from Contacts first.";
+    emptyHint = "No paired drivers yet. Pair a phone from Drivers first.";
   } else if (!selectedId) {
     emptyHint = "Select a driver to load today’s track.";
   } else if (!points.length) {

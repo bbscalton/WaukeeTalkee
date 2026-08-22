@@ -108,6 +108,70 @@ export type FleetEvent = {
 
 export const RADIO_RETENTION_DAYS = 7;
 
+export type RadioRequestKind = "direct" | "broadcast";
+
+export type RadioRequestStatus = "pending" | "responded" | "expired";
+
+/** Tracks dispatcher→driver PTT as a request; driver reply within 3 min = response. */
+export type RadioRequest = {
+  id: string;
+  kind: RadioRequestKind;
+  driverId: string;
+  driverName: string;
+  outboundClipId: string;
+  replyClipId: string | null;
+  status: RadioRequestStatus;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  expiresAt: { seconds: number; nanoseconds: number } | null;
+  respondedAt: { seconds: number; nanoseconds: number } | null;
+  broadcastBatchId: string | null;
+  groupId: string | null;
+};
+
+export function formatRequestKind(kind: RadioRequestKind): string {
+  return kind === "broadcast" ? "Broadcast request" : "Request";
+}
+
+export function formatRequestStatus(
+  status: RadioRequestStatus,
+  respondedAt: RadioRequest["respondedAt"]
+): string {
+  if (status === "responded" && respondedAt) {
+    return `Response · ${formatRequestClock(respondedAt)}`;
+  }
+  if (status === "pending") return "Awaiting response";
+  if (status === "expired") return "No response (3 min)";
+  return "—";
+}
+
+function formatRequestClock(
+  ts: { seconds: number; nanoseconds: number } | null
+): string {
+  if (!ts || typeof ts.seconds !== "number") return "—";
+  return new Date(ts.seconds * 1000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function formatRequestDate(ts: RadioRequest["createdAt"]): string {
+  if (!ts || typeof ts.seconds !== "number") return "—";
+  return new Date(ts.seconds * 1000).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function formatRequestTime(ts: RadioRequest["createdAt"]): string {
+  if (!ts || typeof ts.seconds !== "number") return "—";
+  return new Date(ts.seconds * 1000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 export type ContactType = "customer" | "hotel" | "account";
 
 export type Contact = {

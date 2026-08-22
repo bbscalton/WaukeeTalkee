@@ -33,7 +33,7 @@ function ShellNav() {
           </NavLink>
           <NavLink to="/drivers">Drivers</NavLink>
           <NavLink to="/groups">Groups</NavLink>
-          <NavLink to="/contacts">Contacts</NavLink>
+          <NavLink to="/requests">Request / Response</NavLink>
           <NavLink to="/bookings">Bookings</NavLink>
         </nav>
         <div className="topbar-user">

@@ -5,6 +5,7 @@ import {
   broadcastToAllDrivers,
   broadcastToGroupMembers,
 } from "../radioSend";
+import { createBroadcastRadioRequests } from "../radioRequests";
 import { useRadioLive } from "../RadioLiveProvider";
 import type { Driver, RadioGroup } from "../types";
 
@@ -159,19 +160,52 @@ export function BroadcastPanel({ lat, lng }: Props) {
               : {}),
           };
           let sent = 0;
+          let requestCount = 0;
+          const broadcastBatchId = crypto.randomUUID();
+          const driverNames = new Map(
+            drivers.map((d) => [d.id, d.displayName])
+          );
+          const onDutyIds = new Set(
+            drivers.filter((d) => d.onDuty).map((d) => d.id)
+          );
+
           if (target === "all") {
-            sent = await broadcastToAllDrivers(
+            const result = await broadcastToAllDrivers(
               paired.map((d) => d.id),
               base
             );
+            sent = result.sent;
+            const onDutyClips = result.clips.filter((c) =>
+              onDutyIds.has(c.driverId)
+            );
+            requestCount = await createBroadcastRadioRequests(
+              onDutyClips,
+              driverNames,
+              broadcastBatchId
+            );
           } else if (selectedGroup) {
-            sent = await broadcastToGroupMembers(
+            const result = await broadcastToGroupMembers(
               selectedGroup.memberDriverIds,
               selectedGroup.id,
               base
             );
+            sent = result.sent;
+            const onDutyClips = result.clips.filter((c) =>
+              onDutyIds.has(c.driverId)
+            );
+            requestCount = await createBroadcastRadioRequests(
+              onDutyClips,
+              driverNames,
+              broadcastBatchId,
+              selectedGroup.id
+            );
           }
-          setStatus(`Broadcast sent to ${sent} driver${sent === 1 ? "" : "s"}`);
+          setStatus(
+            `Broadcast sent to ${sent} driver${sent === 1 ? "" : "s"}` +
+              (requestCount > 0
+                ? ` · ${requestCount} on-duty response tracked`
+                : "")
+          );
         } catch (e) {
           setError(e instanceof Error ? e.message : "Broadcast failed");
           setStatus("Hold to broadcast");
@@ -193,6 +227,7 @@ export function BroadcastPanel({ lat, lng }: Props) {
     lat,
     lng,
     paired,
+    drivers,
     recipientCount,
     selectedGroup,
     target,
