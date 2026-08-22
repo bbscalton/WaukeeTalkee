@@ -383,15 +383,26 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Talk to (Volume Up)"
+                    android:text="Talk to — tap name, then hold Volume Up"
                     android:textColor="@color/muted"
                     android:textSize="12sp" />
 
-                <Spinner
-                    android:id="@+id/peerSpinner"
+                <LinearLayout
+                    android:id="@+id/peerList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="6dp"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/peerListEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="No other drivers in this group yet."
+                    android:textColor="@color/muted"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <!-- RADIO ARCHIVE (Dispatch thread) -->

@@ -101,7 +101,7 @@ service cloud.firestore {
       }
 
       match /drivers/{driverId} {
-        allow read: if isDispatcher(orgId) || isDriver(orgId, driverId);
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
 
         allow create, delete: if isDispatcher(orgId);
 

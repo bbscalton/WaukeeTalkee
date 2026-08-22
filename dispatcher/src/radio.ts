@@ -70,9 +70,20 @@ export function formatDuration(ms: number | null): string {
 }
 
 export function isUnreadForDispatch(clip: RadioClip): boolean {
+  if (!isLiveForDispatch(clip)) return false;
+  return !clip.dispatchHeardAt;
+}
+
+/** Driver clips dispatch should live-play or count as unread (dedupe group fan-out). */
+export function isLiveForDispatch(clip: RadioClip): boolean {
   if (clip.from !== "driver") return false;
   if (clip.audience === "peer") return false;
-  return !clip.dispatchHeardAt;
+  if (clip.audience === "group") {
+    return (
+      clip.senderDriverId != null && clip.driverId === clip.senderDriverId
+    );
+  }
+  return true;
 }
 
 /** Clip belongs on a driver's inbox thread (direct, group, or peer involving them). */
@@ -80,6 +91,9 @@ export function clipThreadDriverId(clip: RadioClip): string {
   if (clip.from === "driver") {
     if (clip.audience === "peer") {
       return clip.senderDriverId ?? clip.driverId;
+    }
+    if (clip.audience === "group" && clip.senderDriverId) {
+      return clip.senderDriverId;
     }
     return clip.driverId;
   }

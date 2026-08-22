@@ -79,6 +79,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var channelBadge: TextView
     private lateinit var groupPanel: LinearLayout
     private lateinit var groupSpinner: Spinner
+    private lateinit var peerList: LinearLayout
+    private lateinit var peerListEmpty: TextView
     private lateinit var peerSpinner: Spinner
 
     private var volumePttEnabled = false
@@ -94,7 +96,6 @@ class MainActivity : AppCompatActivity() {
     private var myGroups: List<DriverGroupInfo> = emptyList()
     private var peerOptions: List<Pair<String, String>> = emptyList()
     private var ignoreGroupSpinner = false
-    private var ignorePeerSpinner = false
     private val clipTimeFormat = SimpleDateFormat("MMM d · h:mm a", Locale.getDefault())
 
     private data class HistoryClip(
@@ -148,7 +149,8 @@ class MainActivity : AppCompatActivity() {
         channelBadge = findViewById(R.id.channelBadge)
         groupPanel = findViewById(R.id.groupPanel)
         groupSpinner = findViewById(R.id.groupSpinner)
-        peerSpinner = findViewById(R.id.peerSpinner)
+        peerList = findViewById(R.id.peerList)
+        peerListEmpty = findViewById(R.id.peerListEmpty)
 
         historyPlayer = RadioClipPlayer(
             this,
@@ -580,7 +582,7 @@ class MainActivity : AppCompatActivity() {
         radioHint.text = when {
             !volumePttEnabled ->
                 "Listening for dispatch · enable volume PTT to talk"
-            RadioBus.activeGroup() != null ->
+            RadioBus.activeGroup() != null && RadioBus.peerTargetDriverId != null ->
                 "Vol Up → ${peerLabel()} · Vol Down → group broadcast"
             AccessibilityPttHelper.isServiceEnabled(this) ->
                 "Hold Volume Up to talk to dispatch — works in other apps / lock screen"
@@ -669,55 +671,63 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val others = group.memberDriverIds.filter { it != myDriverId }
             val names = mutableMapOf<String, String>()
-            for (id in others) {
-                try {
-                    val doc = Firebase.firestore.document("orgs/$orgId/drivers/$id").get().await()
-                    names[id] = doc.getString("displayName") ?: "Driver"
-                } catch (_: Exception) {
-                    names[id] = "Driver"
+            try {
+                val snap = Firebase.firestore.collection("orgs/$orgId/drivers").get().await()
+                for (doc in snap.documents) {
+                    names[doc.id] = doc.getString("displayName") ?: "Driver"
                 }
+            } catch (_: Exception) {
+            }
+            for (id in others) {
+                if (!names.containsKey(id)) names[id] = "Driver"
             }
             RadioBus.memberNames = names
             peerOptions = others.map { id -> id to (names[id] ?: "Driver") }
-
-            if (peerOptions.isEmpty()) {
-                peerSpinner.adapter = null
-                RadioBus.peerTargetDriverId = null
-                return@launch
-            }
-
-            ignorePeerSpinner = true
-            peerSpinner.adapter = android.widget.ArrayAdapter(
-                this@MainActivity,
-                android.R.layout.simple_spinner_dropdown_item,
-                peerOptions.map { it.second },
-            )
             val savedPeer = prefs.peerTargetDriverId.first()
-            val peerIdx = peerOptions.indexOfFirst { it.first == savedPeer }.let {
-                if (it >= 0) it else 0
-            }
-            peerSpinner.setSelection(peerIdx)
-            RadioBus.peerTargetDriverId = peerOptions[peerIdx].first
-            ignorePeerSpinner = false
 
-            peerSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    parent: android.widget.AdapterView<*>?,
-                    view: View?,
-                    position: Int,
-                    id: Long,
-                ) {
-                    if (ignorePeerSpinner) return
-                    val opt = peerOptions.getOrNull(position) ?: return
-                    RadioBus.peerTargetDriverId = opt.first
-                    lifecycleScope.launch {
-                        prefs.setPeerTargetDriverId(RadioBus.peerTargetDriverId)
-                    }
+            runOnUiThread {
+                peerList.removeAllViews()
+                if (peerOptions.isEmpty()) {
+                    peerListEmpty.isVisible = true
+                    RadioBus.peerTargetDriverId = null
                     refreshRadioHint()
+                    return@runOnUiThread
                 }
+                peerListEmpty.isVisible = false
 
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                var selectedId = savedPeer?.takeIf { id -> peerOptions.any { it.first == id } }
+                    ?: peerOptions.first().first
+                RadioBus.peerTargetDriverId = selectedId
+
+                for ((id, label) in peerOptions) {
+                    val btn = Button(this@MainActivity, null, 0, R.style.Btn_Ghost).apply {
+                        text = label
+                        isAllCaps = false
+                        tag = id
+                        setOnClickListener {
+                            selectedId = id
+                            RadioBus.peerTargetDriverId = id
+                            lifecycleScope.launch { prefs.setPeerTargetDriverId(id) }
+                            renderPeerButtons(selectedId)
+                            refreshRadioHint()
+                        }
+                    }
+                    peerList.addView(btn)
+                }
+                renderPeerButtons(selectedId)
+                refreshRadioHint()
             }
+        }
+    }
+
+    private fun renderPeerButtons(selectedId: String) {
+        for (i in 0 until peerList.childCount) {
+            val btn = peerList.getChildAt(i) as? Button ?: continue
+            val id = btn.tag as? String ?: continue
+            val label = peerOptions.find { it.first == id }?.second ?: "Driver"
+            val selected = id == selectedId
+            btn.alpha = if (selected) 1f else 0.55f
+            btn.text = if (selected) "▶ $label" else label
         }
     }
 

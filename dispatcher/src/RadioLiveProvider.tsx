@@ -16,7 +16,7 @@ import {
 } from "firebase/firestore";
 import { audioQueue, type AudioQueueState, type QueuedAudio } from "./audioQueue";
 import { db, ORG_ID } from "./firebase";
-import { clipTimeMs, parseRadioClip } from "./radio";
+import { clipTimeMs, isLiveForDispatch, parseRadioClip } from "./radio";
 import type { RadioClip } from "./types";
 
 type RadioLiveContextValue = {
@@ -95,16 +95,21 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
             docSnap.id,
             docSnap.data() as Record<string, unknown>
           );
-          if (clip.from !== "driver") continue;
-          if (clip.audience === "peer") continue;
+          if (!isLiveForDispatch(clip)) continue;
           if (!clip.audioBase64) continue;
           const created = clipTimeMs(clip);
           if (created && created < readyAt - 2000) continue;
 
+          const liveDriverId =
+            clip.senderDriverId && clip.audience === "group"
+              ? clip.senderDriverId
+              : clip.driverId;
+
           const item: QueuedAudio = {
             id: clip.id,
-            driverId: clip.driverId,
-            driverName: driverNamesRef.current.get(clip.driverId) || "Driver",
+            driverId: liveDriverId,
+            driverName:
+              driverNamesRef.current.get(liveDriverId) || "Driver",
             audioBase64: clip.audioBase64,
             contentType: clip.contentType,
             source: "live",
