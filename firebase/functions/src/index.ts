@@ -305,6 +305,27 @@ async function deleteQueryBatch(query: Query, label: string): Promise<number> {
 }
 
 /**
+ * Dispatcher clear: delete every fleetEvent (alerts) for the org.
+ */
+export const clearFleetEvents = onCall(
+  {
+    timeoutSeconds: 300,
+    memory: "512MiB",
+  },
+  async (request) => {
+    assertAuth(request.auth);
+    const orgId = String(request.data?.orgId || DEFAULT_ORG);
+    await assertDispatcher(orgId, request.auth.uid);
+
+    const deleted = await deleteQueryBatch(
+      db.collection(`orgs/${orgId}/fleetEvents`),
+      `clear fleetEvents ${orgId}`
+    );
+    return { deleted, orgId };
+  }
+);
+
+/**
  * Dispatcher Map DVR clear: one driver's local calendar day, or all org tracks.
  * Day window (startMs/endMs) comes from the browser so it matches Replay filters.
  */

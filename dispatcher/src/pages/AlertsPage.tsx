@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { eventMessage, useFleetAlerts } from "../FleetAlertsProvider";
+import { clearAllFleetEvents, deleteFleetEvent } from "../fleetEvents";
 import {
   formatDwellMs,
   formatFleetEventType,
@@ -28,20 +29,81 @@ function eventTime(ev: FleetEvent): string {
 
 export function AlertsPage() {
   const { events, markSeen } = useFleetAlerts();
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     markSeen();
   }, [markSeen, events.length]);
 
+  const removeEvent = async (ev: FleetEvent) => {
+    if (
+      !window.confirm(
+        `Delete this ${formatFleetEventType(ev.type).toLowerCase()} alert for ${ev.driverName}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setBusyId(ev.id);
+    try {
+      await deleteFleetEvent(ev.id);
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not delete alert."
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const clearAll = async () => {
+    if (events.length === 0) return;
+    if (
+      !window.confirm(
+        "Delete ALL fleet alerts for this organization? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    if (
+      !window.confirm(
+        "Final confirmation: clear every arrive / dwell / leave / off-route / speed alert?"
+      )
+    ) {
+      return;
+    }
+    setBusyId("all");
+    try {
+      await clearAllFleetEvents();
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Could not clear alerts."
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="page">
-      <div className="page-head">
-        <h1>Fleet alerts</h1>
-        <p className="muted">
-          Arrive / dwell / leave at bases &amp; checkpoints, off-route, and speed
-          alerts (last ~7 days). Configure places and routes on{" "}
-          <Link to="/geofences">Bases &amp; routes</Link>.
-        </p>
+      <div className="page-head alerts-page-head">
+        <div>
+          <h1>Fleet alerts</h1>
+          <p className="muted">
+            Arrive / dwell / leave at bases &amp; checkpoints, off-route, and
+            speed alerts (last ~7 days). Configure places and routes on{" "}
+            <Link to="/geofences">Bases &amp; routes</Link>.
+          </p>
+        </div>
+        {events.length > 0 && (
+          <button
+            type="button"
+            className="ghost danger-ghost"
+            disabled={busyId != null}
+            onClick={() => void clearAll()}
+          >
+            {busyId === "all" ? "Clearing…" : "Clear all alerts"}
+          </button>
+        )}
       </div>
 
       <div className="panel table-wrap">
@@ -53,12 +115,13 @@ export function AlertsPage() {
               <th>Driver</th>
               <th>Detail</th>
               <th>Dwell</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {events.length === 0 && (
               <tr>
-                <td colSpan={5} className="muted">
+                <td colSpan={6} className="muted">
                   No alerts yet. Drivers on duty near a place will generate
                   arrivals after ~20s inside the fence.
                 </td>
@@ -82,6 +145,16 @@ export function AlertsPage() {
                   ev.type === "place_arrived"
                     ? formatDwellMs(ev.dwellMs)
                     : "—"}
+                </td>
+                <td className="row-actions">
+                  <button
+                    type="button"
+                    className="ghost danger-ghost"
+                    disabled={busyId != null}
+                    onClick={() => void removeEvent(ev)}
+                  >
+                    {busyId === ev.id ? "…" : "Delete"}
+                  </button>
                 </td>
               </tr>
             ))}

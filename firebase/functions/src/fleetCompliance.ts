@@ -19,8 +19,8 @@ const ARRIVE_MIN_DWELL_MS = 20_000;
 const EXIT_BUFFER_M = 30;
 const OFF_ROUTE_THROTTLE_MS = 3 * 60 * 1000;
 const SPEED_ALERT_THROTTLE_MS = 2 * 60 * 1000;
-/** Periodic dwell refresh while still inside after arrived. */
-const DWELL_UPDATE_MS = 60_000;
+/** Periodic dwell refresh while still inside after arrived (anti-spam). */
+const DWELL_UPDATE_MS = 10 * 60 * 1000;
 
 type PlacePresence = {
   inside: boolean;
