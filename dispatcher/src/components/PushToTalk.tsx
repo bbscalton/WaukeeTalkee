@@ -101,6 +101,7 @@ export function PushToTalk({ driverId, driverName, lat, lng }: Props) {
             audioBase64,
             contentType: mime,
             durationMs,
+            audience: "direct",
             createdAt: serverTimestamp(),
           };
           if (

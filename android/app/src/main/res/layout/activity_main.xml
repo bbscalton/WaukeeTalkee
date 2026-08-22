@@ -338,6 +338,62 @@
                     android:text="Listening for dispatch" />
             </LinearLayout>
 
+            <!-- Group talk (when dispatch assigned you to a group) -->
+            <LinearLayout
+                android:id="@+id/groupPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_panel"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Group talk"
+                    android:textColor="@color/ink"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Vol Up → selected driver · Vol Down → whole group + dispatch"
+                    android:textColor="@color/muted"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Group"
+                    android:textColor="@color/muted"
+                    android:textSize="12sp" />
+
+                <Spinner
+                    android:id="@+id/groupSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Talk to (Volume Up)"
+                    android:textColor="@color/muted"
+                    android:textSize="12sp" />
+
+                <Spinner
+                    android:id="@+id/peerSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
             <!-- RADIO ARCHIVE (Dispatch thread) -->
             <LinearLayout
                 android:layout_width="match_parent"

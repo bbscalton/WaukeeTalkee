@@ -30,8 +30,40 @@ service cloud.firestore {
     function radioCreateKeysOk() {
       return request.resource.data.keys().hasOnly([
         'from', 'driverId', 'audioBase64', 'createdAt', 'contentType', 'durationMs',
-        'lat', 'lng'
+        'lat', 'lng', 'audience', 'senderDriverId', 'senderDisplayName', 'groupId'
       ]);
+    }
+
+    function radioAudienceOk() {
+      return !('audience' in request.resource.data)
+        || request.resource.data.audience in ['direct', 'peer', 'group', 'all'];
+    }
+
+    function groupHasMember(orgId, groupId, memberId) {
+      return memberId in get(/databases/$(database)/documents/orgs/$(orgId)/groups/$(groupId)).data.memberDriverIds;
+    }
+
+    function driverRadioCreateOk(orgId) {
+      let d = request.resource.data;
+      let me = token().driverId;
+      let audience = 'audience' in d ? d.audience : 'direct';
+      return d.from == 'driver'
+        && radioClipPayloadOk()
+        && radioAudienceOk()
+        && (
+          (audience == 'direct' && d.driverId == me)
+          || (audience == 'peer'
+            && d.senderDriverId == me
+            && d.driverId != me
+            && d.groupId is string
+            && groupHasMember(orgId, d.groupId, me)
+            && groupHasMember(orgId, d.groupId, d.driverId))
+          || (audience == 'group'
+            && d.senderDriverId == me
+            && d.groupId is string
+            && groupHasMember(orgId, d.groupId, me)
+            && (d.driverId == me || groupHasMember(orgId, d.groupId, d.driverId)))
+        );
     }
 
     function radioClipPayloadOk() {
@@ -136,6 +168,11 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      match /groups/{groupId} {
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+        allow create, update, delete: if isDispatcher(orgId);
+      }
+
       // Live PTT + 7-day archive (base64 clips; Storage optional later)
       match /radio/{clipId} {
         allow read: if isDispatcher(orgId)
@@ -144,14 +181,13 @@ service cloud.firestore {
         allow create: if (isDispatcher(orgId)
           && request.resource.data.from == 'dispatch'
           && radioCreateKeysOk()
-          && radioClipPayloadOk())
+          && radioClipPayloadOk()
+          && radioAudienceOk())
           || (signedIn()
             && token().role == 'driver'
             && token().orgId == orgId
-            && request.resource.data.driverId == token().driverId
-            && request.resource.data.from == 'driver'
-            && radioCreateKeysOk()
-            && radioClipPayloadOk());
+            && driverRadioCreateOk(orgId)
+            && radioCreateKeysOk());
 
         // Dispatcher may update/delete; drivers may only mark their inbox heard.
         allow update: if isDispatcher(orgId)

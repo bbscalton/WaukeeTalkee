@@ -13,6 +13,14 @@ export function parseRadioClip(
   data: Record<string, unknown>
 ): RadioClip {
   const from = data.from === "driver" ? "driver" : "dispatch";
+  const audienceRaw = data.audience;
+  const audience =
+    audienceRaw === "peer" ||
+    audienceRaw === "group" ||
+    audienceRaw === "all" ||
+    audienceRaw === "direct"
+      ? audienceRaw
+      : "direct";
   return {
     id,
     from,
@@ -25,6 +33,12 @@ export function parseRadioClip(
     driverHeardAt: (data.driverHeardAt as Timestamp | null) ?? null,
     lat: typeof data.lat === "number" ? data.lat : null,
     lng: typeof data.lng === "number" ? data.lng : null,
+    audience,
+    senderDriverId:
+      typeof data.senderDriverId === "string" ? data.senderDriverId : null,
+    senderDisplayName:
+      typeof data.senderDisplayName === "string" ? data.senderDisplayName : null,
+    groupId: typeof data.groupId === "string" ? data.groupId : null,
   };
 }
 
@@ -56,7 +70,57 @@ export function formatDuration(ms: number | null): string {
 }
 
 export function isUnreadForDispatch(clip: RadioClip): boolean {
-  return clip.from === "driver" && !clip.dispatchHeardAt;
+  if (clip.from !== "driver") return false;
+  if (clip.audience === "peer") return false;
+  return !clip.dispatchHeardAt;
+}
+
+/** Clip belongs on a driver's inbox thread (direct, group, or peer involving them). */
+export function clipThreadDriverId(clip: RadioClip): string {
+  if (clip.from === "driver") {
+    if (clip.audience === "peer") {
+      return clip.senderDriverId ?? clip.driverId;
+    }
+    return clip.driverId;
+  }
+  return clip.driverId;
+}
+
+export function clipBelongsToThread(clip: RadioClip, threadDriverId: string): boolean {
+  if (clip.driverId === threadDriverId) return true;
+  if (clip.senderDriverId === threadDriverId) return true;
+  return clipThreadDriverId(clip) === threadDriverId;
+}
+
+export function audienceLabel(clip: RadioClip): string | null {
+  switch (clip.audience) {
+    case "peer":
+      return "Peer";
+    case "group":
+      return "Group";
+    case "all":
+      return "Broadcast";
+    default:
+      return null;
+  }
+}
+
+export function clipDescription(
+  clip: RadioClip,
+  nameById: Map<string, string>
+): string | null {
+  if (clip.audience === "peer" && clip.senderDriverId) {
+    const sender = nameById.get(clip.senderDriverId) ?? "Driver";
+    const target = nameById.get(clip.driverId) ?? "Driver";
+    return `${sender} → ${target}`;
+  }
+  if (clip.audience === "group" && clip.from === "driver" && clip.senderDriverId) {
+    const sender = nameById.get(clip.senderDriverId) ?? "Driver";
+    return `${sender} · group`;
+  }
+  if (clip.audience === "all") return "Fleet broadcast";
+  if (clip.audience === "group" && clip.from === "dispatch") return "Group broadcast";
+  return null;
 }
 
 export function isUnreadForDriver(clip: RadioClip): boolean {

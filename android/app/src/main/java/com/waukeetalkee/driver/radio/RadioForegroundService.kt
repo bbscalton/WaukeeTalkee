@@ -82,7 +82,7 @@ class RadioForegroundService : Service() {
                     return START_NOT_STICKY
                 }
                 ensureRadioStarted()
-                radio?.beginTransmit()
+                radio?.beginTransmit(RadioBus.pttConfig)
                 return START_STICKY
             }
             ACTION_END_TX -> {
@@ -444,7 +444,8 @@ class RadioForegroundService : Service() {
             }
         }
 
-        fun beginTransmit(context: Context) {
+        fun beginTransmit(context: Context, config: PttConfig = RadioBus.pttConfig) {
+            RadioBus.pttConfig = config
             try {
                 context.startService(
                     Intent(context, RadioForegroundService::class.java).setAction(ACTION_BEGIN_TX),

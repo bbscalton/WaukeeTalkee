@@ -3,6 +3,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
 import {
+  audienceLabel,
+  clipBelongsToThread,
+  clipDescription,
+  clipThreadDriverId,
   clipTimeMs,
   deleteRadioClip,
   driverHeardLabel,
@@ -29,6 +33,10 @@ const emptyClip: RadioClip = {
   driverHeardAt: null,
   lat: null,
   lng: null,
+  audience: "direct",
+  senderDriverId: null,
+  senderDisplayName: null,
+  groupId: null,
 };
 
 export function RadioInboxPage() {
@@ -99,17 +107,18 @@ export function RadioInboxPage() {
       });
     }
     for (const c of clips) {
-      let row = map.get(c.driverId);
+      const threadId = clipThreadDriverId(c);
+      let row = map.get(threadId);
       if (!row) {
         row = {
-          driverId: c.driverId,
-          name: nameById.get(c.driverId) || "Driver",
+          driverId: threadId,
+          name: nameById.get(threadId) || "Driver",
           last: null,
-          unread: unreadByDriver.get(c.driverId) ?? 0,
-          unheard: unheardOutboundByDriver.get(c.driverId) ?? 0,
+          unread: unreadByDriver.get(threadId) ?? 0,
+          unheard: unheardOutboundByDriver.get(threadId) ?? 0,
           count: 0,
         };
-        map.set(c.driverId, row);
+        map.set(threadId, row);
       }
       row.count += 1;
       if (!row.last || clipTimeMs(c) > clipTimeMs(row.last)) row.last = c;
@@ -133,7 +142,7 @@ export function RadioInboxPage() {
   const threadClips = useMemo(() => {
     if (!selected) return [];
     return clips
-      .filter((c) => c.driverId === selected.driverId)
+      .filter((c) => clipBelongsToThread(c, selected.driverId))
       .filter((c) => (onlyUnheard ? isUnheardOutbound(c) : true))
       .sort((a, b) => clipTimeMs(b) - clipTimeMs(a));
   }, [clips, selected, onlyUnheard]);
@@ -166,7 +175,7 @@ export function RadioInboxPage() {
 
   const clearThread = async () => {
     if (!selected) return;
-    const all = clips.filter((c) => c.driverId === selected.driverId);
+    const all = clips.filter((c) => clipBelongsToThread(c, selected.driverId));
     if (all.length === 0) return;
     if (
       !window.confirm(
@@ -310,9 +319,15 @@ export function RadioInboxPage() {
                     >
                       <div>
                         <strong>{speakerLabel(c.from, selected.name)}</strong>
+                        {audienceLabel(c) && (
+                          <span className="pill fleet-pill">{audienceLabel(c)}</span>
+                        )}
                         <span className="muted">
                           {formatClipTime(c)} · {formatDuration(c.durationMs)}
                           {unread ? " · new" : ""}
+                          {clipDescription(c, nameById)
+                            ? ` · ${clipDescription(c, nameById)}`
+                            : ""}
                         </span>
                         {heard && (
                           <span

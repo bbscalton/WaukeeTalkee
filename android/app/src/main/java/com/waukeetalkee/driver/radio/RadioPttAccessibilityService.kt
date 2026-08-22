@@ -30,6 +30,7 @@ class RadioPttAccessibilityService : AccessibilityService() {
     private var volumePttEnabled = false
     private var session: DriverSession? = null
     private var volumeUpHeld = false
+    private var volumeDownHeld = false
     private var cpuWakeLock: PowerManager.WakeLock? = null
 
     override fun onServiceConnected() {
@@ -68,7 +69,8 @@ class RadioPttAccessibilityService : AccessibilityService() {
                             volumeUpHeld = true
                             ensureRadioRunning(paired)
                             acquireCpuWakeLock()
-                            RadioForegroundService.beginTransmit(this)
+                            RadioBus.pttConfig = RadioBus.buildPttConfigForVolumeUp()
+                            RadioForegroundService.beginTransmit(this, RadioBus.pttConfig)
                             launchTransmitUi()
                         }
                         return true
@@ -83,14 +85,36 @@ class RadioPttAccessibilityService : AccessibilityService() {
                 }
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                    if (volumeUpHeld || RadioBus.state.value.transmitting) {
-                        volumeUpHeld = false
-                        RadioForegroundService.cancelTransmit(this)
-                        return true
+                when (event.action) {
+                    KeyEvent.ACTION_DOWN -> {
+                        if (event.repeatCount == 0 && !volumeDownHeld) {
+                            if (volumeUpHeld || RadioBus.state.value.transmitting) {
+                                volumeUpHeld = false
+                                RadioForegroundService.cancelTransmit(this)
+                                return true
+                            }
+                            val groupCfg = RadioBus.buildPttConfigForVolumeDown()
+                            if (groupCfg != null) {
+                                volumeDownHeld = true
+                                ensureRadioRunning(paired)
+                                acquireCpuWakeLock()
+                                RadioBus.pttConfig = groupCfg
+                                RadioForegroundService.beginTransmit(this, groupCfg)
+                                launchTransmitUi()
+                                return true
+                            }
+                        }
+                        return false
+                    }
+                    KeyEvent.ACTION_UP -> {
+                        if (volumeDownHeld) {
+                            volumeDownHeld = false
+                            RadioForegroundService.endTransmit(this)
+                            return true
+                        }
+                        return false
                     }
                 }
-                return false
             }
         }
         return false

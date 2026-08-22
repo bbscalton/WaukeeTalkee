@@ -96,6 +96,7 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
             docSnap.data() as Record<string, unknown>
           );
           if (clip.from !== "driver") continue;
+          if (clip.audience === "peer") continue;
           if (!clip.audioBase64) continue;
           const created = clipTimeMs(clip);
           if (created && created < readyAt - 2000) continue;

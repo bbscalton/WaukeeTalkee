@@ -16,10 +16,22 @@ export type Driver = {
 
 export type RadioFrom = "dispatch" | "driver";
 
+/** Who receives / how the clip was routed. */
+export type RadioAudience = "direct" | "peer" | "group" | "all";
+
+export type RadioGroup = {
+  id: string;
+  name: string;
+  memberDriverIds: string[];
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
+};
+
 /** PTT clip stored under orgs/{orgId}/radio (7-day archive). */
 export type RadioClip = {
   id: string;
   from: RadioFrom;
+  /** Recipient routing key (inbox thread + driver playback filter). */
   driverId: string;
   audioBase64: string;
   contentType: string;
@@ -27,9 +39,13 @@ export type RadioClip = {
   durationMs: number | null;
   dispatchHeardAt: { seconds: number; nanoseconds: number } | null;
   driverHeardAt: { seconds: number; nanoseconds: number } | null;
-  /** Optional GPS at send time (driver or mapped from live position). */
   lat: number | null;
   lng: number | null;
+  audience: RadioAudience;
+  /** Set when from=driver and not direct-to-dispatch. */
+  senderDriverId: string | null;
+  senderDisplayName: string | null;
+  groupId: string | null;
 };
 
 export type TrackPoint = {

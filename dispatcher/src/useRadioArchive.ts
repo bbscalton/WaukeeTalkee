@@ -4,6 +4,7 @@ import { db, ORG_ID } from "./firebase";
 import {
   isUnheardOutbound,
   isUnreadForDispatch,
+  clipThreadDriverId,
   parseRadioClip,
 } from "./radio";
 import type { RadioClip } from "./types";
@@ -34,7 +35,8 @@ export function useRadioArchive() {
     const map = new Map<string, number>();
     for (const c of clips) {
       if (!isUnreadForDispatch(c)) continue;
-      map.set(c.driverId, (map.get(c.driverId) ?? 0) + 1);
+      const thread = clipThreadDriverId(c);
+      map.set(thread, (map.get(thread) ?? 0) + 1);
     }
     return map;
   }, [clips]);

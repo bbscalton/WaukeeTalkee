@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
 import { PushToTalk } from "../components/PushToTalk";
+import { BroadcastPanel } from "../components/BroadcastPanel";
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
@@ -368,6 +369,10 @@ export function MapPage() {
             </p>
           </div>
         )}
+        <BroadcastPanel
+          lat={selected?.lastLat ?? null}
+          lng={selected?.lastLng ?? null}
+        />
 
         <p className="list-label">Units</p>
         <ul className="driver-list">

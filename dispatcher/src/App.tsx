@@ -6,6 +6,7 @@ import { BookingsPage } from "./pages/BookingsPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { DriversPage } from "./pages/DriversPage";
 import { GeofencesPage } from "./pages/GeofencesPage";
+import { GroupsPage } from "./pages/GroupsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
 import { RadioInboxPage } from "./pages/RadioInboxPage";
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="inbox" element={<RadioInboxPage />} />
           <Route path="replay" element={<ReplayPage />} />
           <Route path="geofences" element={<GeofencesPage />} />
+          <Route path="groups" element={<GroupsPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="drivers" element={<DriversPage />} />
           <Route path="contacts" element={<ContactsPage />} />

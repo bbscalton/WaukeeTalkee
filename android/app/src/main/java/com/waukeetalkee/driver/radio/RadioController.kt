@@ -38,6 +38,7 @@ class RadioController(
     private var listeningSince = 0L
     private var transmitting = false
     private var transmitStartedAt = 0L
+    private var activePttConfig: PttConfig = PttConfig()
 
     fun start(orgId: String, driverId: String) {
         stop()
@@ -48,9 +49,8 @@ class RadioController(
 
         listener = Firebase.firestore.collection("orgs/$orgId/radio")
             .whereEqualTo("driverId", driverId)
-            .whereEqualTo("from", "dispatch")
             .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(10)
+            .limit(20)
             .addSnapshotListener { snap, err ->
                 if (err != null) {
                     onError(err.message ?: "Radio listen failed")
@@ -59,6 +59,18 @@ class RadioController(
                 snap?.documentChanges?.forEach { change ->
                     if (change.type.name != "ADDED") return@forEach
                     if (!seen.add(change.document.id)) return@forEach
+                    val data = change.document.data
+                    val from = data["from"] as? String ?: return@forEach
+                    val audience = data["audience"] as? String ?: "direct"
+                    val senderDriverId = data["senderDriverId"] as? String
+
+                    if (from == "driver") {
+                        if (senderDriverId == driverId) return@forEach
+                        if (audience != "peer" && audience != "group") return@forEach
+                    } else if (from != "dispatch") {
+                        return@forEach
+                    }
+
                     val created = change.document.getTimestamp("createdAt")?.toDate()?.time ?: 0L
                     if (created > 0 && created < listeningSince - 2000) return@forEach
                     val b64 = change.document.getString("audioBase64") ?: return@forEach
@@ -79,8 +91,9 @@ class RadioController(
         onTxChanged(false)
     }
 
-    fun beginTransmit() {
+    fun beginTransmit(config: PttConfig = RadioBus.pttConfig) {
         if (transmitting) return
+        activePttConfig = config
         try {
             player?.stop()
             player?.clearMediaItems()
@@ -120,6 +133,7 @@ class RadioController(
         val o = orgId
         val d = driverId
         val file = recordFile
+        val config = activePttConfig
         val durationMs = (System.currentTimeMillis() - transmitStartedAt).coerceAtLeast(0L)
         try {
             recorder?.apply {
@@ -144,20 +158,12 @@ class RadioController(
             try {
                 val bytes = file.readBytes()
                 val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                val payload = mutableMapOf<String, Any>(
-                    "from" to "driver",
-                    "driverId" to d,
-                    "audioBase64" to b64,
-                    "contentType" to "audio/mp4",
-                    "durationMs" to durationMs,
-                    "createdAt" to FieldValue.serverTimestamp(),
-                )
                 val loc = DutyLocationService.lastKnownLocation
-                if (loc != null) {
-                    payload["lat"] = loc.first
-                    payload["lng"] = loc.second
+                val payloads = buildPayloads(d, config, b64, durationMs, loc)
+                val col = Firebase.firestore.collection("orgs/$o/radio")
+                for (payload in payloads) {
+                    col.add(payload).await()
                 }
-                Firebase.firestore.collection("orgs/$o/radio").add(payload).await()
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
                     onError(e.message ?: "Could not send talkback")
@@ -166,7 +172,80 @@ class RadioController(
         }
     }
 
-    /** Drop the in-progress clip without sending (e.g. Volume Down while PTT is on). */
+    private fun buildPayloads(
+        me: String,
+        config: PttConfig,
+        b64: String,
+        durationMs: Long,
+        loc: Pair<Double, Double>?,
+    ): List<Map<String, Any>> {
+        fun base(): MutableMap<String, Any> {
+            val m = mutableMapOf<String, Any>(
+                "from" to "driver",
+                "audioBase64" to b64,
+                "contentType" to "audio/mp4",
+                "durationMs" to durationMs,
+                "createdAt" to FieldValue.serverTimestamp(),
+            )
+            if (loc != null) {
+                m["lat"] = loc.first
+                m["lng"] = loc.second
+            }
+            if (config.senderDisplayName.isNotBlank()) {
+                m["senderDisplayName"] = config.senderDisplayName
+            }
+            return m
+        }
+
+        return when (config.mode) {
+            PttMode.DIRECT -> {
+                listOf(
+                    base().apply {
+                        put("driverId", me)
+                        put("audience", "direct")
+                    },
+                )
+            }
+            PttMode.PEER -> {
+                val target = config.peerTargetId ?: return emptyList()
+                val groupId = config.groupId ?: return emptyList()
+                listOf(
+                    base().apply {
+                        put("driverId", target)
+                        put("senderDriverId", me)
+                        put("audience", "peer")
+                        put("groupId", groupId)
+                    },
+                )
+            }
+            PttMode.GROUP -> {
+                val groupId = config.groupId ?: return emptyList()
+                val members = config.groupMemberIds.filter { it.isNotBlank() }.distinct()
+                val out = mutableListOf<Map<String, Any>>()
+                for (member in members) {
+                    if (member == me) continue
+                    out.add(
+                        base().apply {
+                            put("driverId", member)
+                            put("senderDriverId", me)
+                            put("audience", "group")
+                            put("groupId", groupId)
+                        },
+                    )
+                }
+                out.add(
+                    base().apply {
+                        put("driverId", me)
+                        put("senderDriverId", me)
+                        put("audience", "group")
+                        put("groupId", groupId)
+                    },
+                )
+                out
+            }
+        }
+    }
+
     fun cancelTransmit() {
         if (!transmitting) return
         stopTransmit()
@@ -236,7 +315,7 @@ class RadioController(
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         onRxChanged(false)
-                        onError("Could not play dispatch audio")
+                        onError("Could not play radio audio")
                         exo.release()
                         if (player === exo) player = null
                     }

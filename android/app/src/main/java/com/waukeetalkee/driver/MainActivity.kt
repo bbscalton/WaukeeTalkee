@@ -33,6 +33,8 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.waukeetalkee.driver.data.DriverPrefs
 import com.waukeetalkee.driver.radio.AccessibilityPttHelper
+import android.widget.Spinner
+import com.waukeetalkee.driver.radio.DriverGroupInfo
 import com.waukeetalkee.driver.radio.RadioBus
 import com.waukeetalkee.driver.radio.RadioClipPlayer
 import com.waukeetalkee.driver.radio.RadioForegroundService
@@ -75,15 +77,24 @@ class MainActivity : AppCompatActivity() {
     private lateinit var radioHistoryEmpty: TextView
     private lateinit var radioUnreadBadge: TextView
     private lateinit var channelBadge: TextView
+    private lateinit var groupPanel: LinearLayout
+    private lateinit var groupSpinner: Spinner
+    private lateinit var peerSpinner: Spinner
 
     private var volumePttEnabled = false
     private var volumeUpHeld = false
+    private var volumeDownHeld = false
     private var showPermissionChecklist = false
     private var ignoreSwitchCallback = false
     private var radioHistoryListener: ListenerRegistration? = null
     private var historyPlayer: RadioClipPlayer? = null
     private var playingClipId: String? = null
     private var lastHistoryDriverKey: String? = null
+    private var groupsListener: ListenerRegistration? = null
+    private var myGroups: List<DriverGroupInfo> = emptyList()
+    private var peerOptions: List<Pair<String, String>> = emptyList()
+    private var ignoreGroupSpinner = false
+    private var ignorePeerSpinner = false
     private val clipTimeFormat = SimpleDateFormat("MMM d · h:mm a", Locale.getDefault())
 
     private data class HistoryClip(
@@ -135,6 +146,9 @@ class MainActivity : AppCompatActivity() {
         radioHistoryEmpty = findViewById(R.id.radioHistoryEmpty)
         radioUnreadBadge = findViewById(R.id.radioUnreadBadge)
         channelBadge = findViewById(R.id.channelBadge)
+        groupPanel = findViewById(R.id.groupPanel)
+        groupSpinner = findViewById(R.id.groupSpinner)
+        peerSpinner = findViewById(R.id.peerSpinner)
 
         historyPlayer = RadioClipPlayer(
             this,
@@ -263,7 +277,8 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_DOWN -> {
                         if (!volumeUpHeld && event.repeatCount == 0) {
                             volumeUpHeld = true
-                            RadioForegroundService.beginTransmit(this)
+                            RadioBus.pttConfig = RadioBus.buildPttConfigForVolumeUp()
+                            RadioForegroundService.beginTransmit(this, RadioBus.pttConfig)
                         }
                         return true
                     }
@@ -277,16 +292,34 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                    if (volumeUpHeld || RadioBus.state.value.transmitting) {
-                        volumeUpHeld = false
-                        RadioForegroundService.cancelTransmit(this)
-                        Toast.makeText(this, "Transmit cancelled", Toast.LENGTH_SHORT).show()
-                        return true
+                when (event.action) {
+                    KeyEvent.ACTION_DOWN -> {
+                        if (event.repeatCount == 0 && !volumeDownHeld) {
+                            if (volumeUpHeld || RadioBus.state.value.transmitting) {
+                                volumeUpHeld = false
+                                RadioForegroundService.cancelTransmit(this)
+                                Toast.makeText(this, "Transmit cancelled", Toast.LENGTH_SHORT).show()
+                                return true
+                            }
+                            val groupCfg = RadioBus.buildPttConfigForVolumeDown()
+                            if (groupCfg != null) {
+                                volumeDownHeld = true
+                                RadioBus.pttConfig = groupCfg
+                                RadioForegroundService.beginTransmit(this, groupCfg)
+                                return true
+                            }
+                        }
+                        return super.dispatchKeyEvent(event)
+                    }
+                    KeyEvent.ACTION_UP -> {
+                        if (volumeDownHeld) {
+                            volumeDownHeld = false
+                            RadioForegroundService.endTransmit(this)
+                            return true
+                        }
+                        return super.dispatchKeyEvent(event)
                     }
                 }
-                // When not transmitting, leave Volume Down as normal volume
-                return super.dispatchKeyEvent(event)
             }
         }
         return super.dispatchKeyEvent(event)
@@ -297,8 +330,9 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Enable volume push-to-talk?")
             .setMessage(
                 "When enabled:\n\n" +
-                    "• Hold Volume Up to talk to dispatch\n" +
-                    "• Volume Down cancels an in-progress transmit\n\n" +
+                    "• Hold Volume Up to talk (dispatch, or a group peer if selected)\n" +
+                    "• Hold Volume Down to broadcast to your whole group + dispatch\n" +
+                    "• Volume Down while transmitting cancels\n\n" +
                     "Works while this app is open. With Accessibility enabled for " +
                     "“Waukee Talkee volume PTT”, it also works in other apps and on the " +
                     "lock screen (best-effort when the screen is fully off — some phones " +
@@ -363,11 +397,14 @@ class MainActivity : AppCompatActivity() {
     private fun maybeStartRadio(state: UiState) {
         val session = state.session
         if (session == null) {
+            groupsListener?.remove()
+            groupsListener = null
             RadioForegroundService.stop(this)
             return
         }
         if (!hasCorePermissions()) return
         RadioForegroundService.start(this, session.orgId, session.driverId)
+        bindGroups(session.orgId, session.driverId, session.displayName)
         if (state.onDuty && hasLocationPermission()) {
             vm.resumeDutyTrackingIfNeeded()
         }
@@ -375,7 +412,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         radioHistoryListener?.remove()
+        groupsListener?.remove()
         radioHistoryListener = null
+        groupsListener = null
         historyPlayer?.stop()
         super.onDestroy()
     }
@@ -504,9 +543,9 @@ class MainActivity : AppCompatActivity() {
                 radioLabel.text = "ON AIR"
                 radioStatus.text = "TRANSMITTING"
                 radioHint.text = if (volumePttEnabled) {
-                    "Release Volume Up to send · Volume Down cancels"
+                    "Release Volume Up to send · Vol Down = group or cancel"
                 } else {
-                    "Sending talkback to dispatch"
+                    "Sending talkback"
                 }
             }
             rx -> {
@@ -541,10 +580,144 @@ class MainActivity : AppCompatActivity() {
         radioHint.text = when {
             !volumePttEnabled ->
                 "Listening for dispatch · enable volume PTT to talk"
+            RadioBus.activeGroup() != null ->
+                "Vol Up → ${peerLabel()} · Vol Down → group broadcast"
             AccessibilityPttHelper.isServiceEnabled(this) ->
-                "Hold Volume Up to talk — works in other apps / lock screen"
+                "Hold Volume Up to talk to dispatch — works in other apps / lock screen"
             else ->
-                "Hold Volume Up to talk (enable Accessibility for anywhere)"
+                "Hold Volume Up to talk to dispatch (enable Accessibility for anywhere)"
+        }
+    }
+
+    private fun peerLabel(): String {
+        val id = RadioBus.peerTargetDriverId
+        return if (id.isNullOrBlank()) "dispatch"
+        else RadioBus.memberNames[id] ?: "driver"
+    }
+
+    private fun bindGroups(orgId: String, myDriverId: String, myName: String) {
+        groupsListener?.remove()
+        RadioBus.myDisplayName = myName
+        groupsListener = Firebase.firestore.collection("orgs/$orgId/groups")
+            .addSnapshotListener { snap, _ ->
+                val groups = snap?.documents?.mapNotNull { doc ->
+                    val members = doc.get("memberDriverIds") as? List<*> ?: return@mapNotNull null
+                    val ids = members.mapNotNull { it as? String }
+                    if (!ids.contains(myDriverId)) return@mapNotNull null
+                    DriverGroupInfo(doc.id, doc.getString("name") ?: "Group", ids)
+                } ?: emptyList()
+                myGroups = groups
+                RadioBus.groups = groups
+                lifecycleScope.launch {
+                    val savedGroup = prefs.activeGroupId.first()
+                    val active = savedGroup?.takeIf { g -> groups.any { it.id == g } }
+                        ?: groups.firstOrNull()?.id
+                    if (active != null) {
+                        prefs.setActiveGroupId(active)
+                    }
+                    RadioBus.activeGroupId = active
+                    refreshGroupUi(orgId, myDriverId)
+                }
+            }
+    }
+
+    private fun refreshGroupUi(orgId: String, myDriverId: String) {
+        if (myGroups.isEmpty()) {
+            groupPanel.isVisible = false
+            RadioBus.activeGroupId = null
+            RadioBus.peerTargetDriverId = null
+            channelBadge.text = "CH · FLEET"
+            refreshRadioHint()
+            return
+        }
+        groupPanel.isVisible = true
+        val groupLabels = myGroups.map { it.name }
+        ignoreGroupSpinner = true
+        groupSpinner.adapter = android.widget.ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            groupLabels,
+        )
+        val activeIdx = myGroups.indexOfFirst { it.id == RadioBus.activeGroupId }.coerceAtLeast(0)
+        groupSpinner.setSelection(activeIdx)
+        RadioBus.activeGroupId = myGroups[activeIdx].id
+        ignoreGroupSpinner = false
+
+        groupSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: android.widget.AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long,
+            ) {
+                if (ignoreGroupSpinner) return
+                val g = myGroups.getOrNull(position) ?: return
+                RadioBus.activeGroupId = g.id
+                lifecycleScope.launch { prefs.setActiveGroupId(g.id) }
+                refreshPeerSpinner(orgId, myDriverId, g)
+            }
+
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+        }
+
+        refreshPeerSpinner(orgId, myDriverId, myGroups[activeIdx])
+        channelBadge.text = "GRP · ${myGroups[activeIdx].name.uppercase(Locale.getDefault())}"
+        refreshRadioHint()
+    }
+
+    private fun refreshPeerSpinner(orgId: String, myDriverId: String, group: DriverGroupInfo) {
+        lifecycleScope.launch {
+            val others = group.memberDriverIds.filter { it != myDriverId }
+            val names = mutableMapOf<String, String>()
+            for (id in others) {
+                try {
+                    val doc = Firebase.firestore.document("orgs/$orgId/drivers/$id").get().await()
+                    names[id] = doc.getString("displayName") ?: "Driver"
+                } catch (_: Exception) {
+                    names[id] = "Driver"
+                }
+            }
+            RadioBus.memberNames = names
+            peerOptions = others.map { id -> id to (names[id] ?: "Driver") }
+
+            if (peerOptions.isEmpty()) {
+                peerSpinner.adapter = null
+                RadioBus.peerTargetDriverId = null
+                return@launch
+            }
+
+            ignorePeerSpinner = true
+            peerSpinner.adapter = android.widget.ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                peerOptions.map { it.second },
+            )
+            val savedPeer = prefs.peerTargetDriverId.first()
+            val peerIdx = peerOptions.indexOfFirst { it.first == savedPeer }.let {
+                if (it >= 0) it else 0
+            }
+            peerSpinner.setSelection(peerIdx)
+            RadioBus.peerTargetDriverId = peerOptions[peerIdx].first
+            ignorePeerSpinner = false
+
+            peerSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long,
+                ) {
+                    if (ignorePeerSpinner) return
+                    val opt = peerOptions.getOrNull(position) ?: return
+                    RadioBus.peerTargetDriverId = opt.first
+                    lifecycleScope.launch {
+                        prefs.setPeerTargetDriverId(RadioBus.peerTargetDriverId)
+                    }
+                    refreshRadioHint()
+                }
+
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+            }
         }
     }
 

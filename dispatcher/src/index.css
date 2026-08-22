@@ -1324,3 +1324,40 @@ button.danger-ghost {
     order: 3;
   }
 }
+
+.groups-create-form {
+  grid-template-columns: 2fr auto;
+  align-items: end;
+}
+
+.groups-member-pick {
+  margin-top: 1rem;
+}
+
+.groups-member-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.35rem;
+}
+
+.groups-member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.92rem;
+}
+
+.broadcast-panel {
+  margin-top: 1rem;
+}
+
+.broadcast-panel select {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.broadcast-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+}

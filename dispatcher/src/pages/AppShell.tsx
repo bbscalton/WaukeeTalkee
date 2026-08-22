@@ -32,6 +32,7 @@ function ShellNav() {
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </NavLink>
           <NavLink to="/drivers">Drivers</NavLink>
+          <NavLink to="/groups">Groups</NavLink>
           <NavLink to="/contacts">Contacts</NavLink>
           <NavLink to="/bookings">Bookings</NavLink>
         </nav>
