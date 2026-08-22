@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "WaukeeTalkee"
 include(":app")
+include(":dispatcher")

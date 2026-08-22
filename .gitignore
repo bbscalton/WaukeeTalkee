@@ -15,6 +15,7 @@ firebase/emulator-data/
 android/.gradle/
 android/build/
 android/app/build/
+android/dispatcher/build/
 android/local.properties
 android/app/google-services.json
 android/.idea/

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WaukeeDispatcher" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:statusBarColor">#0a0c10</item>
+        <item name="android:navigationBarColor">#0a0c10</item>
+        <item name="android:windowBackground">#0a0c10</item>
+        <item name="colorPrimary">#f0b429</item>
+    </style>
+</resources>
