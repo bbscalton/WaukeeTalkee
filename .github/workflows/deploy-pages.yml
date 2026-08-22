@@ -6,6 +6,7 @@ on:
     paths:
       - "website/**"
       - "dispatcher/**"
+      - "android/**"
       - ".github/workflows/deploy-dispatcher.yml"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
