@@ -9,6 +9,14 @@ service cloud.firestore {
       return request.auth.token;
     }
 
+    function isAdmin() {
+      return signedIn() && token().email == 'neuereatec@gmail.com';
+    }
+
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
     function isDispatcher(orgId) {
       return signedIn()
         && exists(/databases/$(database)/documents/orgs/$(orgId)/dispatchers/$(request.auth.uid));

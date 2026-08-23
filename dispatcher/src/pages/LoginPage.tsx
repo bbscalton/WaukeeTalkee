@@ -1,11 +1,12 @@
 import { type FormEvent, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth";
 
 export function LoginPage() {
   const { user, loading, isDispatcher, login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState(() => searchParams.get("email") || "");
+  const [password, setPassword] = useState(() => searchParams.get("password") || searchParams.get("pwd") || "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

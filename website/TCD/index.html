@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Technical Control Desk — Waukee Talkee</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      .tcd-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+      }
+      .tcd-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      .tcd-header h1 {
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        font-size: 2.2rem;
+        letter-spacing: 0.04em;
+        margin: 0;
+      }
+      .tcd-header h1 span {
+        color: var(--amber);
+      }
+      .user-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--asphalt-2);
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+      }
+      .user-badge img {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+      }
+      .btn-sm {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 999px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+      }
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+      }
+      .btn-danger:hover {
+        background: #bd2130;
+      }
+      .btn-secondary {
+        background: var(--asphalt-2);
+        border-color: var(--line);
+        color: var(--ink);
+      }
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .grid-dashboard {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      @media (min-width: 900px) {
+        .grid-dashboard {
+          grid-template-columns: 1fr 1fr;
+        }
+        .full-width {
+          grid-column: span 2;
+        }
+      }
+      .tcd-card {
+        background: var(--asphalt-2);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .tcd-card h2 {
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        font-size: 1.4rem;
+        letter-spacing: 0.02em;
+        margin: 0;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .tcd-card h2 span {
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-transform: none;
+        letter-spacing: normal;
+      }
+      .tcd-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .form-group label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .form-group input, .form-group select {
+        background: var(--asphalt);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.65rem 0.85rem;
+        color: var(--ink);
+        font-family: var(--font-body);
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s ease;
+      }
+      .form-group input:focus, .form-group select:focus {
+        border-color: var(--amber);
+      }
+      .tcd-table-container {
+        overflow-x: auto;
+      }
+      .tcd-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.92rem;
+      }
+      .tcd-table th, .tcd-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .tcd-table th {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .tcd-table tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .badge-sol {
+        display: inline-block;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .badge-sol.concrete {
+        background: rgba(240, 180, 41, 0.15);
+        color: var(--amber);
+        border: 1px solid rgba(240, 180, 41, 0.3);
+      }
+      .badge-sol.taxi {
+        background: rgba(0, 123, 255, 0.15);
+        color: #66b2ff;
+        border: 1px solid rgba(0, 123, 255, 0.3);
+      }
+      .login-screen {
+        max-width: 480px;
+        margin: 6rem auto;
+        text-align: center;
+      }
+      .login-card {
+        background: var(--asphalt-2);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 3rem 2rem;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+      }
+      .login-card h2 {
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        font-size: 2.2rem;
+        letter-spacing: 0.02em;
+        margin: 0;
+      }
+      .google-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: white;
+        color: #12151a;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .google-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(255, 255, 255, 0.15);
+      }
+      .google-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+      .error-alert {
+        background: rgba(220, 53, 69, 0.15);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        color: #ff6b6b;
+        padding: 0.85rem 1.1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+      .success-alert {
+        background: rgba(40, 167, 69, 0.15);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+        color: #2ed573;
+        padding: 0.85rem 1.1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+      .cli-box {
+        background: var(--asphalt);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #a8ffb2;
+        overflow-x: auto;
+        position: relative;
+        white-space: nowrap;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      .link-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .link-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--asphalt);
+        padding: 0.65rem 0.85rem;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+      }
+      .link-item a {
+        color: var(--amber);
+        text-decoration: underline;
+        font-weight: 500;
+      }
+      .link-item span {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(4px);
+        place-items: center;
+        z-index: 100;
+        padding: 1.5rem;
+      }
+      .modal-content {
+        background: var(--asphalt-2);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.5rem;
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Header -->
+    <header class="top">
+      <a class="top-brand" href="../">Waukee Talkee</a>
+      <span class="top-nav" style="color: var(--muted); font-size: 0.95rem; font-weight: 600;">TECHNICAL CONTROL DESK</span>
+    </header>
+
+    <main class="tcd-container">
+      <!-- Auth Guard Screens -->
+      <section id="auth-section" class="login-screen">
+        <div class="login-card">
+          <p class="brand" style="font-size: 3rem; margin-bottom: 0;">WT</p>
+          <h2>Control Desk</h2>
+          <p class="muted">Sign in with the system administrator account to manage dispatchers and organizations.</p>
+          <button id="google-login-btn" class="google-btn">
+            <svg viewBox="0 0 488 512" fill="currentColor">
+              <path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"/>
+            </svg>
+            Sign in with Google
+          </button>
+          <div id="auth-error" class="error-alert" style="display: none; width: 100%;"></div>
+        </div>
+      </section>
+
+      <!-- Main Dashboard (Hidden by default) -->
+      <section id="dashboard-section" style="display: none;">
+        <div class="tcd-header">
+          <div>
+            <h1>Technical <span>Control Desk</span></h1>
+            <p class="muted" style="margin: 0.25rem 0 0 0;">Global user seeding, system setup, and dispatcher provision console.</p>
+          </div>
+          <div class="user-badge">
+            <img id="user-photo" src="" alt="Admin" />
+            <span id="user-email" style="font-size: 0.9rem; font-weight: 600;"></span>
+            <button id="logout-btn" class="btn-sm btn-secondary">Sign Out</button>
+          </div>
+        </div>
+
+        <div id="global-alert" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <div class="grid-dashboard">
+          
+          <!-- Dispatcher Accounts Table -->
+          <div class="tcd-card full-width">
+            <h2>Dispatcher Login Accounts <span id="dispatcher-count">Loading...</span></h2>
+            <div class="tcd-table-container">
+              <table class="tcd-table">
+                <thead>
+                  <tr>
+                    <th>Email Address</th>
+                    <th>Org ID</th>
+                    <th>UID</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="dispatchers-table-body">
+                  <tr>
+                    <td colspan="5" style="text-align: center; color: var(--muted); padding: 2rem;">Loading accounts...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Create Dispatcher Account Form -->
+          <div class="tcd-card">
+            <h2>Create Dispatcher Account</h2>
+            <form id="create-dispatcher-form" class="tcd-form">
+              <div class="form-group">
+                <label for="disp-email">Email Address</label>
+                <input type="email" id="disp-email" required placeholder="dispatcher@company.com" />
+              </div>
+              <div class="form-group">
+                <label for="disp-password">Password</label>
+                <input type="password" id="disp-password" required placeholder="At least 6 characters" minlength="6" />
+              </div>
+              <div class="form-group">
+                <label for="disp-org">Assign Organization</label>
+                <select id="disp-org" required>
+                  <option value="" disabled selected>Select active organization...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="disp-name">Display Name</label>
+                <input type="text" id="disp-name" placeholder="E.g., Shift Lead, Bob" value="Dispatcher" />
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;">Create Dispatcher Account</button>
+            </form>
+          </div>
+
+          <!-- Seeding CLI Generator -->
+          <div class="tcd-card">
+            <h2>Seeding CLI Builder</h2>
+            <p class="muted" style="margin: 0; font-size: 0.9rem;">Generate the exact CLI command to run in `firebase/functions` to seed or link accounts manually via admin credentials.</p>
+            <div class="tcd-form">
+              <div class="form-group">
+                <label for="seed-org">Org ID</label>
+                <input type="text" id="seed-org" placeholder="e.g. rebert" />
+              </div>
+              <div class="form-group">
+                <label for="seed-uid">Dispatcher Auth UID</label>
+                <input type="text" id="seed-uid" placeholder="Firebase Auth User UID" />
+              </div>
+              <div class="form-group">
+                <label for="seed-email">Dispatcher Email</label>
+                <input type="text" id="seed-email" placeholder="e.g. dispatcher@waukeetalkee.app" />
+              </div>
+              <div class="form-group">
+                <label>Generated Shell Command</label>
+                <div class="cli-box">
+                  <span id="cli-cmd-text">ORG_ID=demo DISPATCHER_UID=... DISPATCHER_EMAIL=... npm run seed</span>
+                  <button type="button" id="copy-cli-btn" class="copy-btn">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Organizations List & Creation -->
+          <div class="tcd-card">
+            <h2>Organizations <span id="org-count"></span></h2>
+            <div class="tcd-table-container" style="max-height: 250px; overflow-y: auto;">
+              <table class="tcd-table">
+                <thead>
+                  <tr>
+                    <th>Org ID</th>
+                    <th>Display Name</th>
+                    <th>Solution</th>
+                  </tr>
+                </thead>
+                <tbody id="orgs-table-body">
+                  <tr>
+                    <td colspan="3" style="text-align: center; color: var(--muted); padding: 1rem;">Loading orgs...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 style="font-family: var(--font-display); text-transform: uppercase; font-size: 1rem; margin: 0.5rem 0 0 0;">Create Organization</h3>
+            <form id="create-org-form" class="tcd-form">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div class="form-group">
+                  <label for="org-id-input">Org ID (lowercase)</label>
+                  <input type="text" id="org-id-input" placeholder="e.g., rebert" required pattern="^[a-z0-9_-]+$" />
+                </div>
+                <div class="form-group">
+                  <label for="org-solution">Solution Profile</label>
+                  <select id="org-solution" required>
+                    <option value="taxi">Taxi Dispatch</option>
+                    <option value="concrete">Concrete</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="org-name-input">Display Name</label>
+                <input type="text" id="org-name-input" placeholder="e.g., Rebert Construction" required />
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Create Organization</button>
+            </form>
+          </div>
+
+          <!-- Launch Shortcuts & System Tools -->
+          <div class="tcd-card">
+            <h2>Direct Console Shortcuts</h2>
+            <div class="link-list">
+              <div class="link-item">
+                <span>Waukee Talkee Dispatch (Demo Org)</span>
+                <a href="../app/?org=demo" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Rebert Construction Dispatch</span>
+                <a href="../app/?org=rebert" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Firebase Authentication Console</span>
+                <a href="https://console.firebase.google.com/project/waukee-talkee/authentication/users" target="_blank">Open Console</a>
+              </div>
+              <div class="link-item">
+                <span>Firestore Database Viewer</span>
+                <a href="https://console.firebase.google.com/project/waukee-talkee/firestore/data" target="_blank">Open Console</a>
+              </div>
+              <div class="link-item">
+                <span>GitHub Repository</span>
+                <a href="https://github.com/bbscalton/WaukeeTalkee" target="_blank">Open GitHub</a>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.25rem;">
+              <label>Quick Pre-filled Console Launcher</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.4rem;">
+                <select id="quick-launch-org" style="padding: 0.5rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line);">
+                  <option value="demo">Org: demo</option>
+                  <option value="rebert">Org: rebert</option>
+                </select>
+                <input type="email" id="quick-launch-email" placeholder="email@domain.com" style="padding: 0.5rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line); font-size: 0.85rem;" />
+              </div>
+              <button type="button" id="quick-launch-btn" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Launch Pre-filled App</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+    <!-- Reset Password Modal -->
+    <div id="reset-password-modal" class="modal">
+      <div class="modal-content">
+        <h3 style="font-family: var(--font-display); text-transform: uppercase; font-size: 1.2rem; margin: 0;">Reset Password</h3>
+        <p class="muted" style="margin: 0; font-size: 0.9rem;">Update password for: <strong id="reset-email-label"></strong></p>
+        <div class="form-group">
+          <label for="reset-new-password">New Password</label>
+          <input type="password" id="reset-new-password" placeholder="At least 6 characters" minlength="6" required />
+        </div>
+        <div class="modal-buttons">
+          <button id="cancel-reset-btn" class="btn-sm btn-secondary">Cancel</button>
+          <button id="confirm-reset-btn" class="btn-sm btn-primary">Reset Password</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase Script Setup -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { 
+        getAuth, 
+        signInWithPopup, 
+        GoogleAuthProvider, 
+        onAuthStateChanged, 
+        signOut 
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { 
+        getFirestore
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+      import { 
+        getFunctions, 
+        httpsCallable 
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
+
+      // Load config dynamically or fall back to hardcoded
+      let firebaseConfig = {
+        projectId: "waukee-talkee",
+        appId: "1:646612669697:web:c52e13f2537b37dea5f700",
+        storageBucket: "waukee-talkee.firebasestorage.app",
+        apiKey: "AIzaSyDMCwYgXmgeUxES9Fz92FambCsCZi9X1EI",
+        authDomain: "waukee-talkee.firebaseapp.com",
+        messagingSenderId: "646612669697"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const functions = getFunctions(app, "us-central1");
+
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      // Elements
+      const authSection = document.getElementById("auth-section");
+      const dashboardSection = document.getElementById("dashboard-section");
+      const googleLoginBtn = document.getElementById("google-login-btn");
+      const logoutBtn = document.getElementById("logout-btn");
+      const authError = document.getElementById("auth-error");
+      const userPhoto = document.getElementById("user-photo");
+      const userEmailLabel = document.getElementById("user-email");
+      const globalAlert = document.getElementById("global-alert");
+      
+      const dispatchersTableBody = document.getElementById("dispatchers-table-body");
+      const dispatcherCount = document.getElementById("dispatcher-count");
+      
+      const orgsTableBody = document.getElementById("orgs-table-body");
+      const orgCount = document.getElementById("org-count");
+      const dispOrgSelect = document.getElementById("disp-org");
+      const quickLaunchOrg = document.getElementById("quick-launch-org");
+      
+      const createDispatcherForm = document.getElementById("create-dispatcher-form");
+      const createOrgForm = document.getElementById("create-org-form");
+      
+      // CLI Builder elements
+      const seedOrgInput = document.getElementById("seed-org");
+      const seedUidInput = document.getElementById("seed-uid");
+      const seedEmailInput = document.getElementById("seed-email");
+      const cliCmdText = document.getElementById("cli-cmd-text");
+      const copyCliBtn = document.getElementById("copy-cli-btn");
+      
+      // Modal elements
+      const resetModal = document.getElementById("reset-password-modal");
+      const resetEmailLabel = document.getElementById("reset-email-label");
+      const resetNewPassword = document.getElementById("reset-new-password");
+      const confirmResetBtn = document.getElementById("confirm-reset-btn");
+      const cancelResetBtn = document.getElementById("cancel-reset-btn");
+
+      let currentResetUid = null;
+      let activeOrgsList = [];
+
+      // Alert helper
+      function showAlert(msg, type = "error") {
+        globalAlert.style.display = "block";
+        globalAlert.className = type === "error" ? "error-alert" : "success-alert";
+        globalAlert.innerText = msg;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        
+        setTimeout(() => {
+          globalAlert.style.display = "none";
+        }, 6000);
+      }
+
+      // Check Authentication
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const email = user.email ? user.email.toLowerCase() : "";
+          if (email === "neuereatec@gmail.com") {
+            // Logged in as Admin
+            authSection.style.display = "none";
+            dashboardSection.style.display = "block";
+            userPhoto.src = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+            userEmailLabel.innerText = email;
+            authError.style.display = "none";
+            loadDashboard();
+          } else {
+            // Not Admin
+            await signOut(auth);
+            authError.innerText = "Access denied. Only neuereatec@gmail.com is authorized to access the Control Desk.";
+            authError.style.display = "block";
+            authSection.style.display = "block";
+            dashboardSection.style.display = "none";
+          }
+        } else {
+          // Logged Out
+          authSection.style.display = "block";
+          dashboardSection.style.display = "none";
+        }
+      });
+
+      // Login trigger
+      googleLoginBtn.addEventListener("click", async () => {
+        try {
+          authError.style.display = "none";
+          await signInWithPopup(auth, provider);
+        } catch (error) {
+          authError.innerText = "Google sign-in failed: " + error.message;
+          authError.style.display = "block";
+        }
+      });
+
+      // Logout trigger
+      logoutBtn.addEventListener("click", () => signOut(auth));
+
+      // CLI Command builder update
+      function updateCliText() {
+        const org = (seedOrgInput.value || "demo").trim().toLowerCase();
+        const uid = (seedUidInput.value || "<dispatcher-auth-uid>").trim();
+        const email = (seedEmailInput.value || "dispatcher@waukeetalkee.app").trim();
+        cliCmdText.innerText = `ORG_ID=${org} DISPATCHER_UID=${uid} DISPATCHER_EMAIL=${email} npm run seed`;
+      }
+      
+      seedOrgInput.addEventListener("input", updateCliText);
+      seedUidInput.addEventListener("input", updateCliText);
+      seedEmailInput.addEventListener("input", updateCliText);
+      
+      copyCliBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(cliCmdText.innerText);
+        const originalText = copyCliBtn.innerText;
+        copyCliBtn.innerText = "Copied!";
+        setTimeout(() => copyCliBtn.innerText = originalText, 1500);
+      });
+
+      // Load all data
+      async function loadDashboard() {
+        await Promise.all([
+          loadOrgs(),
+          loadDispatchers()
+        ]);
+      }
+
+      // Load Orgs
+      async function loadOrgs() {
+        try {
+          const listOrgsFn = httpsCallable(functions, "adminListOrgs");
+          const res = await listOrgsFn();
+          const orgs = res.data.orgs || [];
+          activeOrgsList = orgs;
+          
+          orgCount.innerText = `(${orgs.length})`;
+          
+          // Populate table
+          orgsTableBody.innerHTML = "";
+          if (orgs.length === 0) {
+            orgsTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--muted);">No organizations found.</td></tr>`;
+          } else {
+            orgs.forEach(org => {
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                <td style="font-weight: 700;">${org.id}</td>
+                <td>${org.displayName}</td>
+                <td><span class="badge-sol ${org.solution}">${org.solution}</span></td>
+              `;
+              orgsTableBody.appendChild(row);
+            });
+          }
+
+          // Populate select dropdowns
+          dispOrgSelect.innerHTML = `<option value="" disabled selected>Select active organization...</option>`;
+          quickLaunchOrg.innerHTML = "";
+          orgs.forEach(org => {
+            const opt = document.createElement("option");
+            opt.value = org.id;
+            opt.innerText = `${org.displayName} (${org.id})`;
+            dispOrgSelect.appendChild(opt);
+
+            const optLaunch = document.createElement("option");
+            optLaunch.value = org.id;
+            optLaunch.innerText = `Org: ${org.id}`;
+            quickLaunchOrg.appendChild(optLaunch);
+          });
+
+        } catch (error) {
+          console.error(error);
+          orgsTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #ff6b6b;">Error loading organizations.</td></tr>`;
+        }
+      }
+
+      // Load Dispatchers
+      async function loadDispatchers() {
+        try {
+          const listDispatchersFn = httpsCallable(functions, "adminListDispatchers");
+          const res = await listDispatchersFn();
+          const list = res.data.dispatchers || [];
+          
+          dispatcherCount.innerText = `(${list.length})`;
+          
+          dispatchersTableBody.innerHTML = "";
+          if (list.length === 0) {
+            dispatchersTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 2rem;">No dispatcher accounts linked.</td></tr>`;
+          } else {
+            list.forEach(disp => {
+              const dateStr = disp.createdAt ? new Date(disp.createdAt).toLocaleDateString() : "Unknown";
+              const row = document.createElement("tr");
+              
+              const trContent = `
+                <td>
+                  <div style="font-weight: 600;">${disp.email}</div>
+                  <div style="font-size: 0.8rem; color: var(--muted);">${disp.displayName || 'No Name'}</div>
+                </td>
+                <td style="font-weight: 700; color: var(--amber);">${disp.orgId}</td>
+                <td style="font-size: 0.8rem; color: var(--muted); font-family: monospace;">${disp.uid}</td>
+                <td>${dateStr}</td>
+                <td>
+                  <div style="display: flex; gap: 0.4rem;">
+                    <button class="btn-sm btn-secondary act-seed" data-org="${disp.orgId}" data-uid="${disp.uid}" data-email="${disp.email}" title="Load into CLI Builder">Seed</button>
+                    <button class="btn-sm btn-secondary act-reset" data-uid="${disp.uid}" data-email="${disp.email}">Pass</button>
+                    <button class="btn-sm btn-danger act-del" data-uid="${disp.uid}" data-org="${disp.orgId}">Del</button>
+                  </div>
+                </td>
+              `;
+              row.innerHTML = trContent;
+              dispatchersTableBody.appendChild(row);
+            });
+            
+            // Hook up row action listeners
+            document.querySelectorAll(".act-seed").forEach(btn => {
+              btn.addEventListener("click", (e) => {
+                seedOrgInput.value = e.target.getAttribute("data-org");
+                seedUidInput.value = e.target.getAttribute("data-uid");
+                seedEmailInput.value = e.target.getAttribute("data-email");
+                updateCliText();
+                window.scrollTo({
+                  top: seedOrgInput.getBoundingClientRect().top + window.scrollY - 100,
+                  behavior: "smooth"
+                });
+              });
+            });
+
+            document.querySelectorAll(".act-reset").forEach(btn => {
+              btn.addEventListener("click", (e) => {
+                currentResetUid = e.target.getAttribute("data-uid");
+                resetEmailLabel.innerText = e.target.getAttribute("data-email");
+                resetNewPassword.value = "";
+                resetModal.style.display = "grid";
+              });
+            });
+
+            document.querySelectorAll(".act-del").forEach(btn => {
+              btn.addEventListener("click", async (e) => {
+                const uid = e.target.getAttribute("data-uid");
+                const orgId = e.target.getAttribute("data-org");
+                if (confirm(`Are you absolutely sure you want to delete dispatcher UID ${uid} from organization ${orgId}? This deletes their Auth account.`)) {
+                  try {
+                    const deleteDispatcherFn = httpsCallable(functions, "adminDeleteDispatcher");
+                    await deleteDispatcherFn({ uid, orgId });
+                    showAlert("Dispatcher account deleted successfully.", "success");
+                    loadDashboard();
+                  } catch (err) {
+                    showAlert("Failed to delete account: " + err.message);
+                  }
+                }
+              });
+            });
+          }
+        } catch (error) {
+          console.error(error);
+          dispatchersTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ff6b6b; padding: 2rem;">Error fetching dispatcher list.</td></tr>`;
+        }
+      }
+
+      // Create Dispatcher Account Form Submission
+      createDispatcherForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("disp-email").value;
+        const password = document.getElementById("disp-password").value;
+        const orgId = dispOrgSelect.value;
+        const displayName = document.getElementById("disp-name").value;
+        
+        try {
+          const createDispatcherFn = httpsCallable(functions, "adminCreateDispatcher");
+          const res = await createDispatcherFn({ email, password, orgId, displayName });
+          
+          showAlert(`Dispatcher ${email} successfully created and linked to org ${orgId}!`, "success");
+          createDispatcherForm.reset();
+          
+          // Seed the values into the CLI builder automatically so the admin has the option
+          seedOrgInput.value = orgId;
+          seedUidInput.value = res.data.uid;
+          seedEmailInput.value = email;
+          updateCliText();
+          
+          loadDashboard();
+        } catch (err) {
+          showAlert("Failed to create dispatcher: " + err.message);
+        }
+      });
+
+      // Create Organization Form Submission
+      createOrgForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const orgId = document.getElementById("org-id-input").value;
+        const displayName = document.getElementById("org-name-input").value;
+        const solution = document.getElementById("org-solution").value;
+        
+        try {
+          const createOrgFn = httpsCallable(functions, "adminCreateOrg");
+          await createOrgFn({ orgId, displayName, solution });
+          showAlert(`Organization '${displayName}' (${orgId}) created successfully!`, "success");
+          createOrgForm.reset();
+          loadDashboard();
+        } catch (err) {
+          showAlert("Failed to create organization: " + err.message);
+        }
+      });
+
+      // Reset Password Modal triggers
+      cancelResetBtn.addEventListener("click", () => {
+        resetModal.style.display = "none";
+        currentResetUid = null;
+      });
+
+      confirmResetBtn.addEventListener("click", async () => {
+        const newPassword = resetNewPassword.value;
+        if (!newPassword || newPassword.length < 6) {
+          alert("Please enter a valid password (min 6 characters).");
+          return;
+        }
+
+        try {
+          const resetPassFn = httpsCallable(functions, "adminResetDispatcherPassword");
+          await resetPassFn({ uid: currentResetUid, newPassword });
+          showAlert("Password has been successfully updated.", "success");
+          resetModal.style.display = "none";
+          currentResetUid = null;
+        } catch (err) {
+          showAlert("Password reset failed: " + err.message);
+        }
+      });
+
+      // Quick launcher pre-fill trigger
+      document.getElementById("quick-launch-btn").addEventListener("click", () => {
+        const org = quickLaunchOrg.value;
+        const email = document.getElementById("quick-launch-email").value.trim();
+        let targetUrl = `../app/?org=${org}`;
+        if (email) {
+          targetUrl += `&email=${encodeURIComponent(email)}`;
+        }
+        window.open(targetUrl, "_blank");
+      });
+    </script>
+  </body>
+</html>

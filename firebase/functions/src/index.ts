@@ -431,3 +431,175 @@ export const purgeExpiredArchive = onSchedule(
     );
   }
 );
+
+function assertAdmin(requestAuth: any): asserts requestAuth is { uid: string; token: { email: string } } {
+  if (!requestAuth?.uid || requestAuth.token?.email !== "neuereatec@gmail.com") {
+    throw new HttpsError("permission-denied", "Admin access required.");
+  }
+}
+
+export const adminListDispatchers = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const snapshot = await db.collectionGroup("dispatchers").get();
+  const list = [];
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    const orgId = doc.ref.parent.parent?.id || "";
+    list.push({
+      uid: doc.id,
+      orgId,
+      email: data.email || "",
+      displayName: data.displayName || "",
+      createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
+    });
+  }
+  return { dispatchers: list };
+});
+
+export const adminCreateDispatcher = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const email = String(request.data?.email || "").trim().toLowerCase();
+  const password = String(request.data?.password || "");
+  const orgId = String(request.data?.orgId || "").trim().toLowerCase();
+  const displayName = String(request.data?.displayName || "Dispatcher").trim();
+  
+  if (!email || !password || !orgId) {
+    throw new HttpsError("invalid-argument", "email, password, and orgId are required.");
+  }
+  
+  const orgSnap = await db.doc(`orgs/${orgId}`).get();
+  if (!orgSnap.exists) {
+    throw new HttpsError("not-found", `Organization ${orgId} not found.`);
+  }
+  
+  let userRecord;
+  try {
+    userRecord = await auth.createUser({
+      email,
+      password,
+      displayName,
+    });
+  } catch (err) {
+    console.error("Error creating auth user:", err);
+    throw new HttpsError("already-exists", err instanceof Error ? err.message : "User creation failed");
+  }
+  
+  try {
+    await db.doc(`orgs/${orgId}/dispatchers/${userRecord.uid}`).set({
+      email,
+      displayName,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    await auth.deleteUser(userRecord.uid);
+    throw new HttpsError("internal", "Failed to write dispatcher document to Firestore. Auth user cleaned up.");
+  }
+  
+  return { uid: userRecord.uid, email, orgId };
+});
+
+export const adminDeleteDispatcher = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const uid = String(request.data?.uid || "").trim();
+  const orgId = String(request.data?.orgId || "").trim();
+  
+  if (!uid || !orgId) {
+    throw new HttpsError("invalid-argument", "uid and orgId are required.");
+  }
+  
+  try {
+    await auth.deleteUser(uid);
+  } catch (err) {
+    console.warn(`Auth user ${uid} not found or already deleted:`, err);
+  }
+  
+  await db.doc(`orgs/${orgId}/dispatchers/${uid}`).delete();
+  return { success: true };
+});
+
+export const adminResetDispatcherPassword = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const uid = String(request.data?.uid || "").trim();
+  const newPassword = String(request.data?.newPassword || "");
+  
+  if (!uid || !newPassword) {
+    throw new HttpsError("invalid-argument", "uid and newPassword are required.");
+  }
+  
+  if (newPassword.length < 6) {
+    throw new HttpsError("invalid-argument", "Password must be at least 6 characters.");
+  }
+  
+  try {
+    await auth.updateUser(uid, { password: newPassword });
+  } catch (err) {
+    throw new HttpsError("internal", err instanceof Error ? err.message : "Failed to reset password.");
+  }
+  
+  return { success: true };
+});
+
+export const adminListOrgs = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const orgsSnap = await db.collection("orgs").get();
+  const list = [];
+  for (const doc of orgsSnap.docs) {
+    const data = doc.data();
+    list.push({
+      id: doc.id,
+      name: data.name || data.displayName || doc.id,
+      displayName: data.displayName || data.name || doc.id,
+      solution: data.solution || "taxi",
+      createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
+    });
+  }
+  return { orgs: list };
+});
+
+export const adminCreateOrg = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const orgId = String(request.data?.orgId || "").trim().toLowerCase();
+  const displayName = String(request.data?.displayName || "").trim();
+  const solution = String(request.data?.solution || "taxi").trim().toLowerCase();
+  
+  if (!orgId || !displayName) {
+    throw new HttpsError("invalid-argument", "orgId and displayName are required.");
+  }
+  
+  if (!/^[a-z0-9_-]+$/i.test(orgId)) {
+    throw new HttpsError("invalid-argument", "orgId must contain only letters, numbers, hyphens, and underscores.");
+  }
+  
+  const docRef = db.doc(`orgs/${orgId}`);
+  const snap = await docRef.get();
+  if (snap.exists) {
+    throw new HttpsError("already-exists", `Organization ${orgId} already exists.`);
+  }
+  
+  const orgPayload: Record<string, unknown> = {
+    name: displayName,
+    displayName: displayName,
+    solution: solution,
+    settings: { speedUnit: "kmh" },
+    createdAt: FieldValue.serverTimestamp(),
+  };
+  
+  if (orgId === "rebert" || solution === "concrete") {
+    orgPayload.features = {
+      plantQueue: false,
+      billingReports: false,
+      detentionBilling: false,
+      podSignature: false,
+      contacts: false,
+    };
+  }
+  
+  await docRef.set(orgPayload);
+  return { orgId, displayName, solution };
+});
