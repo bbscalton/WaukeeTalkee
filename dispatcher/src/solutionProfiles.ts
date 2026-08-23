@@ -12,6 +12,9 @@ export type FeatureKey =
   | "bookings"
   | "contacts"
   | "vehicles"
+  | "manifests"
+  | "family"
+  | "reports"
   | "sos"
   | "plantQueue"
   | "billingReports"
@@ -67,6 +70,9 @@ const ALL_FEATURES_ON: Record<FeatureKey, boolean> = {
   bookings: true,
   contacts: true,
   vehicles: true,
+  manifests: true,
+  family: true,
+  reports: true,
   sos: true,
   plantQueue: false,
   billingReports: false,
@@ -199,7 +205,10 @@ export type NavRouteKey =
   | "requests"
   | "bookings"
   | "contacts"
-  | "vehicles";
+  | "vehicles"
+  | "manifests"
+  | "family"
+  | "reports";
 
 export const NAV_ROUTES: {
   key: NavRouteKey;
@@ -236,6 +245,24 @@ export const NAV_ROUTES: {
     path: "/vehicles",
     feature: "vehicles",
     labelKey: "drivers",
+  },
+  {
+    key: "manifests",
+    path: "/manifests",
+    feature: "manifests",
+    labelKey: "bookings",
+  },
+  {
+    key: "family",
+    path: "/family",
+    feature: "family",
+    labelKey: "drivers",
+  },
+  {
+    key: "reports",
+    path: "/reports",
+    feature: "reports",
+    labelKey: "alerts",
   },
 ];
 

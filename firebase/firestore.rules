@@ -147,6 +147,18 @@ service cloud.firestore {
         allow read, write: if isDispatcher(orgId);
       }
 
+      match /manifests/{manifestId} {
+        allow read, write: if isDispatcher(orgId) || isOrgDriver(orgId);
+      }
+
+      match /familyMembers/{memberId} {
+        allow read, write: if isDispatcher(orgId) || isOrgDriver(orgId);
+      }
+
+      match /broadcasts/{broadcastId} {
+        allow read, write: if isDispatcher(orgId) || isOrgDriver(orgId);
+      }
+
       match /sosEvents/{eventId} {
         allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
         allow create: if isOrgDriver(orgId);

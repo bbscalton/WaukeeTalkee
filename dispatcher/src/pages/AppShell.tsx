@@ -47,7 +47,15 @@ function ShellNav() {
         <nav>
           {visibleRoutes.map((route) => (
             <NavLink key={route.key} to={route.path}>
-              {route.key === "vehicles" ? "Vehicles" : label(route.labelKey)}
+              {route.key === "vehicles"
+                ? "Vehicles"
+                : route.key === "manifests"
+                ? "Manifests"
+                : route.key === "family"
+                ? "Family Circle"
+                : route.key === "reports"
+                ? "Reports"
+                : label(route.labelKey)}
               {route.key === "inbox" && totalUnread > 0 && (
                 <span className="nav-badge">{totalUnread}</span>
               )}

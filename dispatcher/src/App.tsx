@@ -11,6 +11,9 @@ import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
 import { RadioInboxPage } from "./pages/RadioInboxPage";
 import { ReplayPage } from "./pages/ReplayPage";
+import { ManifestsPage } from "./pages/ManifestsPage";
+import { FamilyCirclesPage } from "./pages/FamilyCirclesPage";
+import { ReportsPage } from "./pages/ReportsPage";
 import { VehiclesPage } from "./pages/VehiclesPage";
 import { routeFeature } from "./solutionProfiles";
 import { SosProvider } from "./SosProvider";
@@ -135,6 +138,30 @@ function AppRoutes() {
           element={
             <FeatureRoute feature="vehicles">
               <VehiclesPage />
+            </FeatureRoute>
+          }
+        />
+        <Route
+          path="manifests"
+          element={
+            <FeatureRoute feature="manifests">
+              <ManifestsPage />
+            </FeatureRoute>
+          }
+        />
+        <Route
+          path="family"
+          element={
+            <FeatureRoute feature="family">
+              <FamilyCirclesPage />
+            </FeatureRoute>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <FeatureRoute feature="reports">
+              <ReportsPage />
             </FeatureRoute>
           }
         />

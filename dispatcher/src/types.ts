@@ -400,3 +400,61 @@ export function formatAge(ts: Driver["lastTelemetryAt"] | { toMillis: () => numb
   if (sec < 60) return `${sec}s ago`;
   return `${Math.floor(sec / 60)}m ago`;
 }
+
+/** Feature #11: Multi-stop route manifest for trucks & delivery fleets */
+export type ManifestStopStatus = "pending" | "arrived" | "completed" | "exception";
+
+export type ManifestStop = {
+  id: string;
+  sequence: number;
+  address: string;
+  recipientName: string;
+  phone: string;
+  status: ManifestStopStatus;
+  exceptionCode?: StopExceptionCode | null;
+  notes?: string;
+};
+
+export type ManifestStatus = "draft" | "in_transit" | "completed";
+
+export type Manifest = {
+  id: string;
+  title: string;
+  driverId: string | null;
+  vehicleId: string | null;
+  status: ManifestStatus;
+  stops: ManifestStop[];
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export function formatManifestStatus(status: ManifestStatus): string {
+  switch (status) {
+    case "draft": return "Draft";
+    case "in_transit": return "In Transit";
+    case "completed": return "Completed";
+  }
+}
+
+/** Feature #15: Family circles, check-ins, and emergency broadcast */
+export type CheckInStatus = "safe" | "check_in_due" | "emergency";
+
+export type FamilyMember = {
+  id: string;
+  name: string;
+  relationship: string;
+  phone: string;
+  checkInStatus: CheckInStatus;
+  lastCheckInAt: { seconds: number; nanoseconds: number } | null;
+  privacyLocationSharing: boolean;
+  notes: string;
+};
+
+export type EmergencyBroadcast = {
+  id: string;
+  senderName: string;
+  message: string;
+  severity: "info" | "warning" | "critical";
+  createdAt: { seconds: number; nanoseconds: number } | null;
+};
+
