@@ -187,7 +187,7 @@ export const createDriverWithPairCode = onCall(async (request) => {
  * the same code can still finish pairing for that driver.
  */
 export const redeemPairCode = onCall(async (request) => {
-  const orgId = String(request.data?.orgId || DEFAULT_ORG);
+  let orgId = String(request.data?.orgId || DEFAULT_ORG);
   const code = String(request.data?.code || "")
     .trim()
     .toUpperCase();
@@ -200,11 +200,27 @@ export const redeemPairCode = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "deviceId is required.");
   }
 
-  const codeRef = db.doc(`orgs/${orgId}/pairCodes/${code}`);
-  const codeSnap = await codeRef.get();
+  let codeSnap = await db.doc(`orgs/${orgId}/pairCodes/${code}`).get();
+
+  // If code is not found in requested orgId, search across all orgs
+  if (!codeSnap.exists) {
+    const orgsSnap = await db.collection("orgs").get();
+    for (const orgDoc of orgsSnap.docs) {
+      if (orgDoc.id === orgId) continue;
+      const testSnap = await db.doc(`orgs/${orgDoc.id}/pairCodes/${code}`).get();
+      if (testSnap.exists) {
+        codeSnap = testSnap;
+        orgId = orgDoc.id;
+        break;
+      }
+    }
+  }
+
   if (!codeSnap.exists) {
     throw new HttpsError("not-found", "Invalid pair code.");
   }
+
+  const codeRef = db.doc(`orgs/${orgId}/pairCodes/${code}`);
 
   const codeData = codeSnap.data()!;
   const expiresAt = codeData.expiresAt as Timestamp;
