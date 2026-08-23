@@ -1,11 +1,13 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
   updateDoc,
+  writeBatch,
   type Timestamp,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -53,6 +55,9 @@ export function DriversPage() {
   const [dutyFilter, setDutyFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+
+  // Multi-selection state for bulk delete
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!ORG_ID) return;
@@ -152,10 +157,65 @@ export function DriversPage() {
     }
   }
 
+  const handleDeleteDriver = async (driver: Driver) => {
+    if (!ORG_ID) return;
+    if (!confirm(`Are you sure you want to delete driver "${driver.displayName}"? Device pair association will be removed.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteDoc(doc(db, "orgs", ORG_ID, "drivers", driver.id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(driver.id);
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete driver.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleClearSelectedDrivers = async () => {
+    if (selectedIds.size === 0 || !ORG_ID) return;
+    if (!confirm(`Delete all ${selectedIds.size} selected driver profiles?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const batch = writeBatch(db);
+      Array.from(selectedIds).forEach((id) => {
+        batch.delete(doc(db, "orgs", ORG_ID, "drivers", id));
+      });
+      await batch.commit();
+      setSelectedIds(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete selected drivers.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2500);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredDrivers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredDrivers.map((d) => d.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const filteredDrivers = useMemo(() => {
@@ -201,7 +261,7 @@ export function DriversPage() {
             🚘 {label("drivers")} Roster & Telemetry
           </h1>
           <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.95rem" }}>
-            Manage driver profiles, issue pairing codes, set speed limit alerts, and monitor live telemetry.
+            Manage driver profiles, issue pairing codes, set speed limit alerts, delete profiles, and monitor live telemetry.
           </p>
         </div>
 
@@ -308,21 +368,42 @@ export function DriversPage() {
             </select>
           </div>
 
-          <input
-            type="text"
-            placeholder="🔍 Search driver or plate..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: "0.55rem 0.9rem",
-              borderRadius: "8px",
-              background: "rgba(0,0,0,0.3)",
-              color: "#fff",
-              border: "1px solid var(--line)",
-              fontSize: "0.85rem",
-              minWidth: "220px"
-            }}
-          />
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleClearSelectedDrivers}
+                disabled={busy}
+                style={{
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.55rem 0.9rem",
+                  fontSize: "0.85rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                🗑️ Delete Selected ({selectedIds.size})
+              </button>
+            )}
+
+            <input
+              type="text"
+              placeholder="🔍 Search driver or plate..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: "0.55rem 0.9rem",
+                borderRadius: "8px",
+                background: "rgba(0,0,0,0.3)",
+                color: "#fff",
+                border: "1px solid var(--line)",
+                fontSize: "0.85rem",
+                minWidth: "220px"
+              }}
+            />
+          </div>
         </div>
 
         {/* Drivers Table */}
@@ -330,6 +411,14 @@ export function DriversPage() {
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 0.5rem" }}>
             <thead>
               <tr style={{ color: "var(--muted)", textAlign: "left", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <th style={{ padding: "0.75rem 0.5rem", width: "40px", textAlign: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={filteredDrivers.length > 0 && selectedIds.size === filteredDrivers.length}
+                    onChange={toggleSelectAll}
+                    style={{ cursor: "pointer" }}
+                  />
+                </th>
                 <th style={{ padding: "0.75rem 1rem" }}>Driver & Vehicle</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Status</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Duty State</th>
@@ -342,19 +431,22 @@ export function DriversPage() {
             <tbody>
               {filteredDrivers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "3rem", color: "var(--muted)" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "3rem", color: "var(--muted)" }}>
                     No driver records found matching selected filters.
                   </td>
                 </tr>
               ) : (
                 filteredDrivers.map((d) => {
                   const isSpeeding = d.lastSpeed != null && d.speedLimitKmh != null && d.lastSpeed > d.speedLimitKmh;
+                  const isSelected = selectedIds.has(d.id);
 
                   return (
                     <tr
                       key={d.id}
                       style={{
-                        background: isSpeeding
+                        background: isSelected
+                          ? "rgba(59, 130, 246, 0.2)"
+                          : isSpeeding
                           ? "rgba(239, 68, 68, 0.12)"
                           : d.onDuty
                           ? "rgba(34, 197, 94, 0.04)"
@@ -367,6 +459,16 @@ export function DriversPage() {
                         borderRadius: "8px"
                       }}
                     >
+                      {/* Checkbox */}
+                      <td style={{ padding: "0.85rem 0.5rem", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(d.id)}
+                          style={{ cursor: "pointer" }}
+                        />
+                      </td>
+
                       {/* Driver Name & Plate */}
                       <td style={{ padding: "0.85rem 1rem" }}>
                         <div style={{ fontWeight: 800, color: "#fff", fontSize: "0.95rem" }}>{d.displayName}</div>
@@ -467,23 +569,44 @@ export function DriversPage() {
 
                       {/* Actions */}
                       <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void regenerateCode(d.id)}
-                          style={{
-                            background: "rgba(59, 130, 246, 0.18)",
-                            color: "#60a5fa",
-                            border: "1px solid rgba(59, 130, 246, 0.4)",
-                            borderRadius: "6px",
-                            padding: "0.35rem 0.75rem",
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            cursor: "pointer"
-                          }}
-                        >
-                          🔑 New Pair Code
-                        </button>
+                        <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void regenerateCode(d.id)}
+                            style={{
+                              background: "rgba(59, 130, 246, 0.18)",
+                              color: "#60a5fa",
+                              border: "1px solid rgba(59, 130, 246, 0.4)",
+                              borderRadius: "6px",
+                              padding: "0.35rem 0.65rem",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                          >
+                            🔑 New Pair Code
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void handleDeleteDriver(d)}
+                            style={{
+                              background: "rgba(239, 68, 68, 0.12)",
+                              color: "#ef4444",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                              borderRadius: "6px",
+                              padding: "0.35rem 0.65rem",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                            title="Delete driver profile"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -499,17 +622,17 @@ export function DriversPage() {
         <div className="modal" style={{ display: "flex" }}>
           <div className="modal-content" style={{ maxWidth: "500px", width: "90%", background: "#0f172a", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.3rem", fontWeight: 800 }}>Create Driver Profile & Pair Code</h3>
+              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.3rem", fontWeight: 800 }}>Create Driver Profile</h3>
               <button onClick={() => setShowCreateModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
             </div>
 
-            <form onSubmit={createWithCode}>
+            <form onSubmit={(e) => void createWithCode(e)}>
               <div className="form-group">
                 <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Driver Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. John Doe – Truck 14"
+                  placeholder="e.g. Driver Alex / Unit 104"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
@@ -517,14 +640,18 @@ export function DriversPage() {
               </div>
 
               <div className="form-group" style={{ marginTop: "1rem" }}>
-                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>License Plate / Vehicle Tag (Optional)</label>
+                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Vehicle License Plate / ID (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. ABC 1234"
+                  placeholder="e.g. GR-9988-B"
                   value={plate}
                   onChange={(e) => setPlate(e.target.value)}
                   style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 />
+              </div>
+
+              <div style={{ background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.4)", padding: "0.75rem", borderRadius: "10px", marginTop: "1.25rem", fontSize: "0.85rem", color: "#60a5fa" }}>
+                ℹ️ Generating a driver profile will issue a 6-character <strong>One-Time Pairing Code</strong> valid for 30 minutes. Enter this code into the mobile driver app to pair the device.
               </div>
 
               <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
@@ -538,10 +665,10 @@ export function DriversPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={busy || !name.trim()}
+                  disabled={busy}
                   style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", color: "#fff", border: "none", padding: "0.7rem 1.4rem", borderRadius: "10px", fontWeight: 800, boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)" }}
                 >
-                  {busy ? "Generating..." : "Generate Pair Code"}
+                  {busy ? "Generating..." : "Create & Get Pair Code"}
                 </button>
               </div>
             </form>
