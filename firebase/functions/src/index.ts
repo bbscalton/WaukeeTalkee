@@ -576,6 +576,7 @@ export const adminListOrgs = onCall(async (request) => {
       displayName: data.displayName || data.name || doc.id,
       solution: data.solution || "taxi",
       features: data.features || {},
+      driverFeatures: data.driverFeatures || {},
       createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
     });
   }
@@ -587,14 +588,19 @@ export const adminUpdateOrgFeatures = onCall(async (request) => {
   
   const orgId = String(request.data?.orgId || "").trim().toLowerCase();
   const features = request.data?.features;
+  const driverFeatures = request.data?.driverFeatures;
   
-  if (!orgId || typeof features !== "object") {
-    throw new HttpsError("invalid-argument", "orgId and features object are required.");
+  if (!orgId) {
+    throw new HttpsError("invalid-argument", "orgId is required.");
   }
   
+  const payload: Record<string, unknown> = {};
+  if (features && typeof features === "object") payload.features = features;
+  if (driverFeatures && typeof driverFeatures === "object") payload.driverFeatures = driverFeatures;
+  
   const docRef = db.doc(`orgs/${orgId}`);
-  await docRef.set({ features }, { merge: true });
-  return { success: true, orgId, features };
+  await docRef.set(payload, { merge: true });
+  return { success: true, orgId, features, driverFeatures };
 });
 
 export const adminCreateOrg = onCall(async (request) => {

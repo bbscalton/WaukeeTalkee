@@ -604,10 +604,10 @@
             </div>
           </div>
 
-          <!-- Dispatcher Feature Toggles Card -->
+          <!-- Dispatcher & Mobile App Feature Toggles Card -->
           <div class="tcd-card full-width">
             <h2>
-              Dispatcher Feature Control Panel 
+              Waukee Talkee App & Dispatcher Feature Control Panel 
               <span id="feature-org-label" style="font-weight: 700; color: var(--amber);">Select Organization</span>
             </h2>
             <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 1rem;">
@@ -623,12 +623,12 @@
             </div>
 
             <p class="muted" style="margin: 0; font-size: 0.9rem;">
-              Enable or disable navigation tabs and modules in the dispatcher application. Toggling a feature updates the organization's solution profile in real time.
+              Turn features on or off for both the Waukee Talkee Mobile Driver App and the Dispatcher Console. Toggling updates organization settings in real time.
             </p>
 
             <div id="features-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
               <div style="grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 2rem;">
-                Select an organization above to manage its dispatcher features.
+                Select an organization above to manage Waukee Talkee Mobile App & Dispatcher features.
               </div>
             </div>
           </div>
@@ -738,7 +738,18 @@
       const featuresGrid = document.getElementById("features-grid");
       let unsubscribeOrgListener = null;
 
-      const ALL_FEATURES_LIST = [
+      const DRIVER_APP_FEATURES_LIST = [
+        { key: "pttRadio", name: "PTT Walkie Talkie Voice", desc: "Live PTT voice recording, speaker playback & channel stream" },
+        { key: "gpsTelemetry", name: "GPS & Speed Telemetry", desc: "Background driver GPS location & speed limit monitoring" },
+        { key: "groupChannels", name: "Group Channels & Peer Talk", desc: "Driver group selection & peer-to-peer driver audio channel" },
+        { key: "volumePtt", name: "Hardware Volume Key PTT", desc: "Use device volume keys for PTT push-to-talk override" },
+        { key: "sosPanic", name: "Emergency SOS Panic Trigger", desc: "Driver emergency panic alert button on mobile UI" },
+        { key: "driverManifest", name: "Multi-Stop Route Manifest", desc: "View multi-stop truck manifest & mark stop arrival/completion" },
+        { key: "stopExceptions", name: "Stop Exceptions & Photos", desc: "Report delivery exceptions & attach photo proof from device" },
+        { key: "familyCheckIn", name: "Family Safe Check-In", desc: "Circle check-in status reporting & location sharing controls" }
+      ];
+
+      const DISPATCHER_APP_FEATURES_LIST = [
         { key: "map", name: "Live Map / Radio Map", desc: "Interactive map with vehicle markers & route tracking" },
         { key: "inbox", name: "Inbox", desc: "Voice recording inbox and audio clip history" },
         { key: "replay", name: "Map DVR", desc: "Historical telemetry replay & track point playback" },
@@ -786,10 +797,65 @@
         });
       }
 
+      function createToggleCard(orgId, featureCategory, feat, currentFeatures, solution) {
+        const isEnabled = currentFeatures[feat.key] !== undefined 
+          ? Boolean(currentFeatures[feat.key]) 
+          : getDefaultFeatureState(solution, feat.key);
+
+        const card = document.createElement("div");
+        card.className = `feature-toggle-card ${isEnabled ? "enabled" : "disabled"}`;
+
+        card.innerHTML = `
+          <div class="feature-info">
+            <div class="feature-title">${feat.name}</div>
+            <div class="feature-desc">${feat.desc}</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" data-key="${feat.key}" data-category="${featureCategory}" ${isEnabled ? "checked" : ""} />
+            <span class="slider"></span>
+          </label>
+        `;
+
+        const checkbox = card.querySelector("input");
+        checkbox.addEventListener("change", async (e) => {
+          const newValue = e.target.checked;
+          try {
+            card.className = `feature-toggle-card ${newValue ? "enabled" : "disabled"}`;
+            
+            const orgRef = doc(db, "orgs", orgId);
+            const fieldName = featureCategory === "driver" ? "driverFeatures" : "features";
+            const updatedCategoryObj = {
+              ...currentFeatures,
+              [feat.key]: newValue
+            };
+
+            await setDoc(orgRef, {
+              [fieldName]: updatedCategoryObj
+            }, { merge: true });
+
+            const updateFeaturesFn = httpsCallable(functions, "adminUpdateOrgFeatures");
+            await updateFeaturesFn({
+              orgId,
+              [fieldName]: updatedCategoryObj
+            });
+
+            showAlert(`Feature '${feat.name}' ${newValue ? 'ENABLED' : 'DISABLED'} for '${orgId}'.`, "success");
+          } catch (err) {
+            console.error(err);
+            showAlert(`Failed to update feature '${feat.name}': ${err.message}`, "error");
+            checkbox.checked = !newValue;
+            card.className = `feature-toggle-card ${!newValue ? "enabled" : "disabled"}`;
+          }
+        });
+
+        return card;
+      }
+
       function renderFeatureGrid(orgId, orgData) {
         const solution = orgData.solution || "taxi";
         const displayName = orgData.displayName || orgData.name || orgId;
-        const features = orgData.features || {};
+        const dispFeatures = orgData.features || {};
+        const driverFeatures = orgData.driverFeatures || {};
 
         featureOrgSummary.innerHTML = `
           <span><strong>Profile:</strong> ${displayName}</span>
@@ -798,57 +864,35 @@
 
         featuresGrid.innerHTML = "";
 
-        ALL_FEATURES_LIST.forEach((feat) => {
-          const isEnabled = features[feat.key] !== undefined 
-            ? Boolean(features[feat.key]) 
-            : getDefaultFeatureState(solution, feat.key);
+        // Section 1: Waukee Talkee Mobile / Driver App Features
+        const driverSectionHeader = document.createElement("div");
+        driverSectionHeader.style.cssText = "grid-column: 1 / -1; border-bottom: 2px solid var(--amber); padding-bottom: 0.4rem; margin-top: 0.5rem; display: flex; align-items: center; justify-content: space-between;";
+        driverSectionHeader.innerHTML = `
+          <strong style="font-size: 1.05rem; color: var(--amber); display: flex; align-items: center; gap: 0.5rem;">
+            📱 Waukee Talkee Mobile Driver App Features
+          </strong>
+          <span style="font-size: 0.8rem; color: var(--muted);">Controls driver mobile app features</span>
+        `;
+        featuresGrid.appendChild(driverSectionHeader);
 
-          const card = document.createElement("div");
-          card.className = `feature-toggle-card ${isEnabled ? "enabled" : "disabled"}`;
+        DRIVER_APP_FEATURES_LIST.forEach((feat) => {
+          const card = createToggleCard(orgId, "driver", feat, driverFeatures, solution);
+          featuresGrid.appendChild(card);
+        });
 
-          card.innerHTML = `
-            <div class="feature-info">
-              <div class="feature-title">${feat.name}</div>
-              <div class="feature-desc">${feat.desc}</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" data-key="${feat.key}" ${isEnabled ? "checked" : ""} />
-              <span class="slider"></span>
-            </label>
-          `;
+        // Section 2: Dispatcher Application Features
+        const dispSectionHeader = document.createElement("div");
+        dispSectionHeader.style.cssText = "grid-column: 1 / -1; border-bottom: 2px solid var(--primary); padding-bottom: 0.4rem; margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;";
+        dispSectionHeader.innerHTML = `
+          <strong style="font-size: 1.05rem; color: #4fc3f7; display: flex; align-items: center; gap: 0.5rem;">
+            🖥️ Dispatcher Console Features
+          </strong>
+          <span style="font-size: 0.8rem; color: var(--muted);">Controls dispatcher web console navigation & tabs</span>
+        `;
+        featuresGrid.appendChild(dispSectionHeader);
 
-          const checkbox = card.querySelector("input");
-          checkbox.addEventListener("change", async (e) => {
-            const newValue = e.target.checked;
-            try {
-              card.className = `feature-toggle-card ${newValue ? "enabled" : "disabled"}`;
-              
-              const orgRef = doc(db, "orgs", orgId);
-              await setDoc(orgRef, {
-                features: {
-                  ...features,
-                  [feat.key]: newValue
-                }
-              }, { merge: true });
-
-              const updateFeaturesFn = httpsCallable(functions, "adminUpdateOrgFeatures");
-              await updateFeaturesFn({
-                orgId,
-                features: {
-                  ...features,
-                  [feat.key]: newValue
-                }
-              });
-
-              showAlert(`Feature '${feat.name}' ${newValue ? 'ENABLED' : 'DISABLED'} for organization '${orgId}'.`, "success");
-            } catch (err) {
-              console.error(err);
-              showAlert(`Failed to update feature '${feat.name}': ${err.message}`, "error");
-              checkbox.checked = !newValue;
-              card.className = `feature-toggle-card ${!newValue ? "enabled" : "disabled"}`;
-            }
-          });
-
+        DISPATCHER_APP_FEATURES_LIST.forEach((feat) => {
+          const card = createToggleCard(orgId, "dispatcher", feat, dispFeatures, solution);
           featuresGrid.appendChild(card);
         });
       }
