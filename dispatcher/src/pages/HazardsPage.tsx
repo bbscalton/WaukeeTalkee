@@ -12,29 +12,24 @@ import {
   orderBy
 } from "firebase/firestore";
 import { type HazardAlert, type HazardType, formatHazardType } from "../types";
-import {
-  DEFAULT_CENTER,
-  DEFAULT_ZOOM,
-  hasGoogleMapsApiKey,
-  loadMapsLibrary,
-  MAP_UI_OPTIONS
-} from "../googleMaps";
+import { HazardMap, type HazardMapHandle } from "../components/HazardMap";
 
 export const HazardsPage: React.FC = () => {
   const { user } = useAuth();
   const [hazards, setHazards] = useState<HazardAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Map state
-  const mapNodeRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  const [mapReady, setMapReady] = useState(false);
+  // Map state & references
+  const hazardMapRef = useRef<HazardMapHandle | null>(null);
   const [mapMode, setMapMode] = useState<"streets" | "satellite">("satellite");
+  const [isPickMode, setIsPickMode] = useState(false);
   const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
 
-  // New Hazard Form State
+  // Filters & Search
+  const [filterType, setFilterType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Report Modal / Panel State
   const [showModal, setShowModal] = useState(false);
   const [type, setType] = useState<HazardType>("police_checkpoint");
   const [locationName, setLocationName] = useState("");
@@ -52,158 +47,39 @@ export const HazardsPage: React.FC = () => {
       orderBy("createdAt", "desc")
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      const list: HazardAlert[] = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as HazardAlert[];
-      setHazards(list);
-      setLoading(false);
-    }, (err) => {
-      console.error("Error loading hazards:", err);
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list: HazardAlert[] = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as HazardAlert[];
+        setHazards(list);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error loading hazards:", err);
+        setLoading(false);
+      }
+    );
 
     return () => unsub();
   }, []);
 
-  // Initialize Google Map
-  useEffect(() => {
-    if (!mapNodeRef.current || mapRef.current) return;
-    if (!hasGoogleMapsApiKey()) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { Map, InfoWindow } = await loadMapsLibrary();
-        if (cancelled || !mapNodeRef.current) return;
-
-        const map = new Map(mapNodeRef.current, {
-          ...MAP_UI_OPTIONS,
-          center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
-          mapTypeId: mapMode === "satellite" ? "hybrid" : "roadmap",
-        });
-
-        mapRef.current = map;
-        infoWindowRef.current = new InfoWindow();
-
-        google.maps.event.addListenerOnce(map, "idle", () => {
-          if (!cancelled) setMapReady(true);
-        });
-      } catch (err) {
-        console.error("Failed to load map on HazardsPage:", err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      markersRef.current.forEach((m) => m.setMap(null));
-      markersRef.current.clear();
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.setMapTypeId(mapMode === "satellite" ? "hybrid" : "roadmap");
+  // Handle map click reverse geocoding callback
+  const handleMapPickLocation = (lat: number, lng: number, address: string) => {
+    setLatStr(lat.toFixed(6));
+    setLngStr(lng.toFixed(6));
+    setLocationName(address);
+    if (!showModal) {
+      setShowModal(true);
     }
-  }, [mapMode]);
-
-  // Sync Markers with Active Hazards
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-
-    const activeList = hazards.filter((h) => h.status === "active");
-    const seen = new Set<string>();
-
-    for (const h of activeList) {
-      if (typeof h.lat !== "number" || typeof h.lng !== "number" || (h.lat === 0 && h.lng === 0)) {
-        continue;
-      }
-
-      seen.add(h.id);
-      const position = { lat: h.lat, lng: h.lng };
-      const isPolice = h.type === "police_checkpoint" || h.type === "speed_trap";
-      const fillColor = isPolice ? "#ff4d4d" : "#f1c40f";
-
-      let marker = markersRef.current.get(h.id);
-      if (!marker) {
-        marker = new google.maps.Marker({
-          map,
-          position,
-          title: `${formatHazardType(h.type)}: ${h.locationName}`,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: fillColor,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-          },
-        });
-
-        marker.addListener("click", () => {
-          setSelectedHazardId(h.id);
-          showInfoWindow(h, marker!);
-        });
-
-        markersRef.current.set(h.id, marker);
-      } else {
-        marker.setPosition(position);
-      }
-    }
-
-    markersRef.current.forEach((m, id) => {
-      if (!seen.has(id)) {
-        m.setMap(null);
-        markersRef.current.delete(id);
-      }
-    });
-
-    if (activeList.length > 0 && mapReady) {
-      const firstValid = activeList.find((h) => h.lat && h.lng && (h.lat !== 0 || h.lng !== 0));
-      if (firstValid && !selectedHazardId) {
-        map.panTo({ lat: firstValid.lat, lng: firstValid.lng });
-      }
-    }
-  }, [hazards, mapReady]);
-
-  const showInfoWindow = (h: HazardAlert, marker: google.maps.Marker) => {
-    if (!infoWindowRef.current || !mapRef.current) return;
-
-    const isConfirmed = h.confirmedByDispatcher;
-    const contentString = `
-      <div style="color: #111; font-family: system-ui, sans-serif; padding: 4px; max-width: 260px;">
-        <div style="font-weight: 800; font-size: 14px; margin-bottom: 4px; color: ${h.type === 'police_checkpoint' ? '#d9534f' : '#f0ad4e'}">
-          ${formatHazardType(h.type)}
-        </div>
-        <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">
-          📍 ${h.locationName || 'Reported Location'}
-        </div>
-        <div style="font-size: 12px; color: #555; margin-bottom: 6px;">
-          Reported by: <strong>${h.driverName}</strong><br/>
-          Status: <strong>${isConfirmed ? '✅ Confirmed Accurate' : '⚠️ Driver Reported'}</strong>
-        </div>
-        ${h.notes ? `<div style="font-size: 11px; font-style: italic; background: #f8f9fa; padding: 4px 6px; border-radius: 4px; margin-bottom: 8px;">"${h.notes}"</div>` : ''}
-      </div>
-    `;
-
-    infoWindowRef.current.setContent(contentString);
-    infoWindowRef.current.open(mapRef.current, marker);
   };
 
-  const focusHazardOnMap = (h: HazardAlert) => {
-    setSelectedHazardId(h.id);
-    if (!mapRef.current || !h.lat || !h.lng) return;
-    mapRef.current.panTo({ lat: h.lat, lng: h.lng });
-    mapRef.current.setZoom(15);
-
-    const marker = markersRef.current.get(h.id);
-    if (marker) {
-      showInfoWindow(h, marker);
-    }
+  const togglePickMode = () => {
+    const nextMode = !isPickMode;
+    setIsPickMode(nextMode);
+    hazardMapRef.current?.setPickMode(nextMode, type);
   };
 
   const handleCreateHazard = async (e: React.FormEvent) => {
@@ -214,7 +90,7 @@ export const HazardsPage: React.FC = () => {
     const lng = parseFloat(lngStr) || 0;
 
     if (!locationName.trim()) {
-      alert("Please enter a location name or intersection.");
+      alert("Please enter or pick a location name/intersection.");
       return;
     }
 
@@ -222,7 +98,7 @@ export const HazardsPage: React.FC = () => {
     try {
       await addDoc(collection(db, "orgs", ORG_ID, "hazards"), {
         driverId: user?.uid || "dispatch",
-        driverName: user?.email || "Dispatch Console",
+        driverName: user?.email ? user.email.split("@")[0] : "Dispatch Console",
         type,
         lat,
         lng,
@@ -233,13 +109,17 @@ export const HazardsPage: React.FC = () => {
         confirmedByDispatcher: true,
       });
 
+      // Cleanup form and pin mode
       setShowModal(false);
+      setIsPickMode(false);
+      hazardMapRef.current?.setPickMode(false, type);
+      hazardMapRef.current?.clearPickMarker();
       setLocationName("");
       setLatStr("");
       setLngStr("");
       setNotes("");
     } catch (err: any) {
-      alert("Failed to report hazard: " + err.message);
+      alert("Failed to publish report: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -264,7 +144,6 @@ export const HazardsPage: React.FC = () => {
       await updateDoc(doc(db, "orgs", ORG_ID, "hazards", id), {
         confirmedByDispatcher: true,
       });
-      alert("Hazard report confirmed! Approaching drivers will now receive proximity warnings.");
     } catch (err: any) {
       alert("Failed to confirm hazard: " + err.message);
     }
@@ -272,8 +151,11 @@ export const HazardsPage: React.FC = () => {
 
   const handleBroadcastWarning = async (hazard: HazardAlert) => {
     if (!ORG_ID) return;
-    const text = broadcastMsg || `CAUTION: ${formatHazardType(hazard.type)} reported near ${hazard.locationName || 'your area'}. Maintain speed limit!`;
-    if (!confirm(`Broadcast police siren warning to all active drivers?\n\n"${text}"`)) return;
+    const text =
+      broadcastMsg ||
+      `CAUTION: ${formatHazardType(hazard.type)} reported near ${hazard.locationName || "your area"}. Maintain safe speed limit!`;
+
+    if (!confirm(`Broadcast police siren warning clip/text to all active fleet drivers?\n\n"${text}"`)) return;
 
     try {
       await addDoc(collection(db, "orgs", ORG_ID, "broadcasts"), {
@@ -282,7 +164,7 @@ export const HazardsPage: React.FC = () => {
         severity: "warning",
         createdAt: serverTimestamp(),
       });
-      alert("Police warning siren & broadcast message sent to all driver devices!");
+      alert("📢 Police warning siren & alert message broadcasted to all active driver devices!");
       setBroadcastMsg("");
     } catch (err: any) {
       alert("Failed to broadcast warning: " + err.message);
@@ -290,50 +172,101 @@ export const HazardsPage: React.FC = () => {
   };
 
   const activeHazards = hazards.filter((h) => h.status === "active");
+  const filteredHazards = activeHazards.filter((h) => {
+    const matchesType =
+      filterType === "all"
+        ? true
+        : filterType === "unconfirmed"
+        ? !h.confirmedByDispatcher
+        : h.type === filterType;
+
+    const matchesSearch =
+      !searchQuery.trim() ||
+      h.locationName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      h.driverName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      h.notes?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesType && matchesSearch;
+  });
+
+  const policeCount = activeHazards.filter((h) => h.type === "police_checkpoint" || h.type === "speed_trap").length;
+  const unconfirmedCount = activeHazards.filter((h) => !h.confirmedByDispatcher).length;
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-      {/* Top Banner Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      {/* Top Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            👮 Police Checkpoints & Speed Trap Spotter
+          <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            👮 Police Radar Trap & Checkpoint Dispatch Command
           </h1>
-          <p style={{ margin: "0.4rem 0 0 0", color: "var(--muted)", fontSize: "0.9rem" }}>
-            Real-time police radar traps, sobriety checkpoints & hazard proximity alerts for fleet drivers.
+          <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.9rem" }}>
+            Live map pinpointing, police siren broadcast triggers, and real-time proximity alerts.
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn btn-primary"
-          style={{ background: "#ff6b6b", borderColor: "#ff6b6b", fontWeight: 700 }}
-        >
-          + Report Checkpoint / Speed Trap
-        </button>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button
+            onClick={togglePickMode}
+            className="btn"
+            style={{
+              background: isPickMode ? "#ff9f43" : "rgba(255, 159, 67, 0.15)",
+              color: isPickMode ? "#000" : "#ff9f43",
+              border: "1px solid #ff9f43",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem"
+            }}
+          >
+            {isPickMode ? "📍 Click Map to Place Marker (Active)" : "📍 Drop Pin on Map"}
+          </button>
+          <button
+            onClick={() => {
+              setShowModal(true);
+              setIsPickMode(true);
+              hazardMapRef.current?.setPickMode(true, type);
+            }}
+            className="btn btn-primary"
+            style={{ background: "#ff6b6b", borderColor: "#ff6b6b", fontWeight: 700 }}
+          >
+            + Report Checkpoint / Radar Trap
+          </button>
+        </div>
       </div>
 
       {/* KPI Counters */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
         <div className="stat-card" style={{ background: "rgba(255, 107, 107, 0.15)", border: "1px solid rgba(255, 107, 107, 0.3)" }}>
-          <div style={{ fontSize: "0.85rem", color: "#ff6b6b", fontWeight: 600 }}>Active Police / Radar Traps</div>
+          <div style={{ fontSize: "0.85rem", color: "#ff6b6b", fontWeight: 600 }}>Active Police / Speed Traps</div>
+          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff" }}>{policeCount}</div>
+        </div>
+        <div className="stat-card" style={{ background: unconfirmedCount > 0 ? "rgba(255, 179, 0, 0.15)" : undefined, border: unconfirmedCount > 0 ? "1px solid rgba(255, 179, 0, 0.4)" : undefined }}>
+          <div style={{ fontSize: "0.85rem", color: unconfirmedCount > 0 ? "var(--amber)" : "var(--muted)", fontWeight: 600 }}>Awaiting Verification</div>
+          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff" }}>{unconfirmedCount}</div>
+        </div>
+        <div className="stat-card">
+          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>Total Active Hazards</div>
           <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff" }}>{activeHazards.length}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>Total Reports Logged</div>
-          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff" }}>{hazards.length}</div>
-        </div>
-        <div className="stat-card">
-          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>Proximity Alert Radius</div>
+          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>Driver Warning Radius</div>
           <div style={{ fontSize: "1.8rem", fontWeight: 700, color: "var(--amber)" }}>1.5 km (1 mi)</div>
         </div>
       </div>
 
-      {/* Live Interactive Hazard Map */}
-      <div className="tcd-card full-width" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            🗺️ Live Hazard & Police Checkpoint Map
-          </h2>
+      {/* Live Map Panel */}
+      <div className="tcd-card full-width" style={{ marginBottom: "1.5rem", padding: "1rem", position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              🗺️ Tactical Checkpoint Map
+            </h2>
+            {isPickMode && (
+              <span style={{ background: "#ff9f43", color: "#000", padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 800, animation: "pulse 1.5s infinite" }}>
+                🎯 CLICK ANYWHERE ON MAP TO SET REPORT LOCATION
+              </span>
+            )}
+          </div>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
               className={`btn-sm ${mapMode === "streets" ? "btn-primary" : "btn-secondary"}`}
@@ -349,134 +282,191 @@ export const HazardsPage: React.FC = () => {
             </button>
           </div>
         </div>
-        <div
-          ref={mapNodeRef}
-          style={{
-            width: "100%",
-            height: "380px",
-            borderRadius: "10px",
-            background: "#222",
-            border: "1px solid var(--line)"
-          }}
-        />
+
+        {/* Map Container */}
+        <div style={{ width: "100%", height: "420px", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--line)" }}>
+          <HazardMap
+            ref={hazardMapRef}
+            hazards={hazards}
+            mapMode={mapMode}
+            onPickLocation={handleMapPickLocation}
+            onConfirm={handleConfirmHazard}
+            onBroadcast={handleBroadcastWarning}
+            onClear={handleClearHazard}
+          />
+        </div>
       </div>
 
-      {/* Main Content Layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.5rem" }}>
-        {/* Active Hazards List */}
-        <div className="tcd-card full-width">
-          <h2>Active Police & Hazard Spotter Reports ({activeHazards.length})</h2>
+      {/* Hazards Controls & List Section */}
+      <div className="tcd-card full-width">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "1rem" }}>
+          <h2>Active Reports & Police Alerts ({filteredHazards.length})</h2>
 
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "2rem", color: "var(--muted)" }}>Loading hazard reports...</div>
-          ) : activeHazards.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--muted)" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🛡️</div>
-              <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>No Active Police Checkpoints or Speed Traps</div>
-              <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem" }}>
-                Drivers and dispatchers can report speed gun traps or police checkpoints to warn approaching drivers.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "1rem" }}>
-              {activeHazards.map((h) => (
-                <div
-                  key={h.id}
-                  onClick={() => focusHazardOnMap(h)}
-                  style={{
-                    background: selectedHazardId === h.id ? "rgba(255, 107, 107, 0.1)" : "rgba(255, 255, 255, 0.03)",
-                    border: selectedHazardId === h.id ? "2px solid #ff6b6b" : h.type === "police_checkpoint" ? "1px solid #ff6b6b" : "1px solid var(--amber)",
-                    borderRadius: "10px",
-                    padding: "1rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    cursor: "pointer"
-                  }}
-                >
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <span style={{
-                        padding: "0.2rem 0.6rem",
-                        borderRadius: "6px",
-                        fontSize: "0.85rem",
-                        fontWeight: 700,
-                        background: h.type === "police_checkpoint" ? "rgba(255,107,107,0.2)" : "rgba(255,179,0,0.2)",
-                        color: h.type === "police_checkpoint" ? "#ff6b6b" : "var(--amber)",
-                      }}>
-                        {formatHazardType(h.type)}
-                      </span>
-                      <span style={{ fontSize: "0.75rem", color: h.confirmedByDispatcher ? "#4caf50" : "var(--amber)", fontWeight: 700 }}>
-                        {h.confirmedByDispatcher ? "✅ Confirmed Accurate" : "⚠️ Driver Reported"}
-                      </span>
-                    </div>
+          {/* Filter & Search Bar */}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="🔍 Search location or driver..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: "0.45rem 0.8rem",
+                borderRadius: "8px",
+                background: "var(--asphalt)",
+                color: "#fff",
+                border: "1px solid var(--line)",
+                fontSize: "0.85rem",
+                minWidth: "220px"
+              }}
+            />
 
-                    <h3 style={{ margin: "0.25rem 0", color: "#fff", fontSize: "1.1rem" }}>
-                      {h.locationName || "Reported Location"}
-                    </h3>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{
+                padding: "0.45rem 0.8rem",
+                borderRadius: "8px",
+                background: "var(--asphalt)",
+                color: "#fff",
+                border: "1px solid var(--line)",
+                fontSize: "0.85rem"
+              }}
+            >
+              <option value="all">All Active Reports</option>
+              <option value="unconfirmed">⚠️ Needs Dispatch Verification ({unconfirmedCount})</option>
+              <option value="police_checkpoint">👮 Police Checkpoints</option>
+              <option value="speed_trap">⚡ Radar Speed Traps</option>
+              <option value="road_hazard">⚠️ Road Danger</option>
+              <option value="accident">💥 Traffic Accidents</option>
+            </select>
+          </div>
+        </div>
 
-                    {h.notes && (
-                      <p style={{ margin: "0.4rem 0", color: "#ccc", fontSize: "0.85rem", fontStyle: "italic" }}>
-                        "{h.notes}"
-                      </p>
-                    )}
-
-                    <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem" }}>
-                      Reported by: <strong>{h.driverName}</strong>
-                      {h.lat && h.lng ? ` · (${h.lat.toFixed(4)}, ${h.lng.toFixed(4)})` : ""}
-                    </div>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--muted)" }}>Loading active reports...</div>
+        ) : filteredHazards.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--muted)" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🛡️</div>
+            <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>No Matching Hazards Found</div>
+            <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem" }}>
+              Use "+ Report Checkpoint" or click "Drop Pin on Map" to publish a report.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "1rem" }}>
+            {filteredHazards.map((h) => (
+              <div
+                key={h.id}
+                onClick={() => {
+                  setSelectedHazardId(h.id);
+                  hazardMapRef.current?.focusHazard(h);
+                }}
+                style={{
+                  background: selectedHazardId === h.id ? "rgba(255, 107, 107, 0.12)" : "rgba(255, 255, 255, 0.03)",
+                  border: selectedHazardId === h.id ? "2px solid #ff6b6b" : h.type === "police_checkpoint" ? "1px solid #ff6b6b" : "1px solid var(--amber)",
+                  borderRadius: "10px",
+                  padding: "1rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <span style={{
+                      padding: "0.25rem 0.6rem",
+                      borderRadius: "6px",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      background: h.type === "police_checkpoint" ? "rgba(255,107,107,0.2)" : "rgba(255,179,0,0.2)",
+                      color: h.type === "police_checkpoint" ? "#ff6b6b" : "var(--amber)",
+                    }}>
+                      {formatHazardType(h.type)}
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: h.confirmedByDispatcher ? "#4caf50" : "var(--amber)", fontWeight: 700 }}>
+                      {h.confirmedByDispatcher ? "✅ Confirmed Accurate" : "⚠️ Driver Reported"}
+                    </span>
                   </div>
 
-                  <div
-                    style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {!h.confirmedByDispatcher && (
-                      <button
-                        onClick={() => handleConfirmHazard(h.id)}
-                        className="btn-sm"
-                        style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
-                      >
-                        Confirm Accuracy
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleBroadcastWarning(h)}
-                      className="btn-sm"
-                      style={{ background: "var(--amber)", color: "#000", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
-                    >
-                      📢 Broadcast Warning Siren
-                    </button>
-                    <button
-                      onClick={() => handleClearHazard(h.id)}
-                      className="btn-sm"
-                      style={{ background: "#444", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}
-                    >
-                      Clear / Resolved
-                    </button>
+                  <h3 style={{ margin: "0.3rem 0", color: "#fff", fontSize: "1.1rem" }}>
+                    {h.locationName || "Reported Location"}
+                  </h3>
+
+                  {h.notes && (
+                    <p style={{ margin: "0.4rem 0", color: "#ccc", fontSize: "0.85rem", fontStyle: "italic", background: "rgba(0,0,0,0.2)", padding: "0.4rem 0.6rem", borderRadius: "6px" }}>
+                      "{h.notes}"
+                    </p>
+                  )}
+
+                  <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem" }}>
+                    Reported by: <strong>{h.driverName}</strong>
+                    {h.lat && h.lng ? ` · (${h.lat.toFixed(4)}, ${h.lng.toFixed(4)})` : ""}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                <div
+                  style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {!h.confirmedByDispatcher && (
+                    <button
+                      onClick={() => handleConfirmHazard(h.id)}
+                      className="btn-sm"
+                      style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
+                    >
+                      Confirm Accuracy
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleBroadcastWarning(h)}
+                    className="btn-sm"
+                    style={{ background: "var(--amber)", color: "#000", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
+                  >
+                    📢 Broadcast Siren
+                  </button>
+                  <button
+                    onClick={() => handleClearHazard(h.id)}
+                    className="btn-sm"
+                    style={{ background: "#444", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Create Hazard Modal */}
       {showModal && (
         <div className="modal" style={{ display: "flex" }}>
-          <div className="modal-content" style={{ maxWidth: "500px", width: "90%" }}>
-            <h3 style={{ margin: "0 0 1rem 0", color: "#fff" }}>Report Police Checkpoint / Speed Trap</h3>
+          <div className="modal-content" style={{ maxWidth: "550px", width: "90%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ margin: 0, color: "#fff" }}>Report Police Checkpoint / Speed Trap</h3>
+              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ background: "rgba(255,159,67,0.15)", border: "1px solid #ff9f43", padding: "0.6rem 0.8rem", borderRadius: "8px", marginBottom: "1rem", fontSize: "0.85rem", color: "#ff9f43" }}>
+              💡 <strong>Tip:</strong> Click anywhere directly on the map to automatically pin precise coordinates and street name!
+            </div>
+
             <form onSubmit={handleCreateHazard}>
               <div className="form-group">
                 <label>Hazard Type</label>
                 <select
                   value={type}
-                  onChange={(e) => setType(e.target.value as HazardType)}
+                  onChange={(e) => {
+                    const newType = e.target.value as HazardType;
+                    setType(newType);
+                    hazardMapRef.current?.setPickMode(true, newType);
+                  }}
                   style={{ width: "100%", padding: "0.6rem", borderRadius: "8px", background: "var(--asphalt)", color: "#fff", border: "1px solid var(--line)" }}
                 >
                   <option value="police_checkpoint">👮 Police Checkpoint / Sobriety Station</option>
-                  <option value="speed_trap">⚡ Speed Trap / Radar Gun</option>
+                  <option value="speed_trap">⚡ Radar Speed Trap</option>
                   <option value="road_hazard">⚠️ Road Danger / Construction</option>
                   <option value="accident">💥 Traffic Accident</option>
                 </select>
@@ -496,22 +486,20 @@ export const HazardsPage: React.FC = () => {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.75rem" }}>
                 <div className="form-group">
-                  <label>Latitude (Optional)</label>
+                  <label>Latitude</label>
                   <input
-                    type="number"
-                    step="any"
-                    placeholder="e.g. 41.6001"
+                    type="text"
+                    placeholder="Click map or enter lat"
                     value={latStr}
                     onChange={(e) => setLatStr(e.target.value)}
                     style={{ width: "100%", padding: "0.6rem", borderRadius: "8px", background: "var(--asphalt)", color: "#fff", border: "1px solid var(--line)" }}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Longitude (Optional)</label>
+                  <label>Longitude</label>
                   <input
-                    type="number"
-                    step="any"
-                    placeholder="e.g. -93.6500"
+                    type="text"
+                    placeholder="Click map or enter lng"
                     value={lngStr}
                     onChange={(e) => setLngStr(e.target.value)}
                     style={{ width: "100%", padding: "0.6rem", borderRadius: "8px", background: "var(--asphalt)", color: "#fff", border: "1px solid var(--line)" }}
@@ -533,7 +521,11 @@ export const HazardsPage: React.FC = () => {
               <div className="modal-buttons" style={{ marginTop: "1.25rem", display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setIsPickMode(false);
+                    hazardMapRef.current?.setPickMode(false, type);
+                  }}
                   className="btn-sm btn-secondary"
                   disabled={submitting}
                 >
