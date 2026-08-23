@@ -11,15 +11,20 @@ import {
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
-import { db, ORG_ID } from "../firebase";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { db, ORG_ID, storage } from "../firebase";
 import {
   BOOKING_STATUSES,
   formatBookingStatus,
+  formatExceptionCode,
+  STOP_EXCEPTION_CODES,
   telHref,
+  type Attachment,
   type Booking,
   type BookingPickupMode,
   type BookingStatus,
   type Driver,
+  type StopExceptionCode,
 } from "../types";
 import { useSolutionProfile } from "../useSolutionProfile";
 
@@ -71,6 +76,9 @@ function mapBooking(id: string, data: Record<string, unknown>): Booking {
     jobSiteName: data.jobSiteName ? String(data.jobSiteName) : undefined,
     yards: data.yards ? String(data.yards) : undefined,
     mixNotes: data.mixNotes ? String(data.mixNotes) : undefined,
+    attachments: (data.attachments as Attachment[]) ?? [],
+    exceptionCode: (data.exceptionCode as StopExceptionCode | null) ?? null,
+    exceptionNote: data.exceptionNote ? String(data.exceptionNote) : undefined,
     createdAt: (data.createdAt as Timestamp | null) ?? null,
     updatedAt: (data.updatedAt as Timestamp | null) ?? null,
   };
@@ -94,6 +102,8 @@ export function BookingsPage() {
   );
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [uploadingBookingId, setUploadingBookingId] = useState<string | null>(null);
+  const [captionDraft, setCaptionDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -151,6 +161,7 @@ export function BookingsPage() {
                 typeof data.speedLimitKmh === "number"
                   ? data.speedLimitKmh
                   : null,
+              vehicleId: (data.vehicleId as string | null) ?? null,
             };
           })
         );
@@ -215,6 +226,9 @@ export function BookingsPage() {
         status: "new",
         assignedDriverId: null,
         notes: form.notes.trim(),
+        attachments: [],
+        exceptionCode: null,
+        exceptionNote: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -264,14 +278,52 @@ export function BookingsPage() {
     });
   }
 
+  async function handleFileUpload(booking: Booking, file: File) {
+    setUploadingBookingId(booking.id);
+    setError(null);
+    try {
+      const storagePath = `orgs/${ORG_ID}/bookings/${booking.id}/${Date.now()}_${file.name}`;
+      const fileRef = ref(storage, storagePath);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+
+      const newAttachment: Attachment = {
+        id: "att_" + Date.now(),
+        url,
+        storagePath,
+        caption: captionDraft.trim(),
+        uploadedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+      };
+
+      const updatedAttachments = [...(booking.attachments || []), newAttachment];
+      await patchBooking(booking.id, { attachments: updatedAttachments });
+      setCaptionDraft("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Attachment upload failed");
+    } finally {
+      setUploadingBookingId(null);
+    }
+  }
+
+  async function handleDeleteAttachment(booking: Booking, attachment: Attachment) {
+    try {
+      const fileRef = ref(storage, attachment.storagePath);
+      await deleteObject(fileRef).catch(() => {}); // ignore error if file deleted
+      const updated = (booking.attachments || []).filter((a) => a.id !== attachment.id);
+      await patchBooking(booking.id, { attachments: updated });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete attachment failed");
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-head">
         <h1>{label("bookings")}</h1>
         <p className="muted">
           {isConcrete
-            ? "Order board — schedule pours, assign mixer drivers and field crew."
-            : "Job board for the desk — create, assign paired drivers, move status."}
+            ? "Order board — schedule pours, assign mixer drivers, upload ticket photos & log exceptions."
+            : "Job board — create, assign drivers, attach photos, track stop exceptions."}
         </p>
       </div>
 
@@ -443,9 +495,16 @@ export function BookingsPage() {
                   )}
                 </p>
               </div>
-              <span className={`pill status-${b.status}`}>
-                {formatBookingStatus(b.status)}
-              </span>
+              <div className="booking-head-pills">
+                {b.exceptionCode && (
+                  <span className="pill status-warn">
+                    ⚠️ {formatExceptionCode(b.exceptionCode)}
+                  </span>
+                )}
+                <span className={`pill status-${b.status}`}>
+                  {formatBookingStatus(b.status)}
+                </span>
+              </div>
             </header>
 
             <div className="booking-meta">
@@ -474,6 +533,59 @@ export function BookingsPage() {
                 {[b.mixNotes, b.notes].filter(Boolean).join(" · ")}
               </p>
             )}
+
+            {b.exceptionNote && (
+              <p className="error booking-notes">
+                <strong>Exception details:</strong> {b.exceptionNote}
+              </p>
+            )}
+
+            {/* Feature #4: Photo Attachments Section */}
+            <div className="attachments-section">
+              <span className="list-label">
+                📷 Attachments / Tickets ({b.attachments?.length || 0})
+              </span>
+              {b.attachments && b.attachments.length > 0 && (
+                <div className="attachment-grid">
+                  {b.attachments.map((att) => (
+                    <div key={att.id} className="attachment-card">
+                      <a href={att.url} target="_blank" rel="noreferrer">
+                        <img src={att.url} alt={att.caption || "Attachment"} className="attachment-thumb" />
+                      </a>
+                      {att.caption && <div className="attachment-caption">{att.caption}</div>}
+                      <button
+                        type="button"
+                        className="ghost danger attachment-del-btn"
+                        onClick={() => void handleDeleteAttachment(b, att)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="attachment-upload-box">
+                <input
+                  type="text"
+                  placeholder="Caption (e.g. Pour ticket #1042)"
+                  value={captionDraft}
+                  onChange={(e) => setCaptionDraft(e.target.value)}
+                  className="caption-input"
+                />
+                <label className="button ghost upload-file-btn">
+                  {uploadingBookingId === b.id ? "Uploading…" : "+ Attach Photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFileUpload(b, file);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
 
             {b.status !== "cancelled" && b.status !== "completed" && (
               <div className="booking-actions">
@@ -512,6 +624,29 @@ export function BookingsPage() {
                         </option>
                       )
                     )}
+                  </select>
+                </label>
+                {/* Feature #13: Stop Exception Code Selector */}
+                <label>
+                  Exception Code
+                  <select
+                    value={b.exceptionCode || ""}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const code = e.target.value as StopExceptionCode | "";
+                      const note = code ? prompt("Optional exception note:") ?? "" : "";
+                      void patchBooking(b.id, {
+                        exceptionCode: code || null,
+                        exceptionNote: note || null,
+                      });
+                    }}
+                  >
+                    <option value="">None (Normal)</option>
+                    {STOP_EXCEPTION_CODES.map((code) => (
+                      <option key={code} value={code}>
+                        {formatExceptionCode(code)}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <button

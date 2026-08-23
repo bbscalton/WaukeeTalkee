@@ -25,5 +25,14 @@ service firebase.storage {
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('audio/.*');
     }
+
+    // Booking attachments: orgs/{orgId}/bookings/{bookingId}/{fileName}
+    match /orgs/{orgId}/bookings/{bookingId}/{fileName} {
+      allow read: if isDispatcher(orgId);
+      allow write: if isDispatcher(orgId)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
   }
 }
+

@@ -446,6 +446,7 @@
                 <thead>
                   <tr>
                     <th>Email Address</th>
+                    <th>Role</th>
                     <th>Org ID</th>
                     <th>UID</th>
                     <th>Created</th>
@@ -454,7 +455,7 @@
                 </thead>
                 <tbody id="dispatchers-table-body">
                   <tr>
-                    <td colspan="5" style="text-align: center; color: var(--muted); padding: 2rem;">Loading accounts...</td>
+                    <td colspan="6" style="text-align: center; color: var(--muted); padding: 2rem;">Loading accounts...</td>
                   </tr>
                 </tbody>
               </table>
@@ -477,6 +478,14 @@
                 <label for="disp-org">Assign Organization</label>
                 <select id="disp-org" required>
                   <option value="" disabled selected>Select active organization...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="disp-role">Dispatcher Role</label>
+                <select id="disp-role" required style="padding: 0.6rem 0.85rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line);">
+                  <option value="dispatcher" selected>Dispatcher</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
               <div class="form-group">
@@ -993,10 +1002,11 @@
           
           dispatchersTableBody.innerHTML = "";
           if (list.length === 0) {
-            dispatchersTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 2rem;">No dispatcher accounts linked.</td></tr>`;
+            dispatchersTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 2rem;">No dispatcher accounts linked.</td></tr>`;
           } else {
             list.forEach(disp => {
               const dateStr = disp.createdAt ? new Date(disp.createdAt).toLocaleDateString() : "Unknown";
+              const roleCap = (disp.role || 'dispatcher').toUpperCase();
               const row = document.createElement("tr");
               
               const trContent = `
@@ -1004,6 +1014,7 @@
                   <div style="font-weight: 600;">${disp.email}</div>
                   <div style="font-size: 0.8rem; color: var(--muted);">${disp.displayName || 'No Name'}</div>
                 </td>
+                <td><span style="font-size: 0.75rem; font-weight: 700; background: rgba(240, 180, 41, 0.15); color: var(--amber); padding: 0.15rem 0.5rem; border-radius: 4px;">${roleCap}</span></td>
                 <td style="font-weight: 700; color: var(--amber);">${disp.orgId}</td>
                 <td style="font-size: 0.8rem; color: var(--muted); font-family: monospace;">${disp.uid}</td>
                 <td>${dateStr}</td>
@@ -1071,13 +1082,14 @@
         const email = document.getElementById("disp-email").value;
         const password = document.getElementById("disp-password").value;
         const orgId = dispOrgSelect.value;
+        const role = document.getElementById("disp-role").value;
         const displayName = document.getElementById("disp-name").value;
         
         try {
           const createDispatcherFn = httpsCallable(functions, "adminCreateDispatcher");
-          const res = await createDispatcherFn({ email, password, orgId, displayName });
+          const res = await createDispatcherFn({ email, password, orgId, role, displayName });
           
-          showAlert(`Dispatcher ${email} successfully created and linked to org ${orgId}!`, "success");
+          showAlert(`Dispatcher ${email} (${role}) successfully created and linked to org ${orgId}!`, "success");
           createDispatcherForm.reset();
           
           // Seed the values into the CLI builder automatically so the admin has the option

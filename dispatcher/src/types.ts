@@ -12,7 +12,102 @@ export type Driver = {
   lastTelemetryAt: { seconds: number; nanoseconds: number } | null;
   /** Dispatcher-set recommended speed limit (km/h). Null = no alert. */
   speedLimitKmh: number | null;
+  /** Assigned vehicle ID (optional). */
+  vehicleId?: string | null;
 };
+
+/** Dispatcher permission level within an org. */
+export type DispatcherRole = "admin" | "supervisor" | "dispatcher";
+
+export function formatDispatcherRole(role: DispatcherRole): string {
+  switch (role) {
+    case "admin": return "Admin";
+    case "supervisor": return "Supervisor";
+    case "dispatcher": return "Dispatcher";
+  }
+}
+
+/** Vehicle / trailer profile stored under orgs/{orgId}/vehicles */
+export type VehicleType = "truck" | "van" | "trailer" | "car" | "other";
+
+export type Vehicle = {
+  id: string;
+  name: string;
+  type: VehicleType;
+  plate: string;
+  make: string;
+  model: string;
+  year: string;
+  notes: string;
+  assignedDriverId: string | null;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
+};
+
+export const VEHICLE_TYPES: VehicleType[] = ["truck", "van", "trailer", "car", "other"];
+
+export function formatVehicleType(type: VehicleType): string {
+  switch (type) {
+    case "truck": return "Truck";
+    case "van": return "Van";
+    case "trailer": return "Trailer";
+    case "car": return "Car";
+    case "other": return "Other";
+  }
+}
+
+/** Attachment stored on a booking doc (photo uploaded to Firebase Storage). */
+export type Attachment = {
+  id: string;
+  url: string;
+  storagePath: string;
+  caption: string;
+  uploadedAt: { seconds: number; nanoseconds: number } | null;
+};
+
+/** Active SOS/Panic event from a driver. */
+export type SosEvent = {
+  id: string;
+  driverId: string;
+  driverName: string;
+  lat: number | null;
+  lng: number | null;
+  message: string;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  resolvedAt: { seconds: number; nanoseconds: number } | null;
+  resolvedBy: string | null;
+};
+
+/** Stop / delivery exception codes for bookings. */
+export type StopExceptionCode =
+  | "no_answer"
+  | "refused"
+  | "wrong_address"
+  | "traffic_delay"
+  | "vehicle_issue"
+  | "other";
+
+export const STOP_EXCEPTION_CODES: StopExceptionCode[] = [
+  "no_answer",
+  "refused",
+  "wrong_address",
+  "traffic_delay",
+  "vehicle_issue",
+  "other",
+];
+
+export function formatExceptionCode(code: StopExceptionCode): string {
+  switch (code) {
+    case "no_answer": return "No answer";
+    case "refused": return "Refused delivery";
+    case "wrong_address": return "Wrong address";
+    case "traffic_delay": return "Traffic delay";
+    case "vehicle_issue": return "Vehicle issue";
+    case "other": return "Other";
+  }
+}
+
+
 
 export type RadioFrom = "dispatch" | "driver";
 
@@ -214,6 +309,12 @@ export type Booking = {
   yards?: string;
   /** Concrete solution: mix design notes (optional). */
   mixNotes?: string;
+  /** Photo attachments uploaded by dispatcher. */
+  attachments?: Attachment[];
+  /** Stop exception code — set when a stop can't complete normally. */
+  exceptionCode?: StopExceptionCode | null;
+  /** Additional note for the exception. */
+  exceptionNote?: string;
   createdAt: { seconds: number; nanoseconds: number } | null;
   updatedAt: { seconds: number; nanoseconds: number } | null;
 };

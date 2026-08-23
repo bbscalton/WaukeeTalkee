@@ -143,6 +143,16 @@ service cloud.firestore {
         allow read, write: if isDispatcher(orgId);
       }
 
+      match /vehicles/{vehicleId} {
+        allow read, write: if isDispatcher(orgId);
+      }
+
+      match /sosEvents/{eventId} {
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+        allow create: if isOrgDriver(orgId);
+        allow update, delete: if isDispatcher(orgId);
+      }
+
       // Dispatcher→driver PTT request/response tracking (3 min window)
       match /radioRequests/{requestId} {
         allow read: if isDispatcher(orgId);

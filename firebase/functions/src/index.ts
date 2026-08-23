@@ -467,6 +467,7 @@ export const adminListDispatchers = onCall(async (request) => {
       orgId,
       email: data.email || "",
       displayName: data.displayName || "",
+      role: data.role || "dispatcher",
       createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
     });
   }
@@ -480,6 +481,7 @@ export const adminCreateDispatcher = onCall(async (request) => {
   const password = String(request.data?.password || "");
   const orgId = String(request.data?.orgId || "").trim().toLowerCase();
   const displayName = String(request.data?.displayName || "Dispatcher").trim();
+  const role = String(request.data?.role || "dispatcher").trim();
   
   if (!email || !password || !orgId) {
     throw new HttpsError("invalid-argument", "email, password, and orgId are required.");
@@ -506,6 +508,7 @@ export const adminCreateDispatcher = onCall(async (request) => {
     await db.doc(`orgs/${orgId}/dispatchers/${userRecord.uid}`).set({
       email,
       displayName,
+      role: ["admin", "supervisor", "dispatcher"].includes(role) ? role : "dispatcher",
       createdAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
@@ -513,8 +516,9 @@ export const adminCreateDispatcher = onCall(async (request) => {
     throw new HttpsError("internal", "Failed to write dispatcher document to Firestore. Auth user cleaned up.");
   }
   
-  return { uid: userRecord.uid, email, orgId };
+  return { uid: userRecord.uid, email, orgId, role };
 });
+
 
 export const adminDeleteDispatcher = onCall(async (request) => {
   assertAdmin(request.auth);

@@ -11,7 +11,9 @@ import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
 import { RadioInboxPage } from "./pages/RadioInboxPage";
 import { ReplayPage } from "./pages/ReplayPage";
+import { VehiclesPage } from "./pages/VehiclesPage";
 import { routeFeature } from "./solutionProfiles";
+import { SosProvider } from "./SosProvider";
 import { SolutionProfileProvider, useSolutionProfile } from "./useSolutionProfile";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -128,6 +130,14 @@ function AppRoutes() {
             </FeatureRoute>
           }
         />
+        <Route
+          path="vehicles"
+          element={
+            <FeatureRoute feature="vehicles">
+              <VehiclesPage />
+            </FeatureRoute>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -138,8 +148,11 @@ export default function App() {
   return (
     <AuthProvider>
       <SolutionProfileProvider>
-        <AppRoutes />
+        <SosProvider>
+          <AppRoutes />
+        </SosProvider>
       </SolutionProfileProvider>
     </AuthProvider>
   );
 }
+
