@@ -90,6 +90,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manifestEmptyText: TextView
     private lateinit var manifestBadge: TextView
     private var manifestListener: ListenerRegistration? = null
+    private var broadcastsListener: ListenerRegistration? = null
+    private var lastAppBroadcastTime = System.currentTimeMillis() - 30_000L
 
     private var volumePttEnabled = false
     private var volumeUpHeld = false
@@ -437,9 +439,11 @@ class MainActivity : AppCompatActivity() {
         radioHistoryListener?.remove()
         groupsListener?.remove()
         manifestListener?.remove()
+        broadcastsListener?.remove()
         radioHistoryListener = null
         groupsListener = null
         manifestListener = null
+        broadcastsListener = null
         historyPlayer?.stop()
         super.onDestroy()
     }
@@ -801,6 +805,7 @@ class MainActivity : AppCompatActivity() {
                 applyRadioUi(snap.transmitting, snap.receiving, snap.live)
                 bindRadioHistory(state)
                 bindManifests(state)
+                bindBroadcasts(state)
             }
         }
         if (state.session == null) {
@@ -1089,6 +1094,34 @@ class MainActivity : AppCompatActivity() {
                     row.addView(titleTv)
                     if (stopAddress.isNotEmpty()) row.addView(addrTv)
                     manifestStopsList.addView(row)
+                }
+            }
+    }
+
+    private fun bindBroadcasts(state: UiState) {
+        val session = state.session ?: return
+        val orgId = session.orgId
+
+        broadcastsListener?.remove()
+        broadcastsListener = Firebase.firestore.collection("orgs/$orgId/broadcasts")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(5)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+                for (doc in snap.documents) {
+                    val createdAt = doc.getTimestamp("createdAt")?.toDate()?.time ?: continue
+                    if (createdAt > lastAppBroadcastTime) {
+                        lastAppBroadcastTime = createdAt
+                        val sender = doc.getString("senderName") ?: "Dispatch Patrol"
+                        val msg = doc.getString("message") ?: "Caution alert broadcast from dispatch"
+
+                        AlertDialog.Builder(this)
+                            .setTitle("📢 DISPATCH BROADCAST: $sender")
+                            .setMessage(msg)
+                            .setPositiveButton("ACKNOWLEDGE", null)
+                            .show()
+                        Toast.makeText(this, "📢 $sender: $msg", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
     }

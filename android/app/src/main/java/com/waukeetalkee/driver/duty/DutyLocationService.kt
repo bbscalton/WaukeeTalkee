@@ -41,8 +41,10 @@ class DutyLocationService : Service() {
     private var clearingDuty = false
     private var startedInForeground = false
     private var hazardListener: com.google.firebase.firestore.ListenerRegistration? = null
+    private var broadcastListener: com.google.firebase.firestore.ListenerRegistration? = null
     private var activeHazards: List<Triple<String, String, Pair<Double, Double>>> = emptyList()
     private val alertedHazardIds = mutableMapOf<String, Long>()
+    private var lastHandledBroadcastTime = System.currentTimeMillis() - 30_000L
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -53,6 +55,7 @@ class DutyLocationService : Service() {
             val heading = if (loc.hasBearing()) loc.bearing.toDouble() else null
             lastKnownLocation = loc.latitude to loc.longitude
             listenToHazards(o)
+            listenToBroadcasts(o)
             checkHazardProximity(loc.latitude, loc.longitude)
             Firebase.firestore.document("orgs/$o/drivers/$d")
                 .update(
@@ -86,6 +89,41 @@ class DutyLocationService : Service() {
                     Triple(d.id, "$type:$name", lat to lng)
                 }
             }
+    }
+
+    private fun listenToBroadcasts(orgId: String) {
+        if (broadcastListener != null) return
+        broadcastListener = Firebase.firestore.collection("orgs/$orgId/broadcasts")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(5)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+                for (doc in snap.documents) {
+                    val createdAt = doc.getTimestamp("createdAt")?.toDate()?.time ?: continue
+                    if (createdAt > lastHandledBroadcastTime) {
+                        lastHandledBroadcastTime = createdAt
+                        val sender = doc.getString("senderName") ?: "Dispatch"
+                        val msg = doc.getString("message") ?: "Warning broadcast from dispatch"
+                        sendBroadcastWarningNotification(sender, msg)
+                    }
+                }
+            }
+    }
+
+    private fun sendBroadcastWarningNotification(sender: String, message: String) {
+        ensureChannel()
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("📢 DISPATCH BROADCAST: $sender")
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .build()
+
+        val mgr = getSystemService(NotificationManager::class.java)
+        mgr.notify((10000..99999).random(), notification)
     }
 
     private fun checkHazardProximity(lat: Double, lng: Double) {
@@ -312,6 +350,10 @@ class DutyLocationService : Service() {
             fused.removeLocationUpdates(callback)
         } catch (_: Exception) {
         }
+        hazardListener?.remove()
+        broadcastListener?.remove()
+        hazardListener = null
+        broadcastListener = null
         // Do not clear Firestore onDuty on sticky/system teardown — only ACTION_STOP.
         if (clearingDuty) {
             // stopDuty already ran for explicit off-duty
