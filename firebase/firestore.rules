@@ -35,6 +35,10 @@ service cloud.firestore {
         && token().orgId == orgId;
     }
 
+    function isOrgMember(orgId) {
+      return isDispatcher(orgId) || isOrgDriver(orgId);
+    }
+
     function radioCreateKeysOk() {
       return request.resource.data.keys().hasOnly([
         'from', 'driverId', 'audioBase64', 'createdAt', 'contentType', 'durationMs',
@@ -280,6 +284,13 @@ service cloud.firestore {
 
       // Police Checkpoints & Speed Trap Hazards
       match /hazards/{hazardId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId);
+        allow update, delete: if isDispatcher(orgId);
+      }
+
+      // Emergency SOS Panic Alerts & Incident Alerts
+      match /alerts/{alertId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId);
         allow update, delete: if isDispatcher(orgId);
