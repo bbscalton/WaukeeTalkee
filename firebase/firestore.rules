@@ -105,7 +105,7 @@ service cloud.firestore {
     match /orgs/{orgId} {
       allow read: if isDispatcher(orgId)
         || (signedIn() && token().role == 'driver' && token().orgId == orgId);
-      allow write: if false;
+      allow write: if isAdmin();
 
       match /dispatchers/{uid} {
         allow read: if isDispatcher(orgId) || request.auth.uid == uid;

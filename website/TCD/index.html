@@ -824,22 +824,30 @@
           try {
             card.className = `feature-toggle-card ${newValue ? "enabled" : "disabled"}`;
             
-            const orgRef = doc(db, "orgs", orgId);
             const fieldName = featureCategory === "driver" ? "driverFeatures" : "features";
             const updatedCategoryObj = {
               ...currentFeatures,
               [feat.key]: newValue
             };
 
-            await setDoc(orgRef, {
-              [fieldName]: updatedCategoryObj
-            }, { merge: true });
+            let updated = false;
+            try {
+              const updateFeaturesFn = httpsCallable(functions, "adminUpdateOrgFeatures");
+              await updateFeaturesFn({
+                orgId,
+                [fieldName]: updatedCategoryObj
+              });
+              updated = true;
+            } catch (fnErr) {
+              console.warn("adminUpdateOrgFeatures call failed, attempting direct setDoc:", fnErr);
+            }
 
-            const updateFeaturesFn = httpsCallable(functions, "adminUpdateOrgFeatures");
-            await updateFeaturesFn({
-              orgId,
-              [fieldName]: updatedCategoryObj
-            });
+            if (!updated) {
+              const orgRef = doc(db, "orgs", orgId);
+              await setDoc(orgRef, {
+                [fieldName]: updatedCategoryObj
+              }, { merge: true });
+            }
 
             showAlert(`Feature '${feat.name}' ${newValue ? 'ENABLED' : 'DISABLED'} for '${orgId}'.`, "success");
           } catch (err) {
