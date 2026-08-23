@@ -22,10 +22,17 @@ type Props = {
 };
 
 const HAZARD_COLOR: Record<string, string> = {
-  police_checkpoint: "#ff4444",
-  speed_trap: "#ff9f43",
-  road_hazard: "#f1c40f",
+  police_checkpoint: "#ef4444",
+  speed_trap: "#f59e0b",
+  road_hazard: "#eab308",
   accident: "#a855f7",
+};
+
+const HAZARD_BG: Record<string, string> = {
+  police_checkpoint: "rgba(239, 68, 68, 0.15)",
+  speed_trap: "rgba(245, 158, 11, 0.15)",
+  road_hazard: "rgba(234, 179, 8, 0.15)",
+  accident: "rgba(168, 85, 247, 0.15)",
 };
 
 export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
@@ -75,20 +82,36 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
 
   function openInfo(h: HazardAlert, marker: google.maps.Marker) {
     if (!infoRef.current || !mapRef.current) return;
-    const col = HAZARD_COLOR[h.type] ?? "#ff4444";
+    const col = HAZARD_COLOR[h.type] ?? "#ef4444";
+    const bgCol = HAZARD_BG[h.type] ?? "rgba(239,68,68,0.1)";
     const confirmed = h.confirmedByDispatcher;
+    
     infoRef.current.setContent(`
-      <div style="font-family:system-ui;color:#111;max-width:260px;padding:2px">
-        <div style="font-weight:800;color:${col};font-size:13px;margin-bottom:4px">${formatHazardType(h.type)}</div>
-        <div style="font-weight:700;font-size:12px;margin-bottom:2px">📍 ${h.locationName || "Unknown location"}</div>
-        <div style="font-size:11px;color:#555;margin-bottom:6px">
-          By <b>${h.driverName}</b> · ${confirmed ? "✅ Confirmed" : "⚠️ Unconfirmed"}
+      <div style="font-family: system-ui, -apple-system, sans-serif; color:#0f172a; max-width:280px; padding:6px 4px; line-height:1.4">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px">
+          <span style="font-weight:800; color:${col}; background:${bgCol}; padding:3px 8px; border-radius:6px; font-size:12px; border: 1px solid ${col}44">
+            ${formatHazardType(h.type)}
+          </span>
+          <span style="font-size:11px; font-weight:700; color:${confirmed ? '#16a34a' : '#d97706'}">
+            ${confirmed ? '✅ Confirmed' : '⚠️ Unverified'}
+          </span>
         </div>
-        ${h.notes ? `<div style="font-size:10px;background:#f3f3f3;padding:4px 6px;border-radius:4px;margin-bottom:8px;font-style:italic">"${h.notes}"</div>` : ""}
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${!confirmed ? `<button onclick="window.__hazardConfirm('${h.id}')" style="background:#22c55e;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:700">Confirm</button>` : ""}
-          <button onclick="window.__hazardBroadcast('${h.id}')" style="background:#f59e0b;color:#000;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:700">📢 Broadcast</button>
-          <button onclick="window.__hazardClear('${h.id}')" style="background:#555;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Clear</button>
+        
+        <div style="font-weight:800; font-size:14px; color:#1e293b; margin-bottom:4px">
+          📍 ${h.locationName || "Unknown location"}
+        </div>
+        
+        <div style="font-size:12px; color:#64748b; margin-bottom:8px">
+          Reported by: <strong style="color:#334155">${h.driverName}</strong>
+          ${h.lat && h.lng ? `<br><span style="font-size:10px; color:#94a3b8">GPS: ${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}</span>` : ''}
+        </div>
+        
+        ${h.notes ? `<div style="font-size:11px; background:#f1f5f9; color:#475569; padding:6px 8px; border-radius:6px; margin-bottom:10px; font-style:italic; border-left:3px solid ${col}">"${h.notes}"</div>` : ""}
+        
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0">
+          ${!confirmed ? `<button onclick="window.__hazardConfirm('${h.id}')" style="background:#22c55e; color:#fff; border:none; border-radius:6px; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:700; flex:1">✅ Confirm</button>` : ""}
+          <button onclick="window.__hazardBroadcast('${h.id}')" style="background:#f59e0b; color:#000; border:none; border-radius:6px; padding:6px 12px; font-size:11px; cursor:pointer; font-weight:800; flex:1">📢 Siren Broadcast</button>
+          <button onclick="window.__hazardClear('${h.id}')" style="background:#64748b; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:11px; cursor:pointer">Clear</button>
         </div>
       </div>`);
     infoRef.current.open(mapRef.current, marker);
@@ -110,67 +133,81 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
     let cancelled = false;
     (async () => {
       try {
-        const { Map, InfoWindow, Geocoder } = await loadMapsLibrary() as any;
+        const { Map, InfoWindow, Geocoder } = (await loadMapsLibrary()) as any;
         if (cancelled || !nodeRef.current) return;
         const map = new Map(nodeRef.current, {
           ...MAP_UI_OPTIONS,
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
-          mapTypeId: "hybrid",
+          mapTypeId: mapMode === "satellite" ? "hybrid" : "roadmap",
           styles: [],
         });
         mapRef.current = map;
         infoRef.current = new InfoWindow();
         geocoderRef.current = new Geocoder();
 
-        clickListenerRef.current = map.addListener("click", (e: google.maps.MapMouseEvent) => {
-          if (!pickModeRef.current || !e.latLng) return;
-          const lat = e.latLng.lat();
-          const lng = e.latLng.lng();
-          pickLatLngRef.current = { lat, lng };
+        clickListenerRef.current = map.addListener(
+          "click",
+          (e: google.maps.MapMouseEvent) => {
+            if (!pickModeRef.current || !e.latLng) return;
+            const lat = e.latLng.lat();
+            const lng = e.latLng.lng();
+            pickLatLngRef.current = { lat, lng };
 
-          if (pickMarkerRef.current) {
-            pickMarkerRef.current.setPosition(e.latLng);
-          } else {
-            pickMarkerRef.current = new google.maps.Marker({
-              map,
-              position: e.latLng,
-              draggable: true,
-              title: "Drop pin here",
-              icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 12,
-                fillColor: HAZARD_COLOR[pickTypeRef.current] ?? "#ff4444",
-                fillOpacity: 1,
-                strokeColor: "#fff",
-                strokeWeight: 3,
-              },
-              animation: google.maps.Animation.DROP,
-            });
-            pickMarkerRef.current.addListener("dragend", (de: google.maps.MapMouseEvent) => {
-              if (!de.latLng) return;
-              pickLatLngRef.current = { lat: de.latLng.lat(), lng: de.latLng.lng() };
-              reverseGeocode(de.latLng.lat(), de.latLng.lng());
-            });
+            if (pickMarkerRef.current) {
+              pickMarkerRef.current.setPosition(e.latLng);
+            } else {
+              pickMarkerRef.current = new google.maps.Marker({
+                map,
+                position: e.latLng,
+                draggable: true,
+                title: "Drop pin here",
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 13,
+                  fillColor: HAZARD_COLOR[pickTypeRef.current] ?? "#ef4444",
+                  fillOpacity: 1,
+                  strokeColor: "#ffffff",
+                  strokeWeight: 3,
+                },
+                animation: google.maps.Animation.DROP,
+              });
+              pickMarkerRef.current.addListener(
+                "dragend",
+                (de: google.maps.MapMouseEvent) => {
+                  if (!de.latLng) return;
+                  pickLatLngRef.current = {
+                    lat: de.latLng.lat(),
+                    lng: de.latLng.lng(),
+                  };
+                  reverseGeocode(de.latLng.lat(), de.latLng.lng());
+                }
+              );
+            }
+            reverseGeocode(lat, lng);
           }
-          reverseGeocode(lat, lng);
-        });
+        );
       } catch (e) {
-        console.error(e);
+        console.error("Map initialization failed:", e);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function reverseGeocode(lat: number, lng: number) {
     if (!geocoderRef.current) return;
-    geocoderRef.current.geocode({ location: { lat, lng } }, (results: any, status: string) => {
-      if (status === "OK" && results?.[0]) {
-        onPickLocation(lat, lng, results[0].formatted_address);
-      } else {
-        onPickLocation(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    geocoderRef.current.geocode(
+      { location: { lat, lng } },
+      (results: any, status: string) => {
+        if (status === "OK" && results?.[0]) {
+          onPickLocation(lat, lng, results[0].formatted_address);
+        } else {
+          onPickLocation(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        }
       }
-    });
+    );
   }
 
   // Map type toggle
@@ -187,14 +224,21 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
     for (const h of active) {
       if (!h.lat || !h.lng) continue;
       seen.add(h.id);
-      const color = HAZARD_COLOR[h.type] ?? "#ff4444";
+      const color = HAZARD_COLOR[h.type] ?? "#ef4444";
       let m = markersRef.current.get(h.id);
       if (!m) {
         m = new google.maps.Marker({
           map,
           position: { lat: h.lat, lng: h.lng },
-          title: h.locationName,
-          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 11, fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2.5 },
+          title: `${formatHazardType(h.type)}: ${h.locationName}`,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 11,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2.5,
+          },
           animation: google.maps.Animation.DROP,
         });
         m.addListener("click", () => openInfo(h, m!));
@@ -204,11 +248,17 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
       }
     }
     markersRef.current.forEach((m, id) => {
-      if (!seen.has(id)) { m.setMap(null); markersRef.current.delete(id); }
+      if (!seen.has(id)) {
+        m.setMap(null);
+        markersRef.current.delete(id);
+      }
     });
   }, [hazards]);
 
   return (
-    <div ref={nodeRef} style={{ width: "100%", height: "100%", borderRadius: "inherit" }} />
+    <div
+      ref={nodeRef}
+      style={{ width: "100%", height: "100%", borderRadius: "inherit" }}
+    />
   );
 });
