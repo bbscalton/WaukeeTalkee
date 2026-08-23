@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../auth";
 import { db, ORG_ID } from "../firebase";
 import {
@@ -12,11 +12,27 @@ import {
   orderBy
 } from "firebase/firestore";
 import { type HazardAlert, type HazardType, formatHazardType } from "../types";
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  hasGoogleMapsApiKey,
+  loadMapsLibrary,
+  MAP_UI_OPTIONS
+} from "../googleMaps";
 
 export const HazardsPage: React.FC = () => {
   const { user } = useAuth();
   const [hazards, setHazards] = useState<HazardAlert[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Map state
+  const mapNodeRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapMode, setMapMode] = useState<"streets" | "satellite">("satellite");
+  const [selectedHazardId, setSelectedHazardId] = useState<string | null>(null);
 
   // New Hazard Form State
   const [showModal, setShowModal] = useState(false);
@@ -50,6 +66,145 @@ export const HazardsPage: React.FC = () => {
 
     return () => unsub();
   }, []);
+
+  // Initialize Google Map
+  useEffect(() => {
+    if (!mapNodeRef.current || mapRef.current) return;
+    if (!hasGoogleMapsApiKey()) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { Map, InfoWindow } = await loadMapsLibrary();
+        if (cancelled || !mapNodeRef.current) return;
+
+        const map = new Map(mapNodeRef.current, {
+          ...MAP_UI_OPTIONS,
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
+          mapTypeId: mapMode === "satellite" ? "hybrid" : "roadmap",
+        });
+
+        mapRef.current = map;
+        infoWindowRef.current = new InfoWindow();
+
+        google.maps.event.addListenerOnce(map, "idle", () => {
+          if (!cancelled) setMapReady(true);
+        });
+      } catch (err) {
+        console.error("Failed to load map on HazardsPage:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      markersRef.current.forEach((m) => m.setMap(null));
+      markersRef.current.clear();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setMapTypeId(mapMode === "satellite" ? "hybrid" : "roadmap");
+    }
+  }, [mapMode]);
+
+  // Sync Markers with Active Hazards
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const activeList = hazards.filter((h) => h.status === "active");
+    const seen = new Set<string>();
+
+    for (const h of activeList) {
+      if (typeof h.lat !== "number" || typeof h.lng !== "number" || (h.lat === 0 && h.lng === 0)) {
+        continue;
+      }
+
+      seen.add(h.id);
+      const position = { lat: h.lat, lng: h.lng };
+      const isPolice = h.type === "police_checkpoint" || h.type === "speed_trap";
+      const fillColor = isPolice ? "#ff4d4d" : "#f1c40f";
+
+      let marker = markersRef.current.get(h.id);
+      if (!marker) {
+        marker = new google.maps.Marker({
+          map,
+          position,
+          title: `${formatHazardType(h.type)}: ${h.locationName}`,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: fillColor,
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+          },
+        });
+
+        marker.addListener("click", () => {
+          setSelectedHazardId(h.id);
+          showInfoWindow(h, marker!);
+        });
+
+        markersRef.current.set(h.id, marker);
+      } else {
+        marker.setPosition(position);
+      }
+    }
+
+    markersRef.current.forEach((m, id) => {
+      if (!seen.has(id)) {
+        m.setMap(null);
+        markersRef.current.delete(id);
+      }
+    });
+
+    if (activeList.length > 0 && mapReady) {
+      const firstValid = activeList.find((h) => h.lat && h.lng && (h.lat !== 0 || h.lng !== 0));
+      if (firstValid && !selectedHazardId) {
+        map.panTo({ lat: firstValid.lat, lng: firstValid.lng });
+      }
+    }
+  }, [hazards, mapReady]);
+
+  const showInfoWindow = (h: HazardAlert, marker: google.maps.Marker) => {
+    if (!infoWindowRef.current || !mapRef.current) return;
+
+    const isConfirmed = h.confirmedByDispatcher;
+    const contentString = `
+      <div style="color: #111; font-family: system-ui, sans-serif; padding: 4px; max-width: 260px;">
+        <div style="font-weight: 800; font-size: 14px; margin-bottom: 4px; color: ${h.type === 'police_checkpoint' ? '#d9534f' : '#f0ad4e'}">
+          ${formatHazardType(h.type)}
+        </div>
+        <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">
+          📍 ${h.locationName || 'Reported Location'}
+        </div>
+        <div style="font-size: 12px; color: #555; margin-bottom: 6px;">
+          Reported by: <strong>${h.driverName}</strong><br/>
+          Status: <strong>${isConfirmed ? '✅ Confirmed Accurate' : '⚠️ Driver Reported'}</strong>
+        </div>
+        ${h.notes ? `<div style="font-size: 11px; font-style: italic; background: #f8f9fa; padding: 4px 6px; border-radius: 4px; margin-bottom: 8px;">"${h.notes}"</div>` : ''}
+      </div>
+    `;
+
+    infoWindowRef.current.setContent(contentString);
+    infoWindowRef.current.open(mapRef.current, marker);
+  };
+
+  const focusHazardOnMap = (h: HazardAlert) => {
+    setSelectedHazardId(h.id);
+    if (!mapRef.current || !h.lat || !h.lng) return;
+    mapRef.current.panTo({ lat: h.lat, lng: h.lng });
+    mapRef.current.setZoom(15);
+
+    const marker = markersRef.current.get(h.id);
+    if (marker) {
+      showInfoWindow(h, marker);
+    }
+  };
 
   const handleCreateHazard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +264,7 @@ export const HazardsPage: React.FC = () => {
       await updateDoc(doc(db, "orgs", ORG_ID, "hazards", id), {
         confirmedByDispatcher: true,
       });
+      alert("Hazard report confirmed! Approaching drivers will now receive proximity warnings.");
     } catch (err: any) {
       alert("Failed to confirm hazard: " + err.message);
     }
@@ -117,7 +273,7 @@ export const HazardsPage: React.FC = () => {
   const handleBroadcastWarning = async (hazard: HazardAlert) => {
     if (!ORG_ID) return;
     const text = broadcastMsg || `CAUTION: ${formatHazardType(hazard.type)} reported near ${hazard.locationName || 'your area'}. Maintain speed limit!`;
-    if (!confirm(`Broadcast warning clip/text to all active drivers?\n\n"${text}"`)) return;
+    if (!confirm(`Broadcast police siren warning to all active drivers?\n\n"${text}"`)) return;
 
     try {
       await addDoc(collection(db, "orgs", ORG_ID, "broadcasts"), {
@@ -126,7 +282,7 @@ export const HazardsPage: React.FC = () => {
         severity: "warning",
         createdAt: serverTimestamp(),
       });
-      alert("Proximity warning broadcast sent to all drivers!");
+      alert("Police warning siren & broadcast message sent to all driver devices!");
       setBroadcastMsg("");
     } catch (err: any) {
       alert("Failed to broadcast warning: " + err.message);
@@ -172,6 +328,39 @@ export const HazardsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Live Interactive Hazard Map */}
+      <div className="tcd-card full-width" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            🗺️ Live Hazard & Police Checkpoint Map
+          </h2>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              className={`btn-sm ${mapMode === "streets" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setMapMode("streets")}
+            >
+              Streets
+            </button>
+            <button
+              className={`btn-sm ${mapMode === "satellite" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setMapMode("satellite")}
+            >
+              Satellite
+            </button>
+          </div>
+        </div>
+        <div
+          ref={mapNodeRef}
+          style={{
+            width: "100%",
+            height: "380px",
+            borderRadius: "10px",
+            background: "#222",
+            border: "1px solid var(--line)"
+          }}
+        />
+      </div>
+
       {/* Main Content Layout */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.5rem" }}>
         {/* Active Hazards List */}
@@ -193,14 +382,16 @@ export const HazardsPage: React.FC = () => {
               {activeHazards.map((h) => (
                 <div
                   key={h.id}
+                  onClick={() => focusHazardOnMap(h)}
                   style={{
-                    background: "rgba(255, 255, 255, 0.03)",
-                    border: h.type === "police_checkpoint" ? "1px solid #ff6b6b" : "1px solid var(--amber)",
+                    background: selectedHazardId === h.id ? "rgba(255, 107, 107, 0.1)" : "rgba(255, 255, 255, 0.03)",
+                    border: selectedHazardId === h.id ? "2px solid #ff6b6b" : h.type === "police_checkpoint" ? "1px solid #ff6b6b" : "1px solid var(--amber)",
                     borderRadius: "10px",
                     padding: "1rem",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
+                    cursor: "pointer"
                   }}
                 >
                   <div>
@@ -215,8 +406,8 @@ export const HazardsPage: React.FC = () => {
                       }}>
                         {formatHazardType(h.type)}
                       </span>
-                      <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
-                        {h.confirmedByDispatcher ? "✅ Verified" : "⚠️ Driver Reported"}
+                      <span style={{ fontSize: "0.75rem", color: h.confirmedByDispatcher ? "#4caf50" : "var(--amber)", fontWeight: 700 }}>
+                        {h.confirmedByDispatcher ? "✅ Confirmed Accurate" : "⚠️ Driver Reported"}
                       </span>
                     </div>
 
@@ -232,17 +423,21 @@ export const HazardsPage: React.FC = () => {
 
                     <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem" }}>
                       Reported by: <strong>{h.driverName}</strong>
+                      {h.lat && h.lng ? ` · (${h.lat.toFixed(4)}, ${h.lng.toFixed(4)})` : ""}
                     </div>
                   </div>
 
-                  <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <div
+                    style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {!h.confirmedByDispatcher && (
                       <button
                         onClick={() => handleConfirmHazard(h.id)}
                         className="btn-sm"
-                        style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}
+                        style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
                       >
-                        Confirm Report
+                        Confirm Accuracy
                       </button>
                     )}
                     <button
@@ -250,7 +445,7 @@ export const HazardsPage: React.FC = () => {
                       className="btn-sm"
                       style={{ background: "var(--amber)", color: "#000", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
                     >
-                      📢 Broadcast Warning
+                      📢 Broadcast Warning Siren
                     </button>
                     <button
                       onClick={() => handleClearHazard(h.id)}

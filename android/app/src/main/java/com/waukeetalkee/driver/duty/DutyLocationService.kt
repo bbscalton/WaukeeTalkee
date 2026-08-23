@@ -79,6 +79,7 @@ class DutyLocationService : Service() {
         if (hazardListener != null) return
         hazardListener = Firebase.firestore.collection("orgs/$orgId/hazards")
             .whereEqualTo("status", "active")
+            .whereEqualTo("confirmedByDispatcher", true)
             .addSnapshotListener { snap, err ->
                 if (err != null || snap == null) return@addSnapshotListener
                 activeHazards = snap.documents.mapNotNull { d ->
@@ -112,6 +113,8 @@ class DutyLocationService : Service() {
 
     private fun sendBroadcastWarningNotification(sender: String, message: String) {
         ensureChannel()
+        com.waukeetalkee.driver.util.PoliceSirenPlayer.playPoliceSiren(this)
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("📢 DISPATCH BROADCAST: $sender")
             .setContentText(message)
@@ -145,6 +148,8 @@ class DutyLocationService : Service() {
 
     private fun sendProximityNotification(type: String, location: String, distMeters: Double) {
         ensureChannel()
+        com.waukeetalkee.driver.util.PoliceSirenPlayer.playPoliceSiren(this)
+
         val distKm = String.format(Locale.US, "%.1f", distMeters / 1000.0)
         val title = if (type == "speed_trap") "⚡ SPEED TRAP AHEAD!" else "👮 POLICE CHECKPOINT AHEAD!"
         val text = "Reported $distKm km ahead near $location. Drive carefully!"

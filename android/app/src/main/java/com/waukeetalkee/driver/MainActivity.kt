@@ -1160,10 +1160,12 @@ class MainActivity : AppCompatActivity() {
                         val sender = doc.getString("senderName") ?: "Dispatch Patrol"
                         val msg = doc.getString("message") ?: "Caution alert broadcast from dispatch"
 
+                        com.waukeetalkee.driver.util.PoliceSirenPlayer.playPoliceSiren(this)
+
                         AlertDialog.Builder(this)
                             .setTitle("📢 DISPATCH BROADCAST: $sender")
                             .setMessage(msg)
-                            .setPositiveButton("ACKNOWLEDGE", null)
+                            .setPositiveButton("ACKNOWLEDGE & SLOW DOWN", null)
                             .show()
                         Toast.makeText(this, "📢 $sender: $msg", Toast.LENGTH_LONG).show()
                     }
