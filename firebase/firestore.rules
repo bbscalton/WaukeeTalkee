@@ -169,6 +169,17 @@ service cloud.firestore {
         allow update, delete: if isDispatcher(orgId);
       }
 
+      // Dynamic police checkpoints, speed traps & hazards
+      match /hazards/{hazardId} {
+        allow read, write: if isDispatcher(orgId) || isOrgDriver(orgId);
+      }
+
+      // Breadcrumb telemetry GPS track points (replay)
+      match /tracks/{driverId}/points/{pointId} {
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+        allow create, update, delete: if isDispatcher(orgId) || isOrgDriver(orgId);
+      }
+
       // Dispatcher→driver PTT request/response tracking (3 min window)
       match /radioRequests/{requestId} {
         allow read: if isDispatcher(orgId);
