@@ -184,7 +184,7 @@ service cloud.firestore {
           && request.resource.data.outboundClipId is string
           && request.resource.data.replyClipId == null
           && request.resource.data.respondedAt == null;
-        allow update, delete: if false;
+        allow update, delete: if isDispatcher(orgId);
       }
 
       // Home bases + checkpoints (circular geofences)
