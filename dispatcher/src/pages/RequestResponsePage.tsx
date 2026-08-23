@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   collection,
+  deleteDoc,
+  doc,
   onSnapshot,
   orderBy,
   query,
   where,
+  writeBatch,
   type Timestamp,
 } from "firebase/firestore";
 import { db, ORG_ID } from "../firebase";
@@ -118,6 +121,9 @@ export function RequestResponsePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Multi-selection state for cleanup
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // New Request Modal State
   const [showModal, setShowModal] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState("");
@@ -128,6 +134,7 @@ export function RequestResponsePage() {
   const [playingClipId, setPlayingClipId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!ORG_ID) return;
     return onSnapshot(collection(db, "orgs", ORG_ID, "drivers"), (snap) => {
       setDrivers(
         snap.docs.map((d) => mapDriver(d.id, d.data() as Record<string, unknown>))
@@ -136,6 +143,7 @@ export function RequestResponsePage() {
   }, []);
 
   useEffect(() => {
+    if (!ORG_ID) return;
     const base = collection(db, "orgs", ORG_ID, "radioRequests");
     const q = driverFilter
       ? query(
@@ -161,6 +169,7 @@ export function RequestResponsePage() {
 
   // Load clips for audio playback capability
   useEffect(() => {
+    if (!ORG_ID) return;
     const q = query(
       collection(db, "orgs", ORG_ID, "radio"),
       orderBy("createdAt", "desc")
@@ -184,7 +193,6 @@ export function RequestResponsePage() {
 
   // Compute First Responders for Broadcast Batches
   const firstResponderMap = useMemo(() => {
-    // Map of batchId -> earliest responded RadioRequest
     const batchMap = new Map<string, RadioRequest>();
     for (const req of requests) {
       if (req.kind === "broadcast" && req.broadcastBatchId && req.status === "responded" && req.respondedAt) {
@@ -243,8 +251,89 @@ export function RequestResponsePage() {
   }, [respondedRows]);
 
   const pendingCount = rows.filter((r) => r.displayStatus === "pending").length;
+  const expiredCount = rows.filter((r) => r.displayStatus === "expired").length;
   const totalCount = rows.length;
   const responseRate = totalCount > 0 ? Math.round((respondedRows.length / totalCount) * 100) : 0;
+
+  // Multi-selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredRows.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredRows.map((r) => r.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Cleanup Functions
+  const deleteSingleRequest = async (id: string) => {
+    if (!ORG_ID) return;
+    try {
+      await deleteDoc(doc(db, "orgs", ORG_ID, "radioRequests", id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch (err: any) {
+      alert("Failed to delete request record: " + err.message);
+    }
+  };
+
+  const deleteBatchRequests = async (ids: string[]) => {
+    if (!ORG_ID || ids.length === 0) return;
+    try {
+      // Execute batch delete (up to 500 per Firestore batch)
+      const batch = writeBatch(db);
+      ids.slice(0, 500).forEach((id) => {
+        batch.delete(doc(db, "orgs", ORG_ID, "radioRequests", id));
+      });
+      await batch.commit();
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      alert("Failed to purge requests: " + err.message);
+    }
+  };
+
+  const handleClearSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected request record(s)?`)) return;
+    await deleteBatchRequests([...selectedIds]);
+  };
+
+  const handleClearExpired = async () => {
+    const expiredIds = rows.filter((r) => r.displayStatus === "expired").map((r) => r.id);
+    if (expiredIds.length === 0) {
+      alert("No expired requests to clean up.");
+      return;
+    }
+    if (!confirm(`Clean up all ${expiredIds.length} expired (unanswered) request record(s)?`)) return;
+    await deleteBatchRequests(expiredIds);
+  };
+
+  const handleClearResponded = async () => {
+    const respondedIds = rows.filter((r) => r.displayStatus === "responded").map((r) => r.id);
+    if (respondedIds.length === 0) {
+      alert("No completed responded requests to clean up.");
+      return;
+    }
+    if (!confirm(`Clean up all ${respondedIds.length} completed responded request record(s)?`)) return;
+    await deleteBatchRequests(respondedIds);
+  };
+
+  const handleClearAllHistory = async () => {
+    if (rows.length === 0) return;
+    if (!confirm(`⚠️ PURGE ALL HISTORY: Are you sure you want to delete ALL ${rows.length} request/response logs from the database?`)) return;
+    await deleteBatchRequests(rows.map((r) => r.id));
+  };
 
   const handlePlayClip = (clipId: string) => {
     const clip = clips.get(clipId);
@@ -314,25 +403,64 @@ export function RequestResponsePage() {
             {label("requestResponse")} Command Center
           </h1>
           <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.95rem" }}>
-            Track exact request timestamps, driver reply latency, and first-responder callouts.
+            Track exact request timestamps, driver reply latency, first-responder callouts, and clean up historical logs.
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          style={{
-            background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-            color: "#fff",
-            border: "none",
-            fontWeight: 800,
-            padding: "0.75rem 1.25rem",
-            borderRadius: "10px",
-            boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
-            cursor: "pointer"
-          }}
-        >
-          + Issue New Radio Request
-        </button>
+        {/* Top Header Buttons: Issue New Request & Bulk Cleanup Dropdown */}
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+          {/* Quick Clean Up Actions */}
+          <div style={{ display: "flex", gap: "0.4rem" }}>
+            <button
+              onClick={handleClearExpired}
+              style={{
+                background: "rgba(239, 68, 68, 0.15)",
+                color: "#ef4444",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                fontWeight: 700,
+                padding: "0.6rem 0.9rem",
+                borderRadius: "10px",
+                fontSize: "0.8rem",
+                cursor: "pointer"
+              }}
+              title="Clean up all expired unanswered requests"
+            >
+              🧹 Clear Expired ({expiredCount})
+            </button>
+            <button
+              onClick={handleClearResponded}
+              style={{
+                background: "rgba(34, 197, 94, 0.15)",
+                color: "#4ade80",
+                border: "1px solid rgba(34, 197, 94, 0.4)",
+                fontWeight: 700,
+                padding: "0.6rem 0.9rem",
+                borderRadius: "10px",
+                fontSize: "0.8rem",
+                cursor: "pointer"
+              }}
+              title="Clean up all completed responded requests"
+            >
+              🧹 Clear Responded ({respondedRows.length})
+            </button>
+          </div>
+
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+              color: "#fff",
+              border: "none",
+              fontWeight: 800,
+              padding: "0.75rem 1.25rem",
+              borderRadius: "10px",
+              boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
+              cursor: "pointer"
+            }}
+          >
+            + Issue New Radio Request
+          </button>
+        </div>
       </div>
 
       {/* Analytics KPI Dashboard */}
@@ -427,22 +555,58 @@ export function RequestResponsePage() {
             </select>
           </div>
 
-          {/* Search Input */}
-          <input
-            type="text"
-            placeholder="🔍 Search driver name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: "0.55rem 0.9rem",
-              borderRadius: "8px",
-              background: "rgba(0,0,0,0.3)",
-              color: "#fff",
-              border: "1px solid var(--line)",
-              fontSize: "0.85rem",
-              minWidth: "220px"
-            }}
-          />
+          {/* Search Input & Multi-Delete Actions */}
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleClearSelected}
+                style={{
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.55rem 0.9rem",
+                  fontSize: "0.85rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                🗑️ Delete Selected ({selectedIds.size})
+              </button>
+            )}
+
+            <button
+              onClick={handleClearAllHistory}
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                color: "#94a3b8",
+                border: "1px solid var(--line)",
+                borderRadius: "8px",
+                padding: "0.55rem 0.8rem",
+                fontSize: "0.8rem",
+                cursor: "pointer"
+              }}
+              title="Purge all request records from database"
+            >
+              ⚠️ Purge All History
+            </button>
+
+            <input
+              type="text"
+              placeholder="🔍 Search driver name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: "0.55rem 0.9rem",
+                borderRadius: "8px",
+                background: "rgba(0,0,0,0.3)",
+                color: "#fff",
+                border: "1px solid var(--line)",
+                fontSize: "0.85rem",
+                minWidth: "220px"
+              }}
+            />
+          </div>
         </div>
 
         {error && <p style={{ color: "#ef4444", marginBottom: "1rem" }}>{error}</p>}
@@ -452,32 +616,47 @@ export function RequestResponsePage() {
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 0.5rem" }}>
             <thead>
               <tr style={{ color: "var(--muted)", textAlign: "left", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <th style={{ padding: "0.75rem 0.5rem", width: "40px", textAlign: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={filteredRows.length > 0 && selectedIds.size === filteredRows.length}
+                    onChange={toggleSelectAll}
+                    style={{ cursor: "pointer" }}
+                  />
+                </th>
                 <th style={{ padding: "0.75rem 1rem" }}>Driver</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Type</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Request Sent At</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Response Received</th>
                 <th style={{ padding: "0.75rem 1rem" }}>SLA Response Time</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Status / First Responder</th>
-                <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Audio</th>
+                <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "3rem", color: "var(--muted)" }}>
-                    No request telemetry records found matching selected filters.
+                  <td colSpan={8} style={{ textAlign: "center", padding: "3.5rem", color: "var(--muted)" }}>
+                    <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🧹</div>
+                    <div style={{ fontWeight: 700, fontSize: "1.1rem", color: "#fff" }}>Request Log Clean</div>
+                    <p style={{ margin: "0.4rem 0 0 0", fontSize: "0.85rem" }}>
+                      No request records found. Dispatch a new radio request to track telemetry.
+                    </p>
                   </td>
                 </tr>
               ) : (
                 filteredRows.map((req) => {
                   const isResponded = req.displayStatus === "responded";
                   const isPending = req.displayStatus === "pending";
+                  const isSelected = selectedIds.has(req.id);
 
                   return (
                     <tr
                       key={req.id}
                       style={{
-                        background: req.isFirstResponder
+                        background: isSelected
+                          ? "rgba(59, 130, 246, 0.2)"
+                          : req.isFirstResponder
                           ? "rgba(245, 158, 11, 0.12)"
                           : isResponded
                           ? "rgba(34, 197, 94, 0.05)"
@@ -494,6 +673,16 @@ export function RequestResponsePage() {
                         borderRadius: "8px"
                       }}
                     >
+                      {/* Checkbox */}
+                      <td style={{ padding: "0.85rem 0.5rem", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(req.id)}
+                          style={{ cursor: "pointer" }}
+                        />
+                      </td>
+
                       {/* Driver */}
                       <td style={{ padding: "0.85rem 1rem", fontWeight: 700, color: "#fff" }}>
                         {req.driverName}
@@ -569,42 +758,59 @@ export function RequestResponsePage() {
                         )}
                       </td>
 
-                      {/* Audio Playback */}
+                      {/* Audio Playback & Single Row Delete */}
                       <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
-                        {req.replyClipId ? (
+                        <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", alignItems: "center" }}>
+                          {req.replyClipId ? (
+                            <button
+                              onClick={() => handlePlayClip(req.replyClipId!)}
+                              style={{
+                                background: playingClipId === req.replyClipId ? "#22c55e" : "rgba(255,255,255,0.08)",
+                                color: playingClipId === req.replyClipId ? "#000" : "#fff",
+                                border: "1px solid var(--line)",
+                                borderRadius: "6px",
+                                padding: "0.35rem 0.65rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                cursor: "pointer"
+                              }}
+                            >
+                              {playingClipId === req.replyClipId ? "🔊 Playing..." : "🔊 Play Reply"}
+                            </button>
+                          ) : req.outboundClipId ? (
+                            <button
+                              onClick={() => handlePlayClip(req.outboundClipId)}
+                              style={{
+                                background: playingClipId === req.outboundClipId ? "#3b82f6" : "rgba(255,255,255,0.05)",
+                                color: "#fff",
+                                border: "1px solid var(--line)",
+                                borderRadius: "6px",
+                                padding: "0.35rem 0.65rem",
+                                fontSize: "0.75rem",
+                                cursor: "pointer"
+                              }}
+                            >
+                              {playingClipId === req.outboundClipId ? "🔊 Playing..." : "🎙️ Audio"}
+                            </button>
+                          ) : null}
+
                           <button
-                            onClick={() => handlePlayClip(req.replyClipId!)}
+                            onClick={() => deleteSingleRequest(req.id)}
                             style={{
-                              background: playingClipId === req.replyClipId ? "#22c55e" : "rgba(255,255,255,0.08)",
-                              color: playingClipId === req.replyClipId ? "#000" : "#fff",
-                              border: "1px solid var(--line)",
+                              background: "rgba(239, 68, 68, 0.12)",
+                              color: "#ef4444",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
                               borderRadius: "6px",
-                              padding: "0.35rem 0.7rem",
+                              padding: "0.35rem 0.6rem",
                               fontSize: "0.75rem",
                               fontWeight: 700,
                               cursor: "pointer"
                             }}
+                            title="Delete request log"
                           >
-                            {playingClipId === req.replyClipId ? "🔊 Playing..." : "🔊 Play Reply"}
+                            🗑️ Clear
                           </button>
-                        ) : req.outboundClipId ? (
-                          <button
-                            onClick={() => handlePlayClip(req.outboundClipId)}
-                            style={{
-                              background: playingClipId === req.outboundClipId ? "#3b82f6" : "rgba(255,255,255,0.05)",
-                              color: "#fff",
-                              border: "1px solid var(--line)",
-                              borderRadius: "6px",
-                              padding: "0.35rem 0.7rem",
-                              fontSize: "0.75rem",
-                              cursor: "pointer"
-                            }}
-                          >
-                            {playingClipId === req.outboundClipId ? "🔊 Playing..." : "🎙️ Outbound Audio"}
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>—</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
