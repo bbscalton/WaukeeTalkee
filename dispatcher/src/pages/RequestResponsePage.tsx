@@ -64,12 +64,12 @@ function mapRequest(id: string, data: Record<string, unknown>): RadioRequest {
   };
 }
 
-function effectiveStatus(req: RadioRequest): RadioRequestStatus {
+function effectiveStatus(req: RadioRequest, nowSeconds: number): RadioRequestStatus {
   if (req.status !== "pending") return req.status;
   if (!req.expiresAt || typeof req.expiresAt.seconds !== "number") {
     return req.status;
   }
-  if (Date.now() > req.expiresAt.seconds * 1000) return "expired";
+  if (nowSeconds > req.expiresAt.seconds) return "expired";
   return "pending";
 }
 
@@ -121,6 +121,14 @@ export function RequestResponsePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Live Ticker for SLA Expiration Timers
+  const [nowSeconds, setNowSeconds] = useState(Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowSeconds(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Multi-selection state for cleanup
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -130,7 +138,7 @@ export function RequestResponsePage() {
   const [requestKind, setRequestKind] = useState<"direct" | "broadcast">("direct");
   const [submitting, setSubmitting] = useState(false);
 
-  // Audio Playback
+  // Audio Playback State
   const [playingClipId, setPlayingClipId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,17 +217,41 @@ export function RequestResponsePage() {
 
   const rows = useMemo(() => {
     return requests.map((req) => {
-      const displayStatus = effectiveStatus(req);
+      const displayStatus = effectiveStatus(req, nowSeconds);
       const latencySec = computeResponseTimeSeconds(req);
       const isFirstResponder = firstResponderMap.has(req.id);
+      
+      // Calculate SLA Countdown Seconds Remaining
+      const remainingSlaSec = req.expiresAt && typeof req.expiresAt.seconds === "number"
+        ? Math.max(0, req.expiresAt.seconds - nowSeconds)
+        : 0;
+
       return {
         ...req,
         displayStatus,
         latencySec,
         isFirstResponder,
+        remainingSlaSec,
       };
     });
-  }, [requests, firstResponderMap]);
+  }, [requests, firstResponderMap, nowSeconds]);
+
+  // Driver Response SLA Leaderboard Ranking
+  const driverLeaderboard = useMemo(() => {
+    const driverStats = new Map<string, { name: string; times: number[] }>();
+    for (const r of rows) {
+      if (r.displayStatus === "responded" && r.latencySec !== null) {
+        const existing = driverStats.get(r.driverId) || { name: r.driverName, times: [] };
+        existing.times.push(r.latencySec);
+        driverStats.set(r.driverId, existing);
+      }
+    }
+    const list = Array.from(driverStats.values()).map((item) => {
+      const avgSec = Math.round(item.times.reduce((a, b) => a + b, 0) / item.times.length);
+      return { name: item.name, avgSec, count: item.times.length };
+    });
+    return list.sort((a, b) => a.avgSec - b.avgSec).slice(0, 3);
+  }, [rows]);
 
   // Filtered rows
   const filteredRows = useMemo(() => {
@@ -242,12 +274,6 @@ export function RequestResponsePage() {
     if (respondedRows.length === 0) return null;
     const total = respondedRows.reduce((acc, r) => acc + (r.latencySec || 0), 0);
     return Math.round(total / respondedRows.length);
-  }, [respondedRows]);
-
-  const fastestDriver = useMemo(() => {
-    if (respondedRows.length === 0) return null;
-    const sorted = [...respondedRows].sort((a, b) => (a.latencySec || 999) - (b.latencySec || 999));
-    return sorted[0];
   }, [respondedRows]);
 
   const pendingCount = rows.filter((r) => r.displayStatus === "pending").length;
@@ -291,7 +317,6 @@ export function RequestResponsePage() {
   const deleteBatchRequests = async (ids: string[]) => {
     if (!ORG_ID || ids.length === 0) return;
     try {
-      // Execute batch delete (up to 500 per Firestore batch)
       const batch = writeBatch(db);
       ids.slice(0, 500).forEach((id) => {
         batch.delete(doc(db, "orgs", ORG_ID, "radioRequests", id));
@@ -333,6 +358,15 @@ export function RequestResponsePage() {
     if (rows.length === 0) return;
     if (!confirm(`⚠️ PURGE ALL HISTORY: Are you sure you want to delete ALL ${rows.length} request/response logs from the database?`)) return;
     await deleteBatchRequests(rows.map((r) => r.id));
+  };
+
+  const handleNudgeDriver = async (req: RadioRequest) => {
+    try {
+      await createDirectRadioRequest(req.driverId, req.driverName, "dispatch_nudge_request");
+      alert(`⚡ Urgent SLA Nudge radio alert re-dispatched to ${req.driverName}!`);
+    } catch (err: any) {
+      alert("Failed to nudge driver: " + err.message);
+    }
   };
 
   const handlePlayClip = (clipId: string) => {
@@ -387,29 +421,28 @@ export function RequestResponsePage() {
   };
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto", color: "var(--ink)" }}>
+    <div style={{ padding: "1.5rem", maxWidth: "1450px", margin: "0 auto", color: "var(--ink)" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <span style={{ background: "rgba(59, 130, 246, 0.2)", color: "#60a5fa", border: "1px solid rgba(59, 130, 246, 0.4)", padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase" }}>
-              SLA Response Telemetry
+              SLA Telemetry Command Center
             </span>
             <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-              Response SLA Window: <strong>3 Minutes</strong>
+              Active SLA Target: <strong>3 Minutes (180s)</strong>
             </span>
           </div>
-          <h1 style={{ margin: "0.4rem 0 0 0", fontSize: "2rem", color: "#fff", fontWeight: 800 }}>
-            {label("requestResponse")} Command Center
+          <h1 style={{ margin: "0.4rem 0 0 0", fontSize: "2.1rem", color: "#fff", fontWeight: 800 }}>
+            ⚡ {label("requestResponse")} Tactical Hub
           </h1>
           <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.95rem" }}>
-            Track exact request timestamps, driver reply latency, first-responder callouts, and clean up historical logs.
+            Monitor real-time SLA countdowns, first-responder rankings, audio clip replays, and purge history.
           </p>
         </div>
 
         {/* Top Header Buttons: Issue New Request & Bulk Cleanup Dropdown */}
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
-          {/* Quick Clean Up Actions */}
           <div style={{ display: "flex", gap: "0.4rem" }}>
             <button
               onClick={handleClearExpired}
@@ -463,32 +496,77 @@ export function RequestResponsePage() {
         </div>
       </div>
 
-      {/* Analytics KPI Dashboard */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div style={{ background: "rgba(59, 130, 246, 0.12)", border: "1px solid rgba(59, 130, 246, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#60a5fa", fontWeight: 700 }}>Average Response SLA</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>
-            {avgResponseTimeSec !== null ? formatDuration(avgResponseTimeSec) : "—"}
+      {/* Analytics KPI Dashboard & Driver Leaderboard Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.25rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        
+        {/* Left: 4 KPI Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+          <div style={{ background: "rgba(59, 130, 246, 0.12)", border: "1px solid rgba(59, 130, 246, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
+            <div style={{ fontSize: "0.85rem", color: "#60a5fa", fontWeight: 700 }}>Average Response SLA</div>
+            <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>
+              {avgResponseTimeSec !== null ? formatDuration(avgResponseTimeSec) : "—"}
+            </div>
+          </div>
+
+          <div style={{ background: pendingCount > 0 ? "rgba(245, 158, 11, 0.12)" : "rgba(255, 255, 255, 0.03)", border: pendingCount > 0 ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
+            <div style={{ fontSize: "0.85rem", color: pendingCount > 0 ? "#f59e0b" : "var(--muted)", fontWeight: 700 }}>Active Pending SLA</div>
+            <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{pendingCount}</div>
+          </div>
+
+          <div style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
+            <div style={{ fontSize: "0.85rem", color: "#4ade80", fontWeight: 700 }}>Fleet SLA Compliance</div>
+            <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{responseRate}%</div>
+          </div>
+
+          <div style={{ background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
+            <div style={{ fontSize: "0.85rem", color: "#f87171", fontWeight: 700 }}>SLA Expired Requests</div>
+            <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{expiredCount}</div>
           </div>
         </div>
 
-        <div style={{ background: pendingCount > 0 ? "rgba(245, 158, 11, 0.12)" : "rgba(255, 255, 255, 0.03)", border: pendingCount > 0 ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: pendingCount > 0 ? "#f59e0b" : "var(--muted)", fontWeight: 700 }}>Awaiting Driver Response</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{pendingCount}</div>
-        </div>
-
-        <div style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#4ade80", fontWeight: 700 }}>Fleet Response Rate</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{responseRate}%</div>
-        </div>
-
-        <div style={{ background: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#c084fc", fontWeight: 700 }}>Fastest Fleet Responder</div>
-          <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff", marginTop: "0.4rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {fastestDriver ? `🏆 ${fastestDriver.driverName} (${formatDuration(fastestDriver.latencySec!)})` : "—"}
+        {/* Right: Driver SLA Leaderboard */}
+        <div style={{ background: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: "14px", padding: "1.1rem" }}>
+          <div style={{ fontSize: "0.85rem", color: "#c084fc", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>
+            🏆 Fastest SLA Responders
           </div>
+
+          {driverLeaderboard.length === 0 ? (
+            <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No completed response SLA data yet.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {driverLeaderboard.map((item, idx) => (
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.25)", padding: "0.45rem 0.75rem", borderRadius: "8px" }}>
+                  <div style={{ fontWeight: 800, color: "#fff", fontSize: "0.85rem" }}>
+                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"} {item.name}
+                  </div>
+                  <div style={{ fontSize: "0.8rem", color: "#4ade80", fontWeight: 800 }}>
+                    ⚡ {formatDuration(item.avgSec)} <span style={{ color: "var(--muted)", fontWeight: 500 }}>({item.count} replies)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Audio Playback Glowing Banner */}
+      {playingClipId && (
+        <div style={{ background: "linear-gradient(90deg, rgba(34, 197, 94, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)", border: "1px solid rgba(34, 197, 94, 0.5)", borderRadius: "12px", padding: "0.75rem 1.25rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ fontSize: "1.5rem" }}>🔊</span>
+            <div>
+              <div style={{ fontWeight: 800, color: "#fff", fontSize: "0.9rem" }}>Playing Radio Audio Clip Payload...</div>
+              <div style={{ fontSize: "0.75rem", color: "#4ade80" }}>Audio streaming active from retention archive</div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "3px", height: "20px", alignItems: "center" }}>
+            {[40, 80, 60, 100, 50, 90, 70, 40, 85].map((h, i) => (
+              <div key={i} style={{ width: "4px", height: `${h}%`, background: "#4ade80", borderRadius: "2px" }} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Table Container */}
       <div style={{ background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(12px)", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.25rem" }}>
@@ -532,7 +610,7 @@ export function RequestResponsePage() {
             >
               <option value="all">All Statuses</option>
               <option value="responded">✅ Responded</option>
-              <option value="pending">⏳ Awaiting Response</option>
+              <option value="pending">⏳ Pending SLA</option>
               <option value="expired">❌ Expired (No Reply)</option>
             </select>
 
@@ -629,7 +707,7 @@ export function RequestResponsePage() {
                 <th style={{ padding: "0.75rem 1rem" }}>Request Sent At</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Response Received</th>
                 <th style={{ padding: "0.75rem 1rem" }}>SLA Response Time</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Status / First Responder</th>
+                <th style={{ padding: "0.75rem 1rem" }}>Live Status / SLA Timer</th>
                 <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
@@ -741,16 +819,21 @@ export function RequestResponsePage() {
                         )}
                       </td>
 
-                      {/* Status */}
+                      {/* Status / Live SLA Countdown */}
                       <td style={{ padding: "0.85rem 1rem" }}>
                         {isResponded ? (
                           <span style={{ color: "#22c55e", fontWeight: 700, fontSize: "0.85rem" }}>
                             ✅ Confirmed Responded
                           </span>
                         ) : isPending ? (
-                          <span style={{ color: "#3b82f6", fontWeight: 700, fontSize: "0.85rem" }}>
-                            ⏳ Pending (3-min SLA)
-                          </span>
+                          <div>
+                            <span style={{ color: "#3b82f6", fontWeight: 800, fontSize: "0.85rem" }}>
+                              ⏳ Pending SLA
+                            </span>
+                            <div style={{ fontSize: "0.72rem", color: "#f59e0b", fontWeight: 800, marginTop: "0.1rem" }}>
+                              ⏱️ {formatDuration(req.remainingSlaSec)} remaining
+                            </div>
+                          </div>
                         ) : (
                           <span style={{ color: "#ef4444", fontWeight: 600, fontSize: "0.85rem" }}>
                             ❌ Expired (No Reply)
@@ -758,9 +841,28 @@ export function RequestResponsePage() {
                         )}
                       </td>
 
-                      {/* Audio Playback & Single Row Delete */}
+                      {/* Audio Playback, Nudge & Clear */}
                       <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
                         <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", alignItems: "center" }}>
+                          {isPending && (
+                            <button
+                              onClick={() => handleNudgeDriver(req)}
+                              style={{
+                                background: "rgba(245, 158, 11, 0.18)",
+                                color: "#f59e0b",
+                                border: "1px solid rgba(245, 158, 11, 0.4)",
+                                borderRadius: "6px",
+                                padding: "0.35rem 0.6rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 800,
+                                cursor: "pointer"
+                              }}
+                              title="Resend PTT callout nudge to driver"
+                            >
+                              ⚡ Nudge
+                            </button>
+                          )}
+
                           {req.replyClipId ? (
                             <button
                               onClick={() => handlePlayClip(req.replyClipId!)}
