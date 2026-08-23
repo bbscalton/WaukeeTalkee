@@ -15,6 +15,7 @@ import { ManifestsPage } from "./pages/ManifestsPage";
 import { FamilyCirclesPage } from "./pages/FamilyCirclesPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { VehiclesPage } from "./pages/VehiclesPage";
+import { HazardsPage } from "./pages/HazardsPage";
 import { routeFeature } from "./solutionProfiles";
 import { SosProvider } from "./SosProvider";
 import { SolutionProfileProvider, useSolutionProfile } from "./useSolutionProfile";
@@ -162,6 +163,14 @@ function AppRoutes() {
           element={
             <FeatureRoute feature="reports">
               <ReportsPage />
+            </FeatureRoute>
+          }
+        />
+        <Route
+          path="hazards"
+          element={
+            <FeatureRoute feature="policeHazards">
+              <HazardsPage />
             </FeatureRoute>
           }
         />

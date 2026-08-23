@@ -458,3 +458,29 @@ export type EmergencyBroadcast = {
   createdAt: { seconds: number; nanoseconds: number } | null;
 };
 
+/** Feature #18: Police Checkpoint & Speed Trap Hazard Alert System */
+export type HazardType = "police_checkpoint" | "speed_trap" | "road_hazard" | "accident";
+
+export type HazardAlert = {
+  id: string;
+  driverId: string;
+  driverName: string;
+  type: HazardType;
+  lat: number;
+  lng: number;
+  locationName?: string;
+  notes?: string;
+  status: "active" | "cleared" | "expired";
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  confirmedByDispatcher?: boolean;
+};
+
+export function formatHazardType(type: HazardType): string {
+  switch (type) {
+    case "police_checkpoint": return "👮 Police Checkpoint";
+    case "speed_trap": return "⚡ Speed Trap / Radar";
+    case "road_hazard": return "⚠️ Road Danger";
+    case "accident": return "💥 Traffic Accident";
+  }
+}
+

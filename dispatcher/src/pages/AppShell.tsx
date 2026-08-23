@@ -55,6 +55,8 @@ function ShellNav() {
                 ? "Family Circle"
                 : route.key === "reports"
                 ? "Reports"
+                : route.key === "hazards"
+                ? "Police & Radar"
                 : label(route.labelKey)}
               {route.key === "inbox" && totalUnread > 0 && (
                 <span className="nav-badge">{totalUnread}</span>

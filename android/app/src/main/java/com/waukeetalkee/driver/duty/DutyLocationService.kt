@@ -27,6 +27,7 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.waukeetalkee.driver.MainActivity
 import com.waukeetalkee.driver.R
+import java.util.Locale
 
 class DutyLocationService : Service() {
 
@@ -39,6 +40,9 @@ class DutyLocationService : Service() {
     /** True only when the driver explicitly goes off duty (ACTION_STOP). */
     private var clearingDuty = false
     private var startedInForeground = false
+    private var hazardListener: com.google.firebase.firestore.ListenerRegistration? = null
+    private var activeHazards: List<Triple<String, String, Pair<Double, Double>>> = emptyList()
+    private val alertedHazardIds = mutableMapOf<String, Long>()
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -48,6 +52,8 @@ class DutyLocationService : Service() {
             val speed = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0
             val heading = if (loc.hasBearing()) loc.bearing.toDouble() else null
             lastKnownLocation = loc.latitude to loc.longitude
+            listenToHazards(o)
+            checkHazardProximity(loc.latitude, loc.longitude)
             Firebase.firestore.document("orgs/$o/drivers/$d")
                 .update(
                     mapOf(
@@ -64,6 +70,58 @@ class DutyLocationService : Service() {
                 }
             maybeAppendTrackPoint(o, d, loc.latitude, loc.longitude, speed, heading)
         }
+    }
+
+    private fun listenToHazards(orgId: String) {
+        if (hazardListener != null) return
+        hazardListener = Firebase.firestore.collection("orgs/$orgId/hazards")
+            .whereEqualTo("status", "active")
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+                activeHazards = snap.documents.mapNotNull { d ->
+                    val type = d.getString("type") ?: "police_checkpoint"
+                    val name = d.getString("locationName") ?: "Checkpoint"
+                    val lat = d.getDouble("lat") ?: return@mapNotNull null
+                    val lng = d.getDouble("lng") ?: return@mapNotNull null
+                    Triple(d.id, "$type:$name", lat to lng)
+                }
+            }
+    }
+
+    private fun checkHazardProximity(lat: Double, lng: Double) {
+        val now = System.currentTimeMillis()
+        for ((id, info, pos) in activeHazards) {
+            val dist = haversineMeters(lat, lng, pos.first, pos.second)
+            if (dist <= 1500.0) { // 1.5 km (1 mile) radius
+                val lastAlert = alertedHazardIds[id] ?: 0L
+                if (now - lastAlert >= 180_000L) { // alert max once per 3 mins per hazard
+                    alertedHazardIds[id] = now
+                    val parts = info.split(":", limit = 2)
+                    val hazardType = parts.getOrNull(0) ?: "police_checkpoint"
+                    val locName = parts.getOrNull(1) ?: "your area"
+                    sendProximityNotification(hazardType, locName, dist)
+                }
+            }
+        }
+    }
+
+    private fun sendProximityNotification(type: String, location: String, distMeters: Double) {
+        ensureChannel()
+        val distKm = String.format(Locale.US, "%.1f", distMeters / 1000.0)
+        val title = if (type == "speed_trap") "⚡ SPEED TRAP AHEAD!" else "👮 POLICE CHECKPOINT AHEAD!"
+        val text = "Reported $distKm km ahead near $location. Drive carefully!"
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .build()
+
+        val mgr = getSystemService(NotificationManager::class.java)
+        mgr.notify((1000..9999).random(), notification)
     }
 
     /** Throttle map-DVR breadcrumbs (~10s or ~25m move). */

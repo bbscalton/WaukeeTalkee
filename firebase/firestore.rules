@@ -277,6 +277,13 @@ service cloud.firestore {
 
         allow update, delete: if isDispatcher(orgId);
       }
+
+      // Police Checkpoints & Speed Trap Hazards
+      match /hazards/{hazardId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId);
+        allow update, delete: if isDispatcher(orgId);
+      }
     }
   }
 }

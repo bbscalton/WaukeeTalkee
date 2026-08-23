@@ -207,6 +207,9 @@ class MainActivity : AppCompatActivity() {
             RadioForegroundService.stop(this)
             vm.unpair()
         }
+        findViewById<Button>(R.id.reportPoliceButton).setOnClickListener {
+            showHazardReportDialog()
+        }
 
         volumePttSwitch.setOnCheckedChangeListener { _, checked ->
             if (ignoreSwitchCallback) return@setOnCheckedChangeListener
@@ -889,5 +892,60 @@ class MainActivity : AppCompatActivity() {
                 Uri.parse("package:$packageName"),
             ),
         )
+    }
+
+    private fun showHazardReportDialog() {
+        val types = arrayOf(
+            "👮 Police Checkpoint / Station",
+            "⚡ Speed Gun Trap / Radar",
+            "⚠️ Road Danger / Construction",
+            "💥 Traffic Accident"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Report Road Hazard / Police")
+            .setItems(types) { _, which ->
+                val typeKey = when (which) {
+                    0 -> "police_checkpoint"
+                    1 -> "speed_trap"
+                    2 -> "road_hazard"
+                    else -> "accident"
+                }
+                submitHazardReport(typeKey, types[which])
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun submitHazardReport(typeKey: String, typeLabel: String) {
+        val state = vm.state.value
+        val session = state.session ?: return
+        val orgId = session.orgId
+        val driverName = session.displayName ?: "Driver"
+        val driverId = session.driverId
+
+        val loc = com.waukeetalkee.driver.duty.DutyLocationService.lastKnownLocation
+        val lat = loc?.first ?: 0.0
+        val lng = loc?.second ?: 0.0
+
+        val data = mapOf(
+            "driverId" to driverId,
+            "driverName" to driverName,
+            "type" to typeKey,
+            "lat" to lat,
+            "lng" to lng,
+            "locationName" to typeLabel,
+            "status" to "active",
+            "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+            "confirmedByDispatcher" to false
+        )
+
+        Firebase.firestore.collection("orgs/$orgId/hazards")
+            .add(data)
+            .addOnSuccessListener {
+                Toast.makeText(this, "🚨 $typeLabel reported to dispatch & fleet!", Toast.LENGTH_LONG).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to submit report: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 }

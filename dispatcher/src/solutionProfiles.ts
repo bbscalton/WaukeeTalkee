@@ -16,6 +16,7 @@ export type FeatureKey =
   | "family"
   | "reports"
   | "sos"
+  | "policeHazards"
   | "plantQueue"
   | "billingReports"
   | "detentionBilling"
@@ -74,6 +75,7 @@ const ALL_FEATURES_ON: Record<FeatureKey, boolean> = {
   family: true,
   reports: true,
   sos: true,
+  policeHazards: true,
   plantQueue: false,
   billingReports: false,
   detentionBilling: false,
@@ -208,7 +210,8 @@ export type NavRouteKey =
   | "vehicles"
   | "manifests"
   | "family"
-  | "reports";
+  | "reports"
+  | "hazards";
 
 export const NAV_ROUTES: {
   key: NavRouteKey;
@@ -262,6 +265,12 @@ export const NAV_ROUTES: {
     key: "reports",
     path: "/reports",
     feature: "reports",
+    labelKey: "alerts",
+  },
+  {
+    key: "hazards",
+    path: "/hazards",
+    feature: "policeHazards",
     labelKey: "alerts",
   },
 ];

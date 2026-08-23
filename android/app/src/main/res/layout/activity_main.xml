@@ -541,6 +541,17 @@
                 android:text="Permissions / keep-alive checklist" />
 
             <Button
+                android:id="@+id/reportPoliceButton"
+                style="@style/Btn.Ghost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="👮 Report Police Checkpoint / Speed Trap"
+                android:textColor="@color/amber"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Button
                 android:id="@+id/unpairButton"
                 style="@style/Btn.Ghost"
                 android:layout_width="match_parent"
