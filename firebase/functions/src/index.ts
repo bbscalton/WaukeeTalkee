@@ -571,10 +571,26 @@ export const adminListOrgs = onCall(async (request) => {
       name: data.name || data.displayName || doc.id,
       displayName: data.displayName || data.name || doc.id,
       solution: data.solution || "taxi",
+      features: data.features || {},
       createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
     });
   }
   return { orgs: list };
+});
+
+export const adminUpdateOrgFeatures = onCall(async (request) => {
+  assertAdmin(request.auth);
+  
+  const orgId = String(request.data?.orgId || "").trim().toLowerCase();
+  const features = request.data?.features;
+  
+  if (!orgId || typeof features !== "object") {
+    throw new HttpsError("invalid-argument", "orgId and features object are required.");
+  }
+  
+  const docRef = db.doc(`orgs/${orgId}`);
+  await docRef.set({ features }, { merge: true });
+  return { success: true, orgId, features };
 });
 
 export const adminCreateOrg = onCall(async (request) => {
