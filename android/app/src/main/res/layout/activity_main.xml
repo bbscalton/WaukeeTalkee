@@ -177,6 +177,26 @@
                     android:text="○ Accessibility — volume PTT anywhere (lock screen)"
                     android:textColor="@color/ink"
                     android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permCamera"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Camera — capture proof of delivery &amp; exception photos"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/permBgLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="○ Always Location — background tracking &amp; police hazard proximity"
+                    android:textColor="@color/ink"
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <Button
@@ -467,12 +487,81 @@
                     android:textSize="13sp" />
             </LinearLayout>
 
+            <!-- ROUTE MANIFESTS / STOPS CARD -->
+            <LinearLayout
+                android:id="@+id/manifestPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_panel"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="📦 Active Route Manifest"
+                        android:textColor="@color/ink"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:id="@+id/manifestBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_radio_standby"
+                        android:fontFamily="sans-serif-bold"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:text="NO ROUTE"
+                        android:textColor="@color/muted"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/manifestStopsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/manifestEmptyText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="No route assigned by dispatch yet."
+                    android:textColor="@color/muted"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- EMERGENCY SOS PANIC TRIGGER -->
+            <Button
+                android:id="@+id/sosButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="#d32f2f"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.08"
+                android:text="🚨 EMERGENCY SOS PANIC"
+                android:textAllCaps="true"
+                android:textColor="#ffffff"
+                android:textSize="17sp" />
+
             <TextView
                 android:id="@+id/dutyText"
                 style="@style/Text.Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
+                android:layout_marginTop="14dp"
                 android:gravity="center"
                 android:text="OFF DUTY"
                 android:textAllCaps="true"

@@ -72,6 +72,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permBattery: TextView
     private lateinit var permOverlay: TextView
     private lateinit var permAccessibility: TextView
+    private lateinit var permCamera: TextView
+    private lateinit var permBgLocation: TextView
     private lateinit var continueHomeButton: Button
     private lateinit var radioHistoryList: LinearLayout
     private lateinit var radioHistoryEmpty: TextView
@@ -82,6 +84,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var peerList: LinearLayout
     private lateinit var peerListEmpty: TextView
     private lateinit var peerSpinner: Spinner
+    private lateinit var sosButton: Button
+    private lateinit var manifestPanel: LinearLayout
+    private lateinit var manifestStopsList: LinearLayout
+    private lateinit var manifestEmptyText: TextView
+    private lateinit var manifestBadge: TextView
+    private var manifestListener: ListenerRegistration? = null
 
     private var volumePttEnabled = false
     private var volumeUpHeld = false
@@ -142,6 +150,8 @@ class MainActivity : AppCompatActivity() {
         permBattery = findViewById(R.id.permBattery)
         permOverlay = findViewById(R.id.permOverlay)
         permAccessibility = findViewById(R.id.permAccessibility)
+        permCamera = findViewById(R.id.permCamera)
+        permBgLocation = findViewById(R.id.permBgLocation)
         continueHomeButton = findViewById(R.id.continueHomeButton)
         radioHistoryList = findViewById(R.id.radioHistoryList)
         radioHistoryEmpty = findViewById(R.id.radioHistoryEmpty)
@@ -151,6 +161,11 @@ class MainActivity : AppCompatActivity() {
         groupSpinner = findViewById(R.id.groupSpinner)
         peerList = findViewById(R.id.peerList)
         peerListEmpty = findViewById(R.id.peerListEmpty)
+        sosButton = findViewById(R.id.sosButton)
+        manifestPanel = findViewById(R.id.manifestPanel)
+        manifestStopsList = findViewById(R.id.manifestStopsList)
+        manifestEmptyText = findViewById(R.id.manifestEmptyText)
+        manifestBadge = findViewById(R.id.manifestBadge)
 
         historyPlayer = RadioClipPlayer(
             this,
@@ -209,6 +224,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.reportPoliceButton).setOnClickListener {
             showHazardReportDialog()
+        }
+        sosButton.setOnClickListener {
+            triggerEmergencySos()
         }
 
         volumePttSwitch.setOnCheckedChangeListener { _, checked ->
@@ -418,8 +436,10 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         radioHistoryListener?.remove()
         groupsListener?.remove()
+        manifestListener?.remove()
         radioHistoryListener = null
         groupsListener = null
+        manifestListener = null
         historyPlayer?.stop()
         super.onDestroy()
     }
@@ -780,6 +800,7 @@ class MainActivity : AppCompatActivity() {
                 val snap = RadioBus.state.value
                 applyRadioUi(snap.transmitting, snap.receiving, snap.live)
                 bindRadioHistory(state)
+                bindManifests(state)
             }
         }
         if (state.session == null) {
@@ -794,7 +815,7 @@ class MainActivity : AppCompatActivity() {
     private fun updatePermissionChecklist() {
         mark(permMic, hasMicPermission(), "Microphone — talk back to dispatch")
         mark(permLocation, hasLocationPermission(), "Location — map when on duty")
-        mark(permNotifications, hasNotificationPermission(), "Notifications — “radio live” banner")
+        mark(permNotifications, hasNotificationPermission(), "Notifications — persistent “radio live” banner")
         mark(permBattery, isBatteryUnrestricted(), "Battery unrestricted — keep radio alive")
         mark(permOverlay, canDrawOverlays(), "Overlay HUD — flash when dispatch speaks")
         val a11y = AccessibilityPttHelper.isServiceEnabled(this)
@@ -807,6 +828,8 @@ class MainActivity : AppCompatActivity() {
                 "Accessibility — volume PTT anywhere (lock screen) · Needed"
             },
         )
+        mark(permCamera, hasCameraPermission(), "Camera — capture proof of delivery & exception photos")
+        mark(permBgLocation, hasBgLocationPermission(), "Always Location — background tracking & police hazard alerts")
     }
 
     private fun mark(view: TextView, ok: Boolean, label: String) {
@@ -828,6 +851,20 @@ class MainActivity : AppCompatActivity() {
     private fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun hasCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun hasBgLocationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= 29) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
     }
 
     private fun hasNotificationPermission(): Boolean {
@@ -857,6 +894,10 @@ class MainActivity : AppCompatActivity() {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
             add(Manifest.permission.RECORD_AUDIO)
+            add(Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT >= 29) {
+                add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
             if (Build.VERSION.SDK_INT >= 33) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -946,6 +987,109 @@ class MainActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Failed to submit report: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun triggerEmergencySos() {
+        val state = vm.state.value
+        val session = state.session ?: return
+        val orgId = session.orgId
+        val driverName = session.displayName ?: "Driver"
+        val driverId = session.driverId
+
+        AlertDialog.Builder(this)
+            .setTitle("🚨 EMERGENCY SOS PANIC ALERT")
+            .setMessage("Are you sure you want to trigger a high-priority Emergency Panic Alert to Dispatcher & Emergency Contacts?")
+            .setPositiveButton("SEND EMERGENCY ALERT") { _, _ ->
+                val loc = com.waukeetalkee.driver.duty.DutyLocationService.lastKnownLocation
+                val lat = loc?.first ?: 0.0
+                val lng = loc?.second ?: 0.0
+
+                val data = mapOf(
+                    "driverId" to driverId,
+                    "driverName" to driverName,
+                    "type" to "sos_panic",
+                    "lat" to lat,
+                    "lng" to lng,
+                    "status" to "active",
+                    "severity" to "CRITICAL",
+                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
+
+                Firebase.firestore.collection("orgs/$orgId/alerts")
+                    .add(data)
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "🚨 EMERGENCY SOS BROADCAST SENT TO DISPATCH!", Toast.LENGTH_LONG).show()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Failed to send SOS: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun bindManifests(state: UiState) {
+        val session = state.session ?: return
+        val orgId = session.orgId
+        val driverId = session.driverId
+
+        manifestListener?.remove()
+        manifestListener = Firebase.firestore.collection("orgs/$orgId/manifests")
+            .whereEqualTo("driverId", driverId)
+            .whereIn("status", listOf("assigned", "in_transit"))
+            .addSnapshotListener { snap, _ ->
+                if (snap == null || snap.isEmpty) {
+                    manifestBadge.text = "NO ROUTE"
+                    manifestBadge.setTextColor(ContextCompat.getColor(this, R.color.muted))
+                    manifestEmptyText.isVisible = true
+                    manifestEmptyText.text = "No route manifest assigned by dispatch yet."
+                    manifestStopsList.removeAllViews()
+                    return@addSnapshotListener
+                }
+
+                manifestEmptyText.isVisible = false
+                manifestStopsList.removeAllViews()
+                val doc = snap.documents.first()
+                val title = doc.getString("title") ?: "Route Manifest"
+                val stops = doc.get("stops") as? List<Map<String, Any>> ?: emptyList()
+
+                manifestBadge.text = "${stops.size} STOPS"
+                manifestBadge.setTextColor(ContextCompat.getColor(this, R.color.amber))
+
+                stops.forEachIndexed { idx, stop ->
+                    val stopName = stop["name"] as? String ?: "Stop #${idx + 1}"
+                    val stopAddress = stop["address"] as? String ?: ""
+                    val stopStatus = stop["status"] as? String ?: "pending"
+
+                    val row = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(12, 12, 12, 12)
+                        setBackgroundResource(R.drawable.bg_input)
+                        val lp = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                        lp.topMargin = 10
+                        layoutParams = lp
+                    }
+
+                    val titleTv = TextView(this).apply {
+                        text = "${idx + 1}. $stopName ($stopStatus)"
+                        textSize = 14f
+                        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.ink))
+                        setTypeface(null, android.graphics.Typeface.BOLD)
+                    }
+                    val addrTv = TextView(this).apply {
+                        text = stopAddress
+                        textSize = 12f
+                        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.muted))
+                    }
+
+                    row.addView(titleTv)
+                    if (stopAddress.isNotEmpty()) row.addView(addrTv)
+                    manifestStopsList.addView(row)
+                }
             }
     }
 }
