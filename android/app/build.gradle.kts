@@ -12,11 +12,26 @@ android {
         applicationId = "com.waukeetalkee.driver"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.6.2"
+        versionCode = 12
+        versionName = "0.6.3"
 
-        buildConfigField("String", "DEFAULT_ORG_ID", "\"demo\"")
         buildConfigField("boolean", "USE_EMULATORS", "false")
+    }
+
+    flavorDimensions += "brand"
+    productFlavors {
+        create("waukee") {
+            dimension = "brand"
+            applicationId = "com.waukeetalkee.driver"
+            resValue("string", "app_name", "Waukee Talkee")
+            buildConfigField("String", "DEFAULT_ORG_ID", "\"demo\"")
+        }
+        create("rebert") {
+            dimension = "brand"
+            applicationId = "com.rebertconstruction.driver"
+            resValue("string", "app_name", "Rebert Construction")
+            buildConfigField("String", "DEFAULT_ORG_ID", "\"rebert\"")
+        }
     }
 
     buildTypes {

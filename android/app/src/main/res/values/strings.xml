@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Waukee Talkee</string>
     <string name="duty_channel_name">On duty</string>
     <string name="duty_notification_title">Waukee Talkee — On duty</string>
     <string name="duty_notification_text">Sharing location with dispatch</string>
