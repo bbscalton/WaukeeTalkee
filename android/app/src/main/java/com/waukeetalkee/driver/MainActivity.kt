@@ -125,6 +125,13 @@ class MainActivity : AppCompatActivity() {
         maybeStartRadio(vm.state.value)
     }
 
+    private val backgroundLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        render(vm.state.value)
+        maybeStartRadio(vm.state.value)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -189,6 +196,11 @@ class MainActivity : AppCompatActivity() {
 
         pairButton.setOnClickListener { vm.pair(codeInput.text.toString()) }
         findViewById<Button>(R.id.grantButton).setOnClickListener { requestRuntimePermissions() }
+        permMic.setOnClickListener { requestRuntimePermissions() }
+        permLocation.setOnClickListener { requestRuntimePermissions() }
+        permCamera.setOnClickListener { requestRuntimePermissions() }
+        permBgLocation.setOnClickListener { requestRuntimePermissions() }
+        permNotifications.setOnClickListener { requestRuntimePermissions() }
         findViewById<Button>(R.id.batteryButton).setOnClickListener { requestBatteryExemption() }
         findViewById<Button>(R.id.overlayButton).setOnClickListener { requestOverlayPermission() }
         findViewById<Button>(R.id.accessibilityButton).setOnClickListener {
@@ -895,19 +907,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestRuntimePermissions() {
-        val perms = buildList {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
-            add(Manifest.permission.ACCESS_COARSE_LOCATION)
-            add(Manifest.permission.RECORD_AUDIO)
-            add(Manifest.permission.CAMERA)
-            if (Build.VERSION.SDK_INT >= 29) {
-                add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        val missingForeground = buildList {
+            if (!hasLocationPermission()) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
             }
-            if (Build.VERSION.SDK_INT >= 33) {
+            if (!hasMicPermission()) add(Manifest.permission.RECORD_AUDIO)
+            if (!hasCameraPermission()) add(Manifest.permission.CAMERA)
+            if (!hasNotificationPermission() && Build.VERSION.SDK_INT >= 33) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }.toTypedArray()
-        permissionLauncher.launch(perms)
+
+        if (missingForeground.isNotEmpty()) {
+            permissionLauncher.launch(missingForeground)
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= 29 && !hasBgLocationPermission()) {
+            AlertDialog.Builder(this)
+                .setTitle("📍 Allow All The Time Location Access")
+                .setMessage("To receive background police speed trap alerts and continuous vehicle tracking while off-screen, please select 'ALLOW ALL THE TIME' on the next screen or in App Settings.")
+                .setPositiveButton("GRANT BACKGROUND LOCATION") { _, _ ->
+                    try {
+                        backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    } catch (_: Exception) {
+                        openAppSettings()
+                    }
+                }
+                .setNegativeButton("OPEN APP SETTINGS") { _, _ ->
+                    openAppSettings()
+                }
+                .show()
+            return
+        }
+
+        openAppSettings()
+    }
+
+    private fun openAppSettings() {
+        Toast.makeText(this, "Opening App Settings — please enable Camera and Location permissions", Toast.LENGTH_LONG).show()
+        startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", packageName, null),
+            ),
+        )
     }
 
     @SuppressLint("BatteryLife")
