@@ -1,8 +1,8 @@
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 
-/** Des Moines metro — fleet default center. */
-export const DEFAULT_CENTER = { lat: 41.58, lng: -93.62 };
-export const DEFAULT_ZOOM = 11;
+/** Guyana — fleet default center. */
+export const DEFAULT_CENTER = { lat: 5.835, lng: -58.97 };
+export const DEFAULT_ZOOM = 8;
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() || "";
 
