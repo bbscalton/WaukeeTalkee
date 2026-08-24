@@ -156,55 +156,356 @@ label {
   grid-template-rows: auto 1fr;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   TOPBAR — Premium Command-Center Header
+═══════════════════════════════════════════════════════════ */
+
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
-  gap: 1rem;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1.35rem;
-  border-bottom: 1px solid var(--line);
-  background: rgba(14, 17, 22, 0.82);
-  backdrop-filter: blur(12px);
+  gap: 1rem;
+  padding: 0 1.5rem;
+  height: 62px;
+  background:
+    linear-gradient(180deg,
+      rgba(10, 13, 19, 0.97) 0%,
+      rgba(14, 17, 26, 0.94) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(240, 180, 41, 0.15);
+  box-shadow:
+    0 1px 0 rgba(240, 180, 41, 0.08),
+    0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
-.topbar-brand strong {
-  font-family: var(--font-display);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-size: 1.2rem;
-  color: var(--amber);
-  font-weight: 400;
+/* animated amber shimmer line at very top */
+.topbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--amber) 30%,
+    #fff9 52%,
+    var(--amber) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: topbar-shimmer 4s linear infinite;
+  opacity: 0.7;
 }
 
+@keyframes topbar-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Brand ─────────────────────────────────────────────── */
 .topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.topbar-logo {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(240, 180, 41, 0.6));
+  animation: logo-float 3s ease-in-out infinite;
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
+.topbar-brand-text {
   display: flex;
   flex-direction: column;
   gap: 0.05rem;
+  line-height: 1.15;
 }
 
-.topbar nav {
+.topbar-name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--amber) 0%, #ffe27a 50%, var(--amber) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: brand-shine 5s linear infinite;
+}
+
+@keyframes brand-shine {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.topbar-sub {
   display: flex;
-  gap: 0.4rem;
-}
-
-.topbar nav a {
-  padding: 0.5rem 0.95rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
   color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   font-weight: 600;
 }
 
-.topbar nav a.active {
-  border-color: rgba(240, 180, 41, 0.35);
-  background: rgba(240, 180, 41, 0.12);
+.topbar-org {
   color: var(--amber);
+  font-weight: 700;
 }
 
+/* animated live dot */
+.topbar-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 0 rgba(61, 214, 140, 0.6);
+  animation: live-pulse 1.8s ease-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(61, 214, 140, 0.6); }
+  60%  { box-shadow: 0 0 0 6px rgba(61, 214, 140, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(61, 214, 140, 0); }
+}
+
+/* ── Desktop nav ───────────────────────────────────────── */
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 0.5rem;
+  -ms-overflow-style: none;
+}
+
+.topbar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.15s ease;
+  position: relative;
+}
+
+.topbar-link:hover {
+  color: var(--ink);
+  background: rgba(240, 180, 41, 0.07);
+  border-color: rgba(240, 180, 41, 0.2);
+  transform: translateY(-1px);
+}
+
+.topbar-link--active {
+  color: var(--amber) !important;
+  background: rgba(240, 180, 41, 0.12) !important;
+  border-color: rgba(240, 180, 41, 0.35) !important;
+  box-shadow: 0 0 12px rgba(240, 180, 41, 0.15) !important;
+}
+
+.topbar-link--active .topbar-link-icon {
+  filter: drop-shadow(0 0 4px rgba(240, 180, 41, 0.7));
+}
+
+.topbar-link-icon {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.topbar-link-label {
+  /* hide label on narrow viewports — keep icon */
+}
+
+/* ── User cluster ──────────────────────────────────────── */
 .topbar-user {
   display: flex;
-  gap: 0.75rem;
   align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.topbar-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, rgba(240,180,41,0.2) 0%, rgba(240,180,41,0.1) 100%);
+  color: var(--amber);
+  border: 1px solid rgba(240, 180, 41, 0.35);
+  box-shadow: 0 0 8px rgba(240, 180, 41, 0.15);
+}
+
+.topbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber) 0%, var(--amber-deep) 100%);
+  color: #12151a;
+  font-weight: 900;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.3);
+  cursor: default;
+}
+
+.topbar-email {
+  font-size: 0.78rem;
+  color: var(--muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-signout {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.topbar-signout:hover {
+  color: var(--danger);
+  border-color: rgba(255, 93, 93, 0.4);
+  background: rgba(255, 93, 93, 0.06);
+  transform: none;
+}
+
+/* ── Mobile hamburger ──────────────────────────────────── */
+.topbar-hamburger {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Mobile drawer ─────────────────────────────────────── */
+.topbar-drawer {
+  position: fixed;
+  top: 62px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  background: rgba(10, 13, 19, 0.97);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  overflow-y: auto;
+  animation: drawer-slide-down 0.22s ease-out;
+}
+
+@keyframes drawer-slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.drawer-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.drawer-link:hover,
+.drawer-link--active {
+  color: var(--amber);
+  background: rgba(240, 180, 41, 0.1);
+  border-color: rgba(240, 180, 41, 0.25);
+}
+
+.drawer-user {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* ── Responsive breakpoints ────────────────────────────── */
+@media (max-width: 1100px) {
+  .topbar-link-label { display: none; }
+  .topbar-link { padding: 0.45rem 0.55rem; }
+  .topbar-link-icon { font-size: 1.15rem; }
+}
+
+@media (max-width: 760px) {
+  .topbar-nav  { display: none; }
+  .topbar-user { display: none; }
+  .topbar-hamburger { display: flex; }
+}
+
+/* ── Role pill (legacy class used elsewhere) ───────────── */
+.role-pill {
+  background: rgba(240, 180, 41, 0.15);
+  color: var(--amber);
+  border: 1px solid rgba(240, 180, 41, 0.3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .main {
@@ -943,10 +1244,7 @@ button.danger-ghost {
   vertical-align: middle;
 }
 
-.topbar nav a {
-  display: inline-flex;
-  align-items: center;
-}
+/* .topbar nav a — replaced by .topbar-link in redesign */
 
 .map-quick-links {
   display: flex;
