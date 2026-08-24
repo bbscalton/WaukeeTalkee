@@ -1,10 +1,18 @@
-export type SolutionId = "taxi" | "concrete" | "security" | "field" | "family";
+export type SolutionId =
+  | "taxi"
+  | "concrete"
+  | "security"
+  | "field"
+  | "truck"
+  | "family"
+  | "retail";
 
 export type FeatureKey =
   | "map"
   | "inbox"
   | "replay"
   | "geofences"
+  | "routes"
   | "alerts"
   | "drivers"
   | "groups"
@@ -64,6 +72,7 @@ const ALL_FEATURES_ON: Record<FeatureKey, boolean> = {
   inbox: true,
   replay: true,
   geofences: true,
+  routes: true,
   alerts: true,
   drivers: true,
   groups: true,
@@ -85,6 +94,16 @@ const ALL_FEATURES_ON: Record<FeatureKey, boolean> = {
   exportCsv: false,
   guardTours: false,
   familyFeatures: false,
+};
+
+const PLANT_BILLING_OFF: Partial<Record<FeatureKey, boolean>> = {
+  plantQueue: false,
+  billingReports: false,
+  detentionBilling: false,
+  podSignature: false,
+  plantCheckIn: false,
+  loadTicketFields: false,
+  exportCsv: false,
 };
 
 const TAXI_LABELS: SolutionLabels = {
@@ -125,6 +144,101 @@ const CONCRETE_LABELS: SolutionLabels = {
   createBooking: "Create order",
 };
 
+const SECURITY_LABELS: SolutionLabels = {
+  appBrand: "Guard Watch",
+  map: "Live map",
+  inbox: "Inbox",
+  replay: "Map DVR",
+  geofences: "Posts & patrol points",
+  alerts: "Alerts",
+  drivers: "Guards",
+  groups: "Groups",
+  requestResponse: "Call & confirm",
+  bookings: "Patrols",
+  contacts: "Contacts",
+  onDuty: "on shift",
+  offDuty: "off shift",
+  assignDriver: "Assign guard",
+  newBooking: "New patrol",
+  createBooking: "Create patrol",
+};
+
+const FIELD_LABELS: SolutionLabels = {
+  appBrand: "Field Crew",
+  map: "Live map",
+  inbox: "Inbox",
+  replay: "Map DVR",
+  geofences: "Job sites",
+  alerts: "Alerts",
+  drivers: "Workers",
+  groups: "Groups",
+  requestResponse: "Call & confirm",
+  bookings: "Jobs",
+  contacts: "Contacts",
+  onDuty: "working",
+  offDuty: "off duty",
+  assignDriver: "Assign worker",
+  newBooking: "New job",
+  createBooking: "Create job",
+};
+
+const TRUCK_LABELS: SolutionLabels = {
+  appBrand: "Truck Fleet",
+  map: "Live map",
+  inbox: "Inbox",
+  replay: "Map DVR",
+  geofences: "Depots & stops",
+  alerts: "Alerts",
+  drivers: "Drivers",
+  groups: "Groups",
+  requestResponse: "Call & confirm",
+  bookings: "Stops",
+  contacts: "Contacts",
+  onDuty: "on route",
+  offDuty: "off route",
+  assignDriver: "Assign driver",
+  newBooking: "New stop",
+  createBooking: "Create stop",
+};
+
+const FAMILY_LABELS: SolutionLabels = {
+  appBrand: "Family Talk",
+  map: "Map",
+  inbox: "Messages",
+  replay: "History",
+  geofences: "Places",
+  alerts: "Alerts",
+  drivers: "Family members",
+  groups: "Circle",
+  requestResponse: "Check-in",
+  bookings: "Plans",
+  contacts: "Contacts",
+  onDuty: "checked in",
+  offDuty: "away",
+  assignDriver: "Notify member",
+  newBooking: "New plan",
+  createBooking: "Create plan",
+};
+
+const RETAIL_LABELS: SolutionLabels = {
+  appBrand: "Retail Team",
+  map: "Store map",
+  inbox: "Inbox",
+  replay: "Map DVR",
+  geofences: "Stores & departments",
+  alerts: "Alerts",
+  drivers: "Staff",
+  groups: "Groups",
+  requestResponse: "Call & confirm",
+  bookings: "Tasks",
+  contacts: "Contacts",
+  onDuty: "on shift",
+  offDuty: "off shift",
+  assignDriver: "Assign staff",
+  newBooking: "New task",
+  createBooking: "Create task",
+};
+
 export const SOLUTION_PROFILES: Record<SolutionId, SolutionProfile> = {
   taxi: {
     id: "taxi",
@@ -138,61 +252,97 @@ export const SOLUTION_PROFILES: Record<SolutionId, SolutionProfile> = {
     features: {
       ...ALL_FEATURES_ON,
       contacts: false,
-      plantQueue: false,
-      billingReports: false,
-      detentionBilling: false,
-      podSignature: false,
-      plantCheckIn: false,
-      loadTicketFields: false,
-      exportCsv: false,
+      routes: false,
       guardTours: false,
       familyFeatures: false,
+      ...PLANT_BILLING_OFF,
     },
     labels: CONCRETE_LABELS,
   },
   security: {
     id: "security",
-    displayName: "Security",
+    displayName: "Guard Watch",
     features: {
       ...ALL_FEATURES_ON,
       bookings: false,
-      plantQueue: false,
-      billingReports: false,
+      contacts: false,
+      vehicles: false,
+      manifests: false,
+      family: false,
+      reports: false,
+      routes: false,
+      guardTours: false,
       familyFeatures: false,
+      ...PLANT_BILLING_OFF,
     },
-    labels: TAXI_LABELS,
+    labels: SECURITY_LABELS,
   },
   field: {
     id: "field",
-    displayName: "Field crews",
+    displayName: "Field Crew",
     features: {
       ...ALL_FEATURES_ON,
-      bookings: false,
-      plantQueue: false,
-      billingReports: false,
+      vehicles: false,
+      manifests: false,
+      family: false,
+      routes: false,
+      guardTours: false,
+      familyFeatures: false,
+      ...PLANT_BILLING_OFF,
     },
-    labels: {
-      ...TAXI_LABELS,
-      drivers: "Crew",
-      geofences: "Sites",
+    labels: FIELD_LABELS,
+  },
+  truck: {
+    id: "truck",
+    displayName: "Truck Fleet",
+    features: {
+      ...ALL_FEATURES_ON,
+      contacts: false,
+      family: false,
+      guardTours: false,
+      familyFeatures: false,
+      routes: true,
+      ...PLANT_BILLING_OFF,
     },
+    labels: TRUCK_LABELS,
   },
   family: {
     id: "family",
-    displayName: "Family",
+    displayName: "Family Talk",
     features: {
       ...ALL_FEATURES_ON,
-      bookings: false,
+      map: false,
+      replay: false,
       geofences: false,
-      plantQueue: false,
-      billingReports: false,
+      routes: false,
+      alerts: false,
+      requestResponse: false,
+      bookings: false,
+      contacts: false,
+      vehicles: false,
+      manifests: false,
+      reports: false,
+      policeHazards: false,
       guardTours: false,
       familyFeatures: true,
+      ...PLANT_BILLING_OFF,
     },
-    labels: {
-      ...TAXI_LABELS,
-      drivers: "Members",
+    labels: FAMILY_LABELS,
+  },
+  retail: {
+    id: "retail",
+    displayName: "Retail Team",
+    features: {
+      ...ALL_FEATURES_ON,
+      vehicles: false,
+      manifests: false,
+      family: false,
+      routes: false,
+      guardTours: false,
+      familyFeatures: false,
+      ...PLANT_BILLING_OFF,
     },
+    labels: RETAIL_LABELS,
   },
 };
 
@@ -244,6 +394,12 @@ export const NAV_ROUTES: {
     labelKey: "bookings",
   },
   {
+    key: "contacts",
+    path: "/contacts",
+    feature: "contacts",
+    labelKey: "contacts",
+  },
+  {
     key: "vehicles",
     path: "/vehicles",
     feature: "vehicles",
@@ -259,7 +415,7 @@ export const NAV_ROUTES: {
     key: "family",
     path: "/family",
     feature: "family",
-    labelKey: "drivers",
+    labelKey: "groups",
   },
   {
     key: "reports",
@@ -275,14 +431,23 @@ export const NAV_ROUTES: {
   },
 ];
 
+const ORG_SOLUTION_MAP: Record<string, SolutionId> = {
+  demo: "taxi",
+  rebert: "concrete",
+  security: "security",
+  field: "field",
+  truck: "truck",
+  family: "family",
+  retail: "retail",
+};
+
 export function routeFeature(path: string): FeatureKey | null {
   const route = NAV_ROUTES.find((r) => r.path === path);
   return route?.feature ?? null;
 }
 
 export function inferSolutionFromOrgId(orgId: string): SolutionId | undefined {
-  if (orgId === "rebert") return "concrete";
-  return undefined;
+  return ORG_SOLUTION_MAP[orgId];
 }
 
 export function resolveSolutionProfile(
@@ -312,4 +477,9 @@ export function isFeatureEnabled(
   feature: FeatureKey
 ): boolean {
   return profile.features[feature] ?? false;
+}
+
+export function getDefaultRoute(profile: SolutionProfile): string {
+  const route = NAV_ROUTES.find((r) => isFeatureEnabled(profile, r.feature));
+  return route?.path ?? "/inbox";
 }

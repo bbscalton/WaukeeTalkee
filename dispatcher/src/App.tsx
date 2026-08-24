@@ -11,12 +11,13 @@ import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
 import { RadioInboxPage } from "./pages/RadioInboxPage";
 import { ReplayPage } from "./pages/ReplayPage";
+import { ContactsPage } from "./pages/ContactsPage";
 import { ManifestsPage } from "./pages/ManifestsPage";
 import { FamilyCirclesPage } from "./pages/FamilyCirclesPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { VehiclesPage } from "./pages/VehiclesPage";
 import { HazardsPage } from "./pages/HazardsPage";
-import { routeFeature } from "./solutionProfiles";
+import { getDefaultRoute, routeFeature } from "./solutionProfiles";
 import { SosProvider } from "./SosProvider";
 import { SolutionProfileProvider, useSolutionProfile } from "./useSolutionProfile";
 
@@ -35,7 +36,7 @@ function FeatureRoute({
   feature: ReturnType<typeof routeFeature>;
   children: React.ReactNode;
 }) {
-  const { isEnabled, loading } = useSolutionProfile();
+  const { isEnabled, loading, profile } = useSolutionProfile();
   const location = useLocation();
 
   if (loading) return <div className="auth-shell">Loading…</div>;
@@ -43,10 +44,16 @@ function FeatureRoute({
   const routeFeatureKey =
     feature ?? routeFeature(location.pathname.replace(/\/$/, "") || "/map");
   if (routeFeatureKey && !isEnabled(routeFeatureKey)) {
-    return <Navigate to="/map" replace />;
+    return <Navigate to={getDefaultRoute(profile)} replace />;
   }
 
   return children;
+}
+
+function DefaultRedirect() {
+  const { profile, loading } = useSolutionProfile();
+  if (loading) return <div className="auth-shell">Loading…</div>;
+  return <Navigate to={getDefaultRoute(profile)} replace />;
 }
 
 function AppRoutes() {
@@ -61,7 +68,7 @@ function AppRoutes() {
           </Protected>
         }
       >
-        <Route index element={<Navigate to="/map" replace />} />
+        <Route index element={<DefaultRedirect />} />
         <Route
           path="map"
           element={
@@ -131,6 +138,14 @@ function AppRoutes() {
           element={
             <FeatureRoute feature="bookings">
               <BookingsPage />
+            </FeatureRoute>
+          }
+        />
+        <Route
+          path="contacts"
+          element={
+            <FeatureRoute feature="contacts">
+              <ContactsPage />
             </FeatureRoute>
           }
         />

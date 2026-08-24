@@ -1,17 +1,21 @@
 import { type FormEvent, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth";
+import { ORG_ID } from "../firebase";
+import { getDefaultRoute } from "../solutionProfiles";
+import { useSolutionProfile } from "../useSolutionProfile";
 
 export function LoginPage() {
   const { user, loading, isDispatcher, login } = useAuth();
+  const { profile, loading: profileLoading } = useSolutionProfile();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState(() => searchParams.get("email") || "");
   const [password, setPassword] = useState(() => searchParams.get("password") || searchParams.get("pwd") || "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (!loading && user && isDispatcher) {
-    return <Navigate to="/map" replace />;
+  if (!loading && !profileLoading && user && isDispatcher) {
+    return <Navigate to={getDefaultRoute(profile)} replace />;
   }
 
   async function onSubmit(e: FormEvent) {
@@ -30,11 +34,11 @@ export function LoginPage() {
   return (
     <div className="auth-shell">
       <form className="auth-card" onSubmit={onSubmit}>
-        <p className="brand">Waukee Talkee</p>
+        <p className="brand">{profile.displayName}</p>
         <h1>Dispatcher console</h1>
         <p className="muted">
-          Sign in to call drivers on the radio map — hold to talk, live location,
-          pair codes.
+          Sign in to manage {profile.labels.drivers.toLowerCase()} — radio
+          push-to-talk, live location, and pair codes.
         </p>
         <label>
           Email
@@ -59,7 +63,7 @@ export function LoginPage() {
         {error && <p className="error">{error}</p>}
         {!loading && user && !isDispatcher && (
           <p className="error">
-            Signed in, but this account is not a dispatcher for org demo.
+            Signed in, but this account is not a dispatcher for org {ORG_ID}.
           </p>
         )}
         <button type="submit" disabled={busy}>

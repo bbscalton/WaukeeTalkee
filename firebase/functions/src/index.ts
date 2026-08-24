@@ -631,15 +631,66 @@ export const adminCreateOrg = onCall(async (request) => {
     settings: { speedUnit: "kmh" },
     createdAt: FieldValue.serverTimestamp(),
   };
-  
-  if (orgId === "rebert" || solution === "concrete") {
-    orgPayload.features = {
-      plantQueue: false,
-      billingReports: false,
-      detentionBilling: false,
-      podSignature: false,
+
+  const plantBillingOff = {
+    plantQueue: false,
+    billingReports: false,
+    detentionBilling: false,
+    podSignature: false,
+    plantCheckIn: false,
+    loadTicketFields: false,
+    exportCsv: false,
+  };
+
+  const solutionFeatures: Record<string, Record<string, boolean>> = {
+    concrete: { ...plantBillingOff, contacts: false, routes: false },
+    security: {
+      ...plantBillingOff,
+      bookings: false,
       contacts: false,
-    };
+      vehicles: false,
+      manifests: false,
+      family: false,
+      reports: false,
+      routes: false,
+    },
+    field: {
+      ...plantBillingOff,
+      vehicles: false,
+      manifests: false,
+      family: false,
+      routes: false,
+    },
+    truck: { ...plantBillingOff, contacts: false, family: false, routes: true },
+    family: {
+      ...plantBillingOff,
+      map: false,
+      replay: false,
+      geofences: false,
+      routes: false,
+      alerts: false,
+      requestResponse: false,
+      bookings: false,
+      contacts: false,
+      vehicles: false,
+      manifests: false,
+      reports: false,
+      policeHazards: false,
+      familyFeatures: true,
+    },
+    retail: {
+      ...plantBillingOff,
+      vehicles: false,
+      manifests: false,
+      family: false,
+      routes: false,
+    },
+  };
+
+  if (solutionFeatures[solution]) {
+    orgPayload.features = solutionFeatures[solution];
+  } else if (orgId === "rebert" || solution === "concrete") {
+    orgPayload.features = solutionFeatures.concrete;
   }
   
   await docRef.set(orgPayload);

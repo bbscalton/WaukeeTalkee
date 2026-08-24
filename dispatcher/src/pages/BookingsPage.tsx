@@ -95,6 +95,41 @@ export function BookingsPage() {
   const navigate = useNavigate();
   const { profile, label } = useSolutionProfile();
   const isConcrete = profile.id === "concrete";
+
+  function pickupLabel() {
+    switch (profile.id) {
+      case "concrete":
+        return "Plant / pickup";
+      case "field":
+        return "Job site / pickup";
+      case "truck":
+        return "Depot / pickup";
+      case "retail":
+        return "Store / pickup";
+      default:
+        return "Pickup";
+    }
+  }
+
+  function dropoffLabel() {
+    switch (profile.id) {
+      case "concrete":
+        return "Job site";
+      case "field":
+        return "Work location";
+      case "truck":
+        return "Stop";
+      case "retail":
+        return "Task location";
+      default:
+        return "Dropoff";
+    }
+  }
+
+  function assigneeLabel() {
+    if (isConcrete) return "Team member";
+    return label("drivers").replace(/s$/, "") || label("drivers");
+  }
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [statusFilter, setStatusFilter] = useState<"active" | BookingStatus | "all">(
@@ -509,11 +544,11 @@ export function BookingsPage() {
 
             <div className="booking-meta">
               <div>
-                <span className="list-label">{isConcrete ? "Plant / pickup" : "Pickup"}</span>
+                <span className="list-label">{pickupLabel()}</span>
                 <p>{b.pickupAddress}</p>
               </div>
               <div>
-                <span className="list-label">{isConcrete ? "Job site" : "Dropoff"}</span>
+                <span className="list-label">{dropoffLabel()}</span>
                 <p>{b.jobSiteName || b.dropoffAddress || "—"}</p>
               </div>
               {isConcrete && b.yards && (
@@ -523,7 +558,7 @@ export function BookingsPage() {
                 </div>
               )}
               <div>
-                <span className="list-label">{isConcrete ? "Team member" : "Driver"}</span>
+                <span className="list-label">{assigneeLabel()}</span>
                 <p>{driverName(b.assignedDriverId)}</p>
               </div>
             </div>

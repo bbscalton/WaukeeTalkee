@@ -185,6 +185,45 @@
         color: #66b2ff;
         border: 1px solid rgba(0, 123, 255, 0.3);
       }
+      .badge-sol.security {
+        background: rgba(79, 195, 247, 0.15);
+        color: #4fc3f7;
+        border: 1px solid rgba(79, 195, 247, 0.3);
+      }
+      .badge-sol.field {
+        background: rgba(76, 175, 80, 0.15);
+        color: #81c784;
+        border: 1px solid rgba(76, 175, 80, 0.3);
+      }
+      .badge-sol.truck {
+        background: rgba(240, 180, 41, 0.15);
+        color: var(--amber);
+        border: 1px solid rgba(240, 180, 41, 0.3);
+      }
+      .badge-sol.family {
+        background: rgba(186, 104, 200, 0.15);
+        color: #ce93d8;
+        border: 1px solid rgba(186, 104, 200, 0.3);
+      }
+      .badge-sol.retail {
+        background: rgba(255, 112, 67, 0.15);
+        color: #ff8a65;
+        border: 1px solid rgba(255, 112, 67, 0.3);
+      }
+      .solutions-hub-table td a {
+        color: var(--amber);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .solutions-hub-table td a:hover {
+        text-decoration: underline;
+      }
+      .solutions-hub-table .link-pair {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.85rem;
+      }
       .login-screen {
         max-width: 480px;
         margin: 6rem auto;
@@ -436,6 +475,29 @@
 
         <div id="global-alert" style="display: none; margin-bottom: 1.5rem;"></div>
 
+        <!-- Solutions directory hub -->
+        <div class="tcd-card full-width">
+          <h2>Waukee Talkee Solutions Hub <span>All verticals &amp; org IDs</span></h2>
+          <p class="muted" style="margin: 0; font-size: 0.9rem;">
+            Directory of every solution vertical — marketing landing page, dispatch console URL, and org ID for Firebase seeding.
+          </p>
+          <div class="tcd-table-container">
+            <table class="tcd-table solutions-hub-table">
+              <thead>
+                <tr>
+                  <th>Vertical</th>
+                  <th>Org ID</th>
+                  <th>Solution</th>
+                  <th>Marketing</th>
+                  <th>Dispatch console</th>
+                  <th>Key features</th>
+                </tr>
+              </thead>
+              <tbody id="solutions-hub-body"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="grid-dashboard">
           
           <!-- Dispatcher Accounts Table -->
@@ -553,8 +615,13 @@
                 <div class="form-group">
                   <label for="org-solution">Solution Profile</label>
                   <select id="org-solution" required>
-                    <option value="taxi">Taxi Dispatch</option>
+                    <option value="taxi">Taxi / Demo</option>
                     <option value="concrete">Concrete</option>
+                    <option value="security">Security guards</option>
+                    <option value="field">Field workers</option>
+                    <option value="truck">Truck drivers</option>
+                    <option value="family">Family communication</option>
+                    <option value="retail">Retail / store staff</option>
                   </select>
                 </div>
               </div>
@@ -569,14 +636,38 @@
           <!-- Launch Shortcuts & System Tools -->
           <div class="tcd-card">
             <h2>Direct Console Shortcuts</h2>
-            <div class="link-list">
+            <div class="link-list" id="vertical-shortcuts">
               <div class="link-item">
-                <span>Waukee Talkee Dispatch (Demo Org)</span>
+                <span>Waukee Talkee Demo (taxi)</span>
                 <a href="../app/?org=demo" target="_blank">Launch console</a>
               </div>
               <div class="link-item">
-                <span>Rebert Construction Dispatch</span>
+                <span>Rebert Construction (concrete)</span>
                 <a href="../app/?org=rebert" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Guard Watch (security)</span>
+                <a href="../app/?org=security" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Field Crew (field)</span>
+                <a href="../app/?org=field" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Truck Fleet (truck)</span>
+                <a href="../app/?org=truck" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Family Talk (family)</span>
+                <a href="../app/?org=family" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Retail Team (retail)</span>
+                <a href="../app/?org=retail" target="_blank">Launch console</a>
+              </div>
+              <div class="link-item">
+                <span>Default dispatch (no org param)</span>
+                <a href="../app/" target="_blank">Launch demo</a>
               </div>
               <div class="link-item">
                 <span>Firebase Authentication Console</span>
@@ -597,6 +688,11 @@
                 <select id="quick-launch-org" style="padding: 0.5rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line);">
                   <option value="demo">Org: demo</option>
                   <option value="rebert">Org: rebert</option>
+                  <option value="security">Org: security</option>
+                  <option value="field">Org: field</option>
+                  <option value="truck">Org: truck</option>
+                  <option value="family">Org: family</option>
+                  <option value="retail">Org: retail</option>
                 </select>
                 <input type="email" id="quick-launch-email" placeholder="email@domain.com" style="padding: 0.5rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line); font-size: 0.85rem;" />
               </div>
@@ -731,6 +827,36 @@
       let currentResetUid = null;
       let activeOrgsList = [];
 
+      const SOLUTION_VERTICALS = [
+        { orgId: "demo", name: "Waukee Talkee", solution: "taxi", marketing: "../", features: "Full taxi demo — map, bookings, contacts, fleet" },
+        { orgId: "rebert", name: "Rebert Construction", solution: "concrete", marketing: "../RebertConstruction/", features: "Concrete orders, plant & job sites, team roster" },
+        { orgId: "security", name: "Guard Watch", solution: "security", marketing: "../GuardWatch/", features: "Guards, patrol posts, call & confirm — no bookings" },
+        { orgId: "field", name: "Field Crew", solution: "field", marketing: "../FieldCrew/", features: "Workers, jobs, job sites, contacts directory" },
+        { orgId: "truck", name: "Truck Fleet", solution: "truck", marketing: "../TruckFleet/", features: "Routes, stops, manifests, depots, vehicles" },
+        { orgId: "family", name: "Family Talk", solution: "family", marketing: "../FamilyTalk/", features: "Inbox, circle, members — minimal fleet UI" },
+        { orgId: "retail", name: "Retail Team", solution: "retail", marketing: "../RetailTeam/", features: "Staff, tasks, stores & departments geofences" },
+      ];
+
+      function renderSolutionsHub() {
+        const hubBody = document.getElementById("solutions-hub-body");
+        if (!hubBody) return;
+        hubBody.innerHTML = SOLUTION_VERTICALS.map((v) => `
+          <tr>
+            <td><strong>${v.name}</strong></td>
+            <td style="font-family: monospace; font-weight: 700; color: var(--amber);">${v.orgId}</td>
+            <td><span class="badge-sol ${v.solution}">${v.solution}</span></td>
+            <td><a href="${v.marketing}" target="_blank">Landing page</a></td>
+            <td>
+              <div class="link-pair">
+                <a href="../app/?org=${v.orgId}" target="_blank">?org=${v.orgId}</a>
+              </div>
+            </td>
+            <td style="color: var(--muted); font-size: 0.85rem;">${v.features}</td>
+          </tr>
+        `).join("");
+      }
+      renderSolutionsHub();
+
       // Feature Toggle Control Elements & Constants
       const featureOrgSelect = document.getElementById("feature-org-select");
       const featureOrgLabel = document.getElementById("feature-org-label");
@@ -770,9 +896,19 @@
       ];
 
       function getDefaultFeatureState(solution, featureKey) {
-        if (featureKey === "contacts" && (solution === "concrete" || solution === "security" || solution === "field" || solution === "family")) {
-          return false;
-        }
+        const contactsOff = ["concrete", "security", "truck", "family"].includes(solution);
+        const bookingsOff = ["security", "family"].includes(solution);
+        const fleetOff = ["security", "field", "family", "retail"].includes(solution);
+        if (featureKey === "contacts" && contactsOff) return false;
+        if (featureKey === "bookings" && bookingsOff) return false;
+        if (featureKey === "vehicles" && fleetOff) return false;
+        if (featureKey === "manifests" && solution !== "truck" && solution !== "taxi") return false;
+        if (featureKey === "family" && solution !== "family" && solution !== "taxi") return false;
+        if (featureKey === "map" && solution === "family") return false;
+        if (featureKey === "replay" && solution === "family") return false;
+        if (featureKey === "geofences" && solution === "family") return false;
+        if (featureKey === "alerts" && solution === "family") return false;
+        if (featureKey === "requestResponse" && solution === "family") return false;
         return true;
       }
 

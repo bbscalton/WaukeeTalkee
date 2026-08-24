@@ -21,6 +21,7 @@ const NAV_ICONS: Record<string, string> = {
   groups:          "👥",
   requestResponse: "📞",
   bookings:        "📋",
+  contacts:        "📇",
   vehicles:        "🚙",
   manifests:       "📄",
   family:          "👨‍👩‍👧",

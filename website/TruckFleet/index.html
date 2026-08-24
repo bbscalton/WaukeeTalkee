@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Truck Fleet — Delivery &amp; route dispatch</title>
+    <meta
+      name="description"
+      content="Coordinate truck drivers with live map, route corridors, multi-stop manifests, depot geofences, and stop scheduling."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      .hero-vertical .hero-veil { background: linear-gradient(135deg, rgba(20, 16, 10, 0.94) 0%, rgba(32, 24, 12, 0.6) 50%, rgba(12, 10, 8, 0.9) 100%); }
+      .hero-vertical .hero-media { background: radial-gradient(900px 420px at 78% 12%, rgba(240, 180, 41, 0.16), transparent 60%), linear-gradient(160deg, #241c12 0%, #16120c 55%, #0c0a08 100%); }
+      .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+      .feature-card { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; }
+      .feature-card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+      .feature-card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <a class="top-brand" href="./">Truck Fleet</a>
+      <nav class="top-nav">
+        <a href="#features">Features</a>
+        <a href="../TCD/">Control desk</a>
+        <a class="top-cta" href="../app/?org=truck">Open dispatch</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero hero-vertical" aria-label="Truck Fleet">
+        <div class="hero-media" aria-hidden="true"><div class="hero-veil"></div></div>
+        <div class="hero-copy">
+          <p class="brand">Truck Fleet</p>
+          <h1>Truck dispatch, routes &amp; multi-stop delivery.</h1>
+          <p class="lede">Monitor drivers on route, plan corridor routes between depots and stops, assign multi-stop manifests, and coordinate with radio dispatch.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="../app/?org=truck">Open dispatch app</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk">Download dispatch APK</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk">Download driver APK</a>
+          </div>
+        </div>
+      </section>
+      <section class="band" id="features">
+        <div class="band-inner">
+          <h2>Built for trucking &amp; LTL.</h2>
+          <div class="feature-grid">
+            <article class="feature-card"><h3>Route corridors</h3><p>Save monitored routes between depots and checkpoints with off-route alerts.</p></article>
+            <article class="feature-card"><h3>Stops board</h3><p>Schedule pickups and deliveries as stops with driver assignment.</p></article>
+            <article class="feature-card"><h3>Multi-stop manifests</h3><p>Build sequential delivery routes with arrival and exception tracking.</p></article>
+            <article class="feature-card"><h3>Depots &amp; stops</h3><p>Geofence yards, terminals, and customer dock doors.</p></article>
+            <article class="feature-card"><h3>Vehicle registry</h3><p>Register truck units and link them to drivers.</p></article>
+            <article class="feature-card"><h3>Live fleet map</h3><p>See who is on route and replay the day with Map DVR.</p></article>
+          </div>
+        </div>
+      </section>
+      <section class="closer">
+        <h2>Launch truck dispatch.</h2>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="../app/?org=truck">Launch Truck Fleet dispatch</a>
+          <a class="btn btn-ghost" href="../TCD/">Technical control desk</a>
+        </div>
+      </section>
+    </main>
+    <footer class="foot">
+      <span>Truck Fleet · powered by Waukee Talkee</span>
+      <a href="../TCD/">TCD</a>
+      <a href="https://github.com/bbscalton/WaukeeTalkee">GitHub</a>
+    </footer>
+    <script src="../main.js"></script>
+  </body>
+</html>

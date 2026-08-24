@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retail Team — Store staff dispatch for hardware &amp; supermarkets</title>
+    <meta
+      name="description"
+      content="Coordinate retail floor staff, stock runs, and store deliveries with radio dispatch, store geofences, tasks, and shift management."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      .hero-vertical .hero-veil { background: linear-gradient(135deg, rgba(22, 16, 28, 0.94) 0%, rgba(30, 20, 36, 0.58) 50%, rgba(12, 10, 16, 0.9) 100%); }
+      .hero-vertical .hero-media { background: radial-gradient(900px 420px at 76% 12%, rgba(255, 112, 67, 0.14), transparent 60%), linear-gradient(160deg, #221828 0%, #14101a 55%, #0a080e 100%); }
+      .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+      .feature-card { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; }
+      .feature-card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+      .feature-card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <a class="top-brand" href="./">Retail Team</a>
+      <nav class="top-nav">
+        <a href="#features">Features</a>
+        <a href="../TCD/">Control desk</a>
+        <a class="top-cta" href="../app/?org=retail">Open dispatch</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero hero-vertical" aria-label="Retail Team">
+        <div class="hero-media" aria-hidden="true"><div class="hero-veil"></div></div>
+        <div class="hero-copy">
+          <p class="brand">Retail Team</p>
+          <h1>Store staff dispatch for hardware &amp; supermarkets.</h1>
+          <p class="lede">Coordinate floor staff, stock runs, and curbside delivery from one console — radio, live map, store geofences, and task assignments.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="../app/?org=retail">Open dispatch app</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk">Download dispatch APK</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk">Download staff APK</a>
+          </div>
+        </div>
+      </section>
+      <section class="band" id="features">
+        <div class="band-inner">
+          <h2>Built for retail operations.</h2>
+          <p class="band-lede">Perfect for hardware stores, supermarkets, and big-box retail — stock runs, floor coverage, manager dispatch, and store-to-customer delivery.</p>
+          <div class="feature-grid">
+            <article class="feature-card"><h3>Tasks board</h3><p>Assign stock pulls, floor resets, and customer pickup runs.</p></article>
+            <article class="feature-card"><h3>Stores &amp; departments</h3><p>Geofence locations, aisles, loading docks, and departments.</p></article>
+            <article class="feature-card"><h3>Staff roster</h3><p>See who is on shift and pair new staff devices quickly.</p></article>
+            <article class="feature-card"><h3>Radio dispatch</h3><p>Instant push-to-talk to floor teams without store PA overhead.</p></article>
+            <article class="feature-card"><h3>Call &amp; confirm</h3><p>Structured call-outs for urgent customer or stock requests.</p></article>
+            <article class="feature-card"><h3>Live store map</h3><p>Track staff location during curbside and delivery runs.</p></article>
+          </div>
+        </div>
+      </section>
+      <section class="closer">
+        <h2>Launch retail dispatch.</h2>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="../app/?org=retail">Launch Retail Team dispatch</a>
+          <a class="btn btn-ghost" href="../TCD/">Technical control desk</a>
+        </div>
+      </section>
+    </main>
+    <footer class="foot">
+      <span>Retail Team · powered by Waukee Talkee</span>
+      <a href="../TCD/">TCD</a>
+      <a href="https://github.com/bbscalton/WaukeeTalkee">GitHub</a>
+    </footer>
+    <script src="../main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Field Crew — Field worker dispatch &amp; job coordination</title>
+    <meta
+      name="description"
+      content="Coordinate field workers with radio dispatch, live map, job sites, scheduled jobs, contacts, and call-and-confirm workflows."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      .hero-vertical .hero-veil { background: linear-gradient(135deg, rgba(16, 24, 18, 0.94) 0%, rgba(20, 32, 22, 0.6) 50%, rgba(10, 14, 12, 0.88) 100%); }
+      .hero-vertical .hero-media { background: radial-gradient(900px 420px at 80% 10%, rgba(76, 175, 80, 0.14), transparent 60%), linear-gradient(160deg, #1a2820 0%, #121814 55%, #0a0e0c 100%); }
+      .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+      .feature-card { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; }
+      .feature-card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+      .feature-card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <a class="top-brand" href="./">Field Crew</a>
+      <nav class="top-nav">
+        <a href="#features">Features</a>
+        <a href="../TCD/">Control desk</a>
+        <a class="top-cta" href="../app/?org=field">Open dispatch</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero hero-vertical" aria-label="Field Crew">
+        <div class="hero-media" aria-hidden="true"><div class="hero-veil"></div></div>
+        <div class="hero-copy">
+          <p class="brand">Field Crew</p>
+          <h1>Field worker dispatch &amp; job site coordination.</h1>
+          <p class="lede">Assign jobs, track workers on site, and stay in radio contact — live map, job geofences, contacts directory, and structured call-outs.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="../app/?org=field">Open dispatch app</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk">Download dispatch APK</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk">Download worker APK</a>
+          </div>
+        </div>
+      </section>
+      <section class="band" id="features">
+        <div class="band-inner">
+          <h2>Built for crews in the field.</h2>
+          <div class="feature-grid">
+            <article class="feature-card"><h3>Jobs board</h3><p>Schedule and assign work orders with pickup, site, and notes.</p></article>
+            <article class="feature-card"><h3>Job site geofences</h3><p>Know when workers arrive and leave each location.</p></article>
+            <article class="feature-card"><h3>Worker roster</h3><p>Pair devices, see who is working, and manage speed limits.</p></article>
+            <article class="feature-card"><h3>Contacts</h3><p>Customer, vendor, and site contact directory with click-to-dispatch.</p></article>
+            <article class="feature-card"><h3>Radio + map</h3><p>Push-to-talk with live GPS on one dispatch console.</p></article>
+            <article class="feature-card"><h3>Map DVR</h3><p>Replay the day — where crews were and what was said on radio.</p></article>
+          </div>
+        </div>
+      </section>
+      <section class="closer">
+        <h2>Launch field dispatch.</h2>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="../app/?org=field">Launch Field Crew dispatch</a>
+          <a class="btn btn-ghost" href="../TCD/">Technical control desk</a>
+        </div>
+      </section>
+    </main>
+    <footer class="foot">
+      <span>Field Crew · powered by Waukee Talkee</span>
+      <a href="../TCD/">TCD</a>
+      <a href="https://github.com/bbscalton/WaukeeTalkee">GitHub</a>
+    </footer>
+    <script src="../main.js"></script>
+  </body>
+</html>

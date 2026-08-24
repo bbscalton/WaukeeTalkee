@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guard Watch — Security guard dispatch &amp; patrol coordination</title>
+    <meta
+      name="description"
+      content="Coordinate security guards with radio dispatch, live map, patrol posts, geofence alerts, and call-and-confirm workflows."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      .hero-vertical .hero-veil {
+        background: linear-gradient(135deg, rgba(12, 18, 28, 0.94) 0%, rgba(18, 28, 48, 0.6) 50%, rgba(10, 14, 22, 0.85) 100%);
+      }
+      .hero-vertical .hero-media {
+        background:
+          radial-gradient(900px 420px at 75% 15%, rgba(79, 195, 247, 0.14), transparent 60%),
+          linear-gradient(160deg, #141c2e 0%, #0e1218 55%, #080a0f 100%);
+      }
+      .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+      .feature-card { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; }
+      .feature-card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+      .feature-card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <a class="top-brand" href="./">Guard Watch</a>
+      <nav class="top-nav">
+        <a href="#features">Features</a>
+        <a href="../TCD/">Control desk</a>
+        <a class="top-cta" href="../app/?org=security">Open dispatch</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero hero-vertical" aria-label="Guard Watch">
+        <div class="hero-media" aria-hidden="true"><div class="hero-veil"></div></div>
+        <div class="hero-copy">
+          <p class="brand">Guard Watch</p>
+          <h1>Security guard dispatch &amp; patrol coordination.</h1>
+          <p class="lede">Manage guards on shift from one console — push-to-talk radio, live map, patrol posts, geofence alerts, and call-and-confirm check-ins.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="../app/?org=security">Open dispatch app</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk">Download dispatch APK</a>
+            <a class="btn btn-ghost" href="../downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk">Download guard APK</a>
+          </div>
+        </div>
+      </section>
+      <section class="band" id="features">
+        <div class="band-inner">
+          <h2>Built for security operations.</h2>
+          <p class="band-lede">Keep the radio habit guards already know — add GPS visibility, post geofences, and structured call-outs without a heavy guard-tour platform.</p>
+          <div class="feature-grid">
+            <article class="feature-card"><h3>Live map</h3><p>See guards on shift and their last known position in real time.</p></article>
+            <article class="feature-card"><h3>Radio dispatch</h3><p>Push-to-talk to guards and post leads from the browser or dispatch APK.</p></article>
+            <article class="feature-card"><h3>Posts &amp; patrol points</h3><p>Geofence gates, buildings, and patrol checkpoints for enter/leave alerts.</p></article>
+            <article class="feature-card"><h3>Call &amp; confirm</h3><p>Radio call-outs with guard voice confirmation within minutes.</p></article>
+            <article class="feature-card"><h3>Map DVR</h3><p>Replay guard movement and radio activity throughout the shift.</p></article>
+            <article class="feature-card"><h3>Guard roster</h3><p>Pair phones with codes, track on-shift status, and manage groups.</p></article>
+          </div>
+          <p class="muted" style="margin-top: 1.25rem; font-size: 0.9rem;">Guard tours &amp; incident reports — planned for phase 2.</p>
+        </div>
+      </section>
+      <section class="closer">
+        <h2>Run guard dispatch from anywhere.</h2>
+        <p>Sign in at <code>?org=security</code> with a dispatcher account linked to the security org. Guards install the driver APK and join with a pair code.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="../app/?org=security">Launch Guard Watch dispatch</a>
+          <a class="btn btn-ghost" href="../TCD/">Technical control desk</a>
+        </div>
+      </section>
+    </main>
+    <footer class="foot">
+      <span>Guard Watch · powered by Waukee Talkee</span>
+      <a href="../TCD/">TCD</a>
+      <a href="https://github.com/bbscalton/WaukeeTalkee">GitHub</a>
+    </footer>
+    <script src="../main.js"></script>
+  </body>
+</html>

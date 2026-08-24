@@ -32,7 +32,8 @@ function mapTypeForMode(mode: MapMode): string {
 }
 
 export function GeofencesPage() {
-  const { label, profile } = useSolutionProfile();
+  const { label, profile, isEnabled } = useSolutionProfile();
+  const showRoutes = isEnabled("routes");
   const isConcrete = profile.id === "concrete";
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -572,6 +573,8 @@ export function GeofencesPage() {
           </ul>
         </div>
 
+        {showRoutes && (
+        <>
         <div className="panel">
           <p className="map-kicker">Saved route</p>
           <form className="stack-form" onSubmit={(e) => void saveRoute(e)}>
@@ -707,6 +710,8 @@ export function GeofencesPage() {
             ))}
           </ul>
         </div>
+        </>
+        )}
       </aside>
 
       <div className="map-stage">
