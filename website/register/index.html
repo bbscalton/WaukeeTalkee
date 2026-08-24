@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Get Waukee Talkee — Register your team</title>
+    <meta
+      name="description"
+      content="Register for Waukee Talkee. Pick your world — security, field, truck, family, retail, concrete, or taxi — and we'll provision your branded dispatch console."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="./register.css" />
+  </head>
+  <body class="reg-body">
+    <header class="top">
+      <a class="top-brand" href="../">Waukee Talkee</a>
+      <nav class="top-nav">
+        <a href="#picker">Solutions</a>
+        <a href="../TCD/">Control desk</a>
+        <a class="top-cta" href="#flow">Get started</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Step 0: Hero -->
+      <section class="reg-hero" id="top" data-step-panel="0">
+        <div class="reg-hero-atmosphere" aria-hidden="true">
+          <div class="reg-grid-scan"></div>
+          <div class="reg-pulse"></div>
+        </div>
+        <div class="reg-hero-copy">
+          <p class="brand reg-brand-mark">Waukee Talkee</p>
+          <h1>Get Waukee Talkee for your team.</h1>
+          <p class="lede">
+            Pick your world. Configure your brand. We review, then your console
+            and marketing site go live — tailored to how you work.
+          </p>
+          <div class="cta-row">
+            <button type="button" class="btn btn-primary" id="start-btn">
+              Pick your world
+            </button>
+            <a class="btn btn-ghost" href="../sites/?org=demo">See a live demo site</a>
+          </div>
+          <p class="reg-hero-meta">Seven verticals · One radio-simple platform · Admin-approved activation</p>
+        </div>
+      </section>
+
+      <!-- Configurator shell -->
+      <section class="reg-flow" id="flow" hidden>
+        <div class="reg-progress" aria-label="Registration progress">
+          <div class="reg-progress-track">
+            <div class="reg-progress-fill" id="progress-fill"></div>
+          </div>
+          <ol class="reg-steps-label">
+            <li data-step-label="1" class="is-active">World</li>
+            <li data-step-label="2">Details</li>
+            <li data-step-label="3">Brand</li>
+            <li data-step-label="4">Review</li>
+          </ol>
+        </div>
+
+        <div class="reg-layout">
+          <div class="reg-main">
+            <!-- Step 1: Solution picker -->
+            <div class="reg-panel is-active" data-step-panel="1" id="picker">
+              <header class="reg-panel-head">
+                <h2>Which world are you in?</h2>
+                <p>One solution. Built for how your team actually moves.</p>
+              </header>
+              <div class="sol-grid" id="sol-grid" role="listbox" aria-label="Solution verticals"></div>
+            </div>
+
+            <!-- Step 2: Common + solution fields -->
+            <div class="reg-panel" data-step-panel="2">
+              <header class="reg-panel-head">
+                <h2>Tell us about your team</h2>
+                <p id="step2-sub">We'll shape your console from this.</p>
+              </header>
+              <form class="reg-form" id="details-form" autocomplete="on">
+                <div class="reg-form-grid">
+                  <label class="reg-field">
+                    <span id="name-label">Company name</span>
+                    <input type="text" name="companyName" id="companyName" required maxlength="80" placeholder="Acme Security" />
+                  </label>
+                  <label class="reg-field">
+                    <span>Contact name</span>
+                    <input type="text" name="contactName" id="contactName" required maxlength="80" placeholder="Jordan Lee" />
+                  </label>
+                  <label class="reg-field">
+                    <span>Work email</span>
+                    <input type="email" name="email" id="email" required maxlength="120" placeholder="jordan@acme.com" />
+                  </label>
+                  <label class="reg-field">
+                    <span>Phone</span>
+                    <input type="tel" name="phone" id="phone" maxlength="40" placeholder="+1 515 555 0100" />
+                  </label>
+                  <label class="reg-field">
+                    <span>City</span>
+                    <input type="text" name="city" id="city" required maxlength="80" placeholder="Des Moines" />
+                  </label>
+                  <label class="reg-field">
+                    <span>Region / state</span>
+                    <input type="text" name="region" id="region" maxlength="80" placeholder="IA" />
+                  </label>
+                  <label class="reg-field">
+                    <span id="team-label">Team size</span>
+                    <input type="number" name="teamSize" id="teamSize" min="1" max="10000" value="12" required />
+                  </label>
+                  <label class="reg-field">
+                    <span>Website <em>(optional)</em></span>
+                    <input type="url" name="websiteUrl" id="websiteUrl" maxlength="200" placeholder="https://" />
+                  </label>
+                </div>
+                <div class="reg-solution-fields" id="solution-fields"></div>
+              </form>
+            </div>
+
+            <!-- Step 3: Brand -->
+            <div class="reg-panel" data-step-panel="3">
+              <header class="reg-panel-head">
+                <h2>Make it yours</h2>
+                <p>Brand color + tagline — your live site preview updates instantly.</p>
+              </header>
+              <div class="reg-form-grid">
+                <label class="reg-field">
+                  <span>Brand color</span>
+                  <div class="reg-color-row">
+                    <input type="color" id="brandColorPicker" value="#f0b429" />
+                    <input type="text" id="brandColor" value="#f0b429" pattern="^#[0-9A-Fa-f]{6}$" maxlength="7" />
+                  </div>
+                </label>
+                <label class="reg-field reg-field-span">
+                  <span>Tagline</span>
+                  <input type="text" id="tagline" maxlength="160" placeholder="Your one-line promise" />
+                </label>
+                <label class="reg-field">
+                  <span>Preferred org ID <em>(optional)</em></span>
+                  <input type="text" id="orgSlug" maxlength="40" pattern="^[a-z0-9_-]*$" placeholder="acme-security" />
+                  <small class="reg-hint">Lowercase letters, numbers, hyphens. Used in <code>?org=</code> URLs.</small>
+                </label>
+              </div>
+              <div class="reg-swatches" id="swatches" aria-label="Suggested colors"></div>
+            </div>
+
+            <!-- Step 4: Review + submit -->
+            <div class="reg-panel" data-step-panel="4">
+              <header class="reg-panel-head">
+                <h2>Ready for review</h2>
+                <p>Submit and we'll activate your console after approval.</p>
+              </header>
+              <div class="reg-review" id="review-summary"></div>
+              <p class="reg-legal">
+                By submitting you agree we may contact you about activation.
+                No charge until you're approved and live.
+              </p>
+              <div id="submit-error" class="reg-alert reg-alert-error" hidden></div>
+            </div>
+
+            <!-- Confirmation -->
+            <div class="reg-panel" data-step-panel="5">
+              <div class="reg-confirm">
+                <div class="reg-confirm-mark" aria-hidden="true">✓</div>
+                <h2>You're in the queue</h2>
+                <p class="lede">We'll review and activate your console. Keep this reference ID.</p>
+                <p class="reg-ref" id="confirm-ref">—</p>
+                <p class="muted" id="confirm-org"></p>
+                <div class="cta-row">
+                  <a class="btn btn-primary" href="../">Back to Waukee Talkee</a>
+                  <a class="btn btn-ghost" href="../sites/?org=demo">Preview a demo site</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="reg-nav" id="reg-nav">
+              <button type="button" class="btn btn-ghost" id="back-btn" hidden>Back</button>
+              <button type="button" class="btn btn-primary" id="next-btn">Continue</button>
+            </div>
+          </div>
+
+          <!-- Live preview -->
+          <aside class="reg-preview" aria-label="Live site preview">
+            <div class="reg-preview-chrome">
+              <span class="reg-preview-dot"></span>
+              <span class="reg-preview-dot"></span>
+              <span class="reg-preview-dot"></span>
+              <span class="reg-preview-url" id="preview-url">sites/?org=your-team</span>
+            </div>
+            <div class="reg-preview-frame" id="preview-frame">
+              <div class="pv-hero">
+                <div class="pv-mark" id="pv-mark">WT</div>
+                <p class="pv-brand" id="pv-brand">Your company</p>
+                <h3 class="pv-headline" id="pv-headline">Your headline goes here.</h3>
+                <p class="pv-tag" id="pv-tag">Your tagline will appear live as you type.</p>
+                <div class="pv-cta" id="pv-cta">Open dispatch</div>
+              </div>
+              <ul class="pv-features" id="pv-features"></ul>
+              <p class="pv-meta" id="pv-meta">City · Team</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>Waukee Talkee · Get started</span>
+      <a href="../TCD/">TCD</a>
+      <a href="../sites/?org=demo">Demo site</a>
+    </footer>
+
+    <script type="module" src="./register.js"></script>
+  </body>
+</html>

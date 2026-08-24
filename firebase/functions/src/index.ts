@@ -13,6 +13,13 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 
 export { onDriverTelemetryWritten } from "./fleetCompliance";
 export { onDriverRadioReply, expireRadioRequests } from "./radioRequests";
+export {
+  submitRegistration,
+  listRegistrations,
+  approveRegistration,
+  rejectRegistration,
+  backfillPublicSites,
+} from "./registrations";
 
 initializeApp();
 setGlobalOptions({ region: "us-central1" });

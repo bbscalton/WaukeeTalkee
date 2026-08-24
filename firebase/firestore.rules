@@ -102,6 +102,31 @@ service cloud.firestore {
       return request.resource.data.type in ['home_base', 'checkpoint'];
     }
 
+    // Customer self-registration queue (writes via submitRegistration callable / validated create)
+    match /registrations/{regId} {
+      allow create: if request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasAll([
+          'status', 'solution', 'orgId', 'companyName', 'contactName',
+          'email', 'city', 'teamSize', 'brandColor', 'createdAt'
+        ])
+        && request.resource.data.solution in [
+          'taxi', 'concrete', 'security', 'field', 'truck', 'family', 'retail'
+        ]
+        && request.resource.data.companyName is string
+        && request.resource.data.companyName.size() > 0
+        && request.resource.data.companyName.size() <= 80
+        && request.resource.data.email is string
+        && request.resource.data.orgId is string
+        && request.resource.data.orgId.matches('^[a-z0-9_-]+$');
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Public tenant marketing sites — readable by anyone; writes Admin SDK only
+    match /publicSites/{orgId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /orgs/{orgId} {
       allow read: if isDispatcher(orgId)
         || (signedIn() && token().role == 'driver' && token().orgId == orgId);

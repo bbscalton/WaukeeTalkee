@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Waukee Talkee — Customer site</title>
+    <meta name="description" content="Branded dispatch landing powered by Waukee Talkee." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      :root {
+        --site-accent: #f0b429;
+      }
+      body.site-loading .site-shell { opacity: 0; }
+      .site-shell {
+        opacity: 1;
+        transition: opacity 0.35s ease;
+      }
+      .site-hero {
+        position: relative;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: flex-end;
+        padding: 0 1.5rem 4rem;
+        overflow: hidden;
+      }
+      .site-hero-bg {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(900px 420px at 78% 8%, color-mix(in srgb, var(--site-accent) 22%, transparent), transparent 60%),
+          radial-gradient(600px 360px at -5% 30%, rgba(60, 80, 110, 0.3), transparent 55%),
+          linear-gradient(165deg, #0e1116 0%, #161b22 50%, #0a0c10 100%);
+      }
+      .site-hero-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(243, 239, 230, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(243, 239, 230, 0.035) 1px, transparent 1px);
+        background-size: 52px 52px;
+        mask-image: radial-gradient(ellipse 75% 65% at 55% 35%, #000 15%, transparent 75%);
+        animation: siteGrid 30s linear infinite;
+      }
+      @keyframes siteGrid {
+        from { transform: translateY(0); }
+        to { transform: translateY(52px); }
+      }
+      .site-hero-copy {
+        position: relative;
+        z-index: 2;
+        max-width: 720px;
+        animation: siteIn 0.65s ease both;
+      }
+      @keyframes siteIn {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .site-mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: var(--site-accent);
+        color: #12151a;
+        font-family: var(--font-display);
+        font-size: 1.25rem;
+        display: grid;
+        place-items: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 8px 24px color-mix(in srgb, var(--site-accent) 35%, transparent);
+      }
+      .site-hero-copy .brand {
+        font-size: clamp(2.6rem, 7vw, 4.2rem) !important;
+        margin: 0 0 0.4rem !important;
+        line-height: 0.95;
+      }
+      .site-hero-copy h1 {
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        font-size: clamp(1.5rem, 4vw, 2.4rem);
+        margin: 0 0 0.85rem;
+        line-height: 1.1;
+      }
+      .site-hero-copy .lede {
+        color: var(--muted);
+        max-width: 34rem;
+        margin: 0 0 1.35rem;
+        font-size: 1.05rem;
+      }
+      .site-meta-chip {
+        display: inline-flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(185, 176, 162, 0.85);
+      }
+      .site-meta-chip span {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.25rem 0.7rem;
+        background: rgba(18, 21, 26, 0.5);
+      }
+      .btn-primary {
+        background: var(--site-accent) !important;
+        color: #12151a !important;
+      }
+      .top-cta {
+        background: var(--site-accent) !important;
+        color: #12151a !important;
+      }
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.85rem;
+        margin-top: 1.5rem;
+      }
+      .feature-card {
+        background: var(--asphalt-2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1.05rem 1.15rem;
+        border-top: 2px solid var(--site-accent);
+        transition: transform 0.25s ease;
+      }
+      .feature-card:hover { transform: translateY(-2px); }
+      .feature-card h3 {
+        margin: 0 0 0.3rem;
+        font-size: 0.98rem;
+      }
+      .feature-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .site-error, .site-empty {
+        min-height: 70vh;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 2rem;
+      }
+      .site-error h1, .site-empty h1 {
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        font-size: 2rem;
+      }
+      .band-accent {
+        color: var(--site-accent);
+      }
+    </style>
+  </head>
+  <body class="site-loading">
+    <div id="boot" class="site-empty">
+      <div>
+        <p class="muted">Loading your site…</p>
+      </div>
+    </div>
+
+    <div class="site-shell" id="site-shell" hidden>
+      <header class="top">
+        <a class="top-brand" href="#" id="nav-brand">—</a>
+        <nav class="top-nav">
+          <a href="#features">Features</a>
+          <a href="../register/">Get started</a>
+          <a class="top-cta" href="#" id="nav-cta">Open dispatch</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="site-hero" aria-label="Company hero">
+          <div class="site-hero-bg" aria-hidden="true">
+            <div class="site-hero-grid"></div>
+          </div>
+          <div class="site-hero-copy">
+            <div class="site-mark" id="site-mark">WT</div>
+            <p class="brand" id="site-brand">Company</p>
+            <h1 id="site-headline">Headline</h1>
+            <p class="lede" id="site-tagline">Tagline</p>
+            <div class="site-meta-chip" id="site-chips"></div>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="#" id="hero-cta">Open dispatch</a>
+              <a
+                class="btn btn-ghost"
+                href="../downloads/WaukeeTalkee-dispatcher.apk"
+                download="WaukeeTalkee-dispatcher.apk"
+                >Dispatch APK</a
+              >
+              <a
+                class="btn btn-ghost"
+                href="../downloads/WaukeeTalkee-driver.apk"
+                download="WaukeeTalkee-driver.apk"
+                >Mobile APK</a
+              >
+            </div>
+          </div>
+        </section>
+
+        <section class="band" id="features">
+          <div class="band-inner">
+            <h2>Built for <span class="band-accent" id="feat-solution">your team</span>.</h2>
+            <p class="band-lede" id="feat-promise">Radio-simple coordination with live location and confirmations.</p>
+            <div class="feature-grid" id="feat-grid"></div>
+          </div>
+        </section>
+
+        <section class="closer">
+          <h2 id="closer-title">Run dispatch from anywhere.</h2>
+          <p id="closer-copy">Sign in with your org link. Pair phones with a code. Speak the job.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="#" id="closer-cta">Launch console</a>
+            <a class="btn btn-ghost" href="../register/">Register your team</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <span id="foot-brand">Powered by Waukee Talkee</span>
+        <a href="../register/">Get started</a>
+        <a href="../TCD/">TCD</a>
+      </footer>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+      const firebaseConfig = {
+        projectId: "waukee-talkee",
+        appId: "1:646612669697:web:c52e13f2537b37dea5f700",
+        storageBucket: "waukee-talkee.firebasestorage.app",
+        apiKey: "AIzaSyDMCwYgXmgeUxES9Fz92FambCsCZi9X1EI",
+        authDomain: "waukee-talkee.firebaseapp.com",
+        messagingSenderId: "646612669697",
+      };
+
+      const FALLBACK = {
+        taxi: {
+          productName: "Waukee Talkee",
+          headline: "Dispatch that feels like a radio.",
+          promise: "Pair drivers, speak the job, track the fleet live.",
+          features: ["Live radio map", "Push-to-talk inbox", "Bookings & contacts", "Call & confirm", "Map DVR replay", "Fleet alerts"],
+          ctaLabel: "Open dispatch",
+          teamNoun: "drivers",
+          brandColor: "#f0b429",
+        },
+        concrete: {
+          productName: "Concrete Dispatch",
+          headline: "Plant-to-pour coordination without the chaos.",
+          promise: "Orders, mixers, and job sites on one radio console.",
+          features: ["Live mixer map", "Pour orders", "Plant & job sites", "Team radio", "Call & confirm", "Shift alerts"],
+          ctaLabel: "Open plant console",
+          teamNoun: "mixers",
+          brandColor: "#f0b429",
+        },
+        security: {
+          productName: "Guard Watch",
+          headline: "Security guard dispatch & patrol coordination.",
+          promise: "Posts, patrols, and radio check-ins from one console.",
+          features: ["Live guard map", "Posts & patrol points", "Push-to-talk radio", "Call & confirm", "Geofence alerts", "Map DVR"],
+          ctaLabel: "Open Guard Watch",
+          teamNoun: "guards",
+          brandColor: "#4fc3f7",
+        },
+        field: {
+          productName: "Field Crew",
+          headline: "Field workers, jobs, and sites — radio-simple.",
+          promise: "Assign jobs, ping crews, see who's on site.",
+          features: ["Live crew map", "Job assignments", "Job site geofences", "Radio dispatch", "Contacts directory", "Call & confirm"],
+          ctaLabel: "Open Field Crew",
+          teamNoun: "workers",
+          brandColor: "#4caf50",
+        },
+        truck: {
+          productName: "Truck Fleet",
+          headline: "Routes, stops, and radio for the road.",
+          promise: "Manifests, depots, and drivers on one dispatch desk.",
+          features: ["Live fleet map", "Multi-stop manifests", "Depots & corridors", "Vehicles roster", "Radio dispatch", "Route alerts"],
+          ctaLabel: "Open Truck Fleet",
+          teamNoun: "trucks",
+          brandColor: "#f0b429",
+        },
+        family: {
+          productName: "Family Talk",
+          headline: "Stay close. Check in. Stay safe.",
+          promise: "Family radio, circle check-ins, and quiet peace of mind.",
+          features: ["Family inbox", "Circle members", "Safe check-in", "Emergency broadcast", "Simple pairing", "No fleet clutter"],
+          ctaLabel: "Open Family Talk",
+          teamNoun: "members",
+          brandColor: "#e8a87c",
+        },
+        retail: {
+          productName: "Retail Team",
+          headline: "Store staff coordination that keeps the floor moving.",
+          promise: "Tasks, departments, and radio for every location.",
+          features: ["Store map", "Staff roster", "Task board", "Department geofences", "Push-to-talk", "Shift alerts"],
+          ctaLabel: "Open Retail Team",
+          teamNoun: "staff",
+          brandColor: "#ff7043",
+        },
+      };
+
+      const params = new URLSearchParams(location.search);
+      const orgId = (params.get("org") || "").trim().toLowerCase();
+      const boot = document.getElementById("boot");
+      const shell = document.getElementById("site-shell");
+
+      function showError(title, msg) {
+        boot.className = "site-error";
+        boot.innerHTML = `<div>
+          <h1>${title}</h1>
+          <p class="muted">${msg}</p>
+          <div class="cta-row" style="justify-content:center;margin-top:1.25rem">
+            <a class="btn btn-primary" href="../register/">Register</a>
+            <a class="btn btn-ghost" href="./?org=demo">Try demo</a>
+          </div>
+        </div>`;
+        document.body.classList.remove("site-loading");
+      }
+
+      function initials(name) {
+        const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return "WT";
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+
+      function render(site) {
+        const solution = site.solution || "taxi";
+        const fb = FALLBACK[solution] || FALLBACK.taxi;
+        const name = site.companyName || site.displayName || orgId;
+        const accent = site.brandColor || fb.brandColor;
+        const tagline = site.tagline || fb.promise;
+        const headline = site.headline || fb.headline;
+        const features = Array.isArray(site.features) && site.features.length ? site.features : fb.features;
+        const cta = site.ctaLabel || fb.ctaLabel;
+        const teamNoun = site.teamNoun || fb.teamNoun;
+        const appHref = `../app/?org=${encodeURIComponent(orgId)}`;
+
+        document.documentElement.style.setProperty("--site-accent", accent);
+        document.title = `${name} — ${fb.productName || "Waukee Talkee"}`;
+        document.querySelector('meta[name="description"]')?.setAttribute("content", tagline);
+
+        document.getElementById("nav-brand").textContent = name;
+        document.getElementById("nav-brand").href = `./?org=${encodeURIComponent(orgId)}`;
+        document.getElementById("site-mark").textContent = site.initials || initials(name);
+        document.getElementById("site-brand").textContent = name;
+        document.getElementById("site-headline").textContent = headline;
+        document.getElementById("site-tagline").textContent = tagline;
+
+        const chips = [];
+        if (site.city) chips.push(`${site.city}${site.region ? ", " + site.region : ""}`);
+        if (site.teamSize) chips.push(`${site.teamSize} ${teamNoun}`);
+        chips.push(solution);
+        document.getElementById("site-chips").innerHTML = chips.map((c) => `<span>${c}</span>`).join("");
+
+        ["nav-cta", "hero-cta", "closer-cta"].forEach((id) => {
+          const a = document.getElementById(id);
+          a.href = appHref;
+          if (id !== "nav-cta") a.textContent = cta;
+          else a.textContent = "Open dispatch";
+        });
+
+        document.getElementById("feat-solution").textContent = fb.productName || solution;
+        document.getElementById("feat-promise").textContent = site.promise || fb.promise;
+        document.getElementById("feat-grid").innerHTML = features
+          .map(
+            (f) =>
+              `<article class="feature-card"><h3>${f}</h3><p>Included with your ${name} console.</p></article>`
+          )
+          .join("");
+
+        document.getElementById("closer-title").textContent = `Run ${name} from anywhere.`;
+        document.getElementById("closer-copy").textContent =
+          `Sign in at ?org=${orgId}. Pair phones with a code. Speak the job — radio-simple.`;
+        document.getElementById("foot-brand").textContent = `${name} · powered by Waukee Talkee`;
+
+        boot.hidden = true;
+        shell.hidden = false;
+        document.body.classList.remove("site-loading");
+      }
+
+      if (!orgId) {
+        showError("Pick an organization", "Add ?org=your-id to this URL, or register a new team.");
+      } else {
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        getDoc(doc(db, "publicSites", orgId))
+          .then((snap) => {
+            if (!snap.exists()) {
+              showError(
+                "Site not found",
+                `No public site for org “${orgId}”. It may still be pending approval.`
+              );
+              return;
+            }
+            render({ orgId, ...snap.data() });
+          })
+          .catch((err) => {
+            console.error(err);
+            showError("Could not load site", err.message || "Check your connection and try again.");
+          });
+      }
+    </script>
+  </body>
+</html>

@@ -433,13 +433,123 @@
         transform: translateX(22px);
         background-color: #12151a;
       }
+      .reg-queue {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .reg-item {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--asphalt);
+        padding: 1rem 1.15rem;
+        display: grid;
+        gap: 0.85rem;
+      }
+      @media (min-width: 900px) {
+        .reg-item {
+          grid-template-columns: 1fr minmax(220px, 280px);
+          align-items: start;
+        }
+      }
+      .reg-item-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+      .reg-item-head strong {
+        font-size: 1.05rem;
+      }
+      .reg-meta {
+        display: grid;
+        gap: 0.25rem;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .reg-meta code {
+        color: var(--amber);
+        font-size: 0.85rem;
+      }
+      .reg-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .reg-preview-mini {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #0a0c10;
+        min-height: 160px;
+      }
+      .reg-preview-mini .rpm-hero {
+        padding: 0.9rem;
+        background: radial-gradient(140px 80px at 90% 0%, color-mix(in srgb, var(--rpm-accent, #f0b429) 30%, transparent), transparent 70%),
+          linear-gradient(165deg, #12151a, #0e1116);
+      }
+      .reg-preview-mini .rpm-mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--rpm-accent, #f0b429);
+        color: #12151a;
+        font-family: var(--font-display);
+        font-size: 0.85rem;
+        display: grid;
+        place-items: center;
+        margin-bottom: 0.5rem;
+      }
+      .reg-preview-mini .rpm-brand {
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        font-size: 1.1rem;
+        margin: 0 0 0.25rem;
+        line-height: 1;
+      }
+      .reg-preview-mini .rpm-tag {
+        margin: 0;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .badge-status {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 0.2rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 700;
+      }
+      .badge-status.pending { background: rgba(240, 180, 41, 0.2); color: var(--amber); }
+      .badge-status.approved { background: rgba(76, 175, 80, 0.2); color: #81c784; }
+      .badge-status.rejected { background: rgba(220, 53, 69, 0.2); color: #ff8a95; }
+      .reg-filter-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .reg-filter-row select {
+        background: var(--asphalt);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.4rem 0.65rem;
+        color: var(--ink);
+        font-family: var(--font-body);
+      }
     </style>
   </head>
   <body>
     <!-- Top Header -->
     <header class="top">
       <a class="top-brand" href="../">Waukee Talkee</a>
-      <span class="top-nav" style="color: var(--muted); font-size: 0.95rem; font-weight: 600;">TECHNICAL CONTROL DESK</span>
+      <nav class="top-nav">
+        <a href="../register/">Register</a>
+        <a href="../sites/?org=demo">Sites</a>
+        <span style="color: var(--muted); font-size: 0.95rem; font-weight: 600;">TECHNICAL CONTROL DESK</span>
+      </nav>
     </header>
 
     <main class="tcd-container">
@@ -474,6 +584,29 @@
         </div>
 
         <div id="global-alert" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <!-- Pending customer registrations -->
+        <div class="tcd-card full-width" id="registrations-card">
+          <h2>
+            Pending Registrations
+            <span id="reg-count">Loading…</span>
+          </h2>
+          <div class="reg-filter-row">
+            <label for="reg-status-filter" class="muted" style="font-size: 0.85rem;">Show</label>
+            <select id="reg-status-filter">
+              <option value="pending" selected>Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="">All</option>
+            </select>
+            <button type="button" class="btn-sm btn-secondary" id="reg-refresh-btn">Refresh</button>
+            <button type="button" class="btn-sm btn-secondary" id="backfill-sites-btn">Backfill public sites</button>
+            <a class="btn-sm btn-secondary" href="../register/" target="_blank" style="text-decoration:none;">Open register form</a>
+          </div>
+          <div class="reg-queue" id="reg-queue">
+            <p class="muted" style="margin:0;text-align:center;padding:1.5rem;">Loading registrations…</p>
+          </div>
+        </div>
 
         <!-- Solutions directory hub -->
         <div class="tcd-card full-width">
@@ -1123,9 +1256,156 @@
       async function loadDashboard() {
         await Promise.all([
           loadOrgs(),
-          loadDispatchers()
+          loadDispatchers(),
+          loadRegistrations()
         ]);
       }
+
+      function initialsFromName(name) {
+        const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return "WT";
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+
+      function escapeHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      async function loadRegistrations() {
+        const queue = document.getElementById("reg-queue");
+        const countEl = document.getElementById("reg-count");
+        const filter = document.getElementById("reg-status-filter")?.value ?? "pending";
+        try {
+          const listFn = httpsCallable(functions, "listRegistrations");
+          const res = await listFn({ status: filter || undefined });
+          const regs = res.data.registrations || [];
+          countEl.innerText = `(${regs.length})`;
+          if (!regs.length) {
+            queue.innerHTML = `<p class="muted" style="margin:0;text-align:center;padding:1.5rem;">No ${filter || ""} registrations.</p>`;
+            return;
+          }
+          queue.innerHTML = regs.map((r) => {
+            const accent = r.brandColor || "#f0b429";
+            const when = r.createdAt ? new Date(r.createdAt).toLocaleString() : "—";
+            const fields = Object.entries(r.solutionFields || {})
+              .filter(([, v]) => v)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(" · ");
+            const actions =
+              r.status === "pending"
+                ? `<div class="reg-actions">
+                    <button type="button" class="btn-sm btn-primary reg-approve" data-id="${escapeHtml(r.id)}" data-email="${escapeHtml(r.email)}">Approve</button>
+                    <button type="button" class="btn-sm btn-danger reg-reject" data-id="${escapeHtml(r.id)}">Reject</button>
+                    <a class="btn-sm btn-secondary" href="../sites/?org=${encodeURIComponent(r.orgId)}" target="_blank" style="text-decoration:none;">Preview URL</a>
+                  </div>`
+                : `<div class="reg-actions">
+                    <a class="btn-sm btn-secondary" href="../sites/?org=${encodeURIComponent(r.orgId)}" target="_blank" style="text-decoration:none;">Open site</a>
+                    <a class="btn-sm btn-secondary" href="../app/?org=${encodeURIComponent(r.orgId)}" target="_blank" style="text-decoration:none;">Open console</a>
+                  </div>`;
+            return `<article class="reg-item" data-reg="${escapeHtml(r.id)}">
+              <div>
+                <div class="reg-item-head">
+                  <strong>${escapeHtml(r.companyName)}</strong>
+                  <span class="badge-sol ${escapeHtml(r.solution)}">${escapeHtml(r.solution)}</span>
+                  <span class="badge-status ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span>
+                </div>
+                <div class="reg-meta">
+                  <div>${escapeHtml(r.contactName)} · <a href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>${r.phone ? " · " + escapeHtml(r.phone) : ""}</div>
+                  <div>${escapeHtml([r.city, r.region].filter(Boolean).join(", "))} · team ${r.teamSize || "—"}</div>
+                  <div>Org <code>${escapeHtml(r.orgId)}</code> · ${when}</div>
+                  ${r.tagline ? `<div>“${escapeHtml(r.tagline)}”</div>` : ""}
+                  ${fields ? `<div style="font-size:0.8rem;">${escapeHtml(fields)}</div>` : ""}
+                  ${r.notes ? `<div>Notes: ${escapeHtml(r.notes)}</div>` : ""}
+                </div>
+                ${actions}
+              </div>
+              <div class="reg-preview-mini" style="--rpm-accent:${escapeHtml(accent)}">
+                <div class="rpm-hero">
+                  <div class="rpm-mark">${escapeHtml(initialsFromName(r.companyName))}</div>
+                  <p class="rpm-brand">${escapeHtml(r.companyName)}</p>
+                  <p class="rpm-tag">${escapeHtml(r.tagline || r.solution)}</p>
+                </div>
+              </div>
+            </article>`;
+          }).join("");
+
+          queue.querySelectorAll(".reg-approve").forEach((btn) => {
+            btn.addEventListener("click", () => approveRegistrationFlow(btn.dataset.id, btn.dataset.email));
+          });
+          queue.querySelectorAll(".reg-reject").forEach((btn) => {
+            btn.addEventListener("click", () => rejectRegistrationFlow(btn.dataset.id));
+          });
+        } catch (err) {
+          console.error(err);
+          countEl.innerText = "(error)";
+          queue.innerHTML = `<p class="muted" style="margin:0;color:#ff8a95;padding:1rem;">Failed to load registrations: ${escapeHtml(err.message)}. Deploy listRegistrations if missing.</p>`;
+        }
+      }
+
+      async function approveRegistrationFlow(registrationId, email) {
+        const createAccount = confirm(
+          `Approve this registration?\n\nOK = also create a dispatcher login for ${email || "the customer"} (you'll set a temporary password).\nCancel = approve org only (you can create a dispatcher later).`
+        );
+        let customerPassword = "";
+        let createCustomerAccount = false;
+        if (createAccount) {
+          customerPassword = prompt("Temporary password for customer dispatcher (min 6 chars):", "");
+          if (!customerPassword || customerPassword.length < 6) {
+            showAlert("Approval cancelled — password must be at least 6 characters.", "error");
+            return;
+          }
+          createCustomerAccount = true;
+        }
+        const notes = prompt("Optional approval notes:", "") || "";
+        try {
+          const approveFn = httpsCallable(functions, "approveRegistration");
+          const res = await approveFn({
+            registrationId,
+            createCustomerAccount,
+            customerPassword,
+            notes,
+          });
+          const d = res.data || {};
+          showAlert(
+            `Approved ${d.orgId}. Site: sites/?org=${d.orgId} · Console: app/?org=${d.orgId}`,
+            "success"
+          );
+          await Promise.all([loadRegistrations(), loadOrgs()]);
+        } catch (err) {
+          showAlert("Approve failed: " + err.message, "error");
+        }
+      }
+
+      async function rejectRegistrationFlow(registrationId) {
+        if (!confirm("Reject this registration?")) return;
+        const notes = prompt("Rejection reason (optional):", "") || "";
+        try {
+          const rejectFn = httpsCallable(functions, "rejectRegistration");
+          await rejectFn({ registrationId, notes });
+          showAlert("Registration rejected.", "success");
+          await loadRegistrations();
+        } catch (err) {
+          showAlert("Reject failed: " + err.message, "error");
+        }
+      }
+
+      document.getElementById("reg-refresh-btn")?.addEventListener("click", () => loadRegistrations());
+      document.getElementById("reg-status-filter")?.addEventListener("change", () => loadRegistrations());
+      document.getElementById("backfill-sites-btn")?.addEventListener("click", async () => {
+        try {
+          const fn = httpsCallable(functions, "backfillPublicSites");
+          const res = await fn();
+          const count = res.data?.count || 0;
+          showAlert(`Backfilled ${count} public sites (demo, rebert, security, …).`, "success");
+        } catch (err) {
+          showAlert("Backfill failed: " + err.message, "error");
+        }
+      });
 
       // Load Orgs
       async function loadOrgs() {
