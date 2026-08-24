@@ -1,8 +1,9 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import {
   DEFAULT_CENTER, DEFAULT_ZOOM, hasGoogleMapsApiKey,
-  loadMapsLibrary, MAP_UI_OPTIONS,
+  MAP_UI_OPTIONS,
 } from "../googleMaps";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { type HazardAlert, type HazardType, formatHazardType } from "../types";
 
 export type HazardMapHandle = {
@@ -35,23 +36,115 @@ const HAZARD_BG: Record<string, string> = {
   accident: "rgba(168, 85, 247, 0.15)",
 };
 
+const HAZARD_EMOJI: Record<string, string> = {
+  police_checkpoint: "👮",
+  speed_trap: "⚡",
+  road_hazard: "⚠️",
+  accident: "💥",
+};
+
+/** Build a coloured SVG pin for AdvancedMarkerElement */
+function makePinElement(color: string, emoji: string, pulse = false): HTMLElement {
+  const outer = document.createElement("div");
+  outer.style.cssText = `
+    position: relative;
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+  `;
+
+  const circle = document.createElement("div");
+  circle.style.cssText = `
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: ${color};
+    border: 3px solid #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 1;
+    ${pulse ? `animation: hazard-pulse 1.4s ease-in-out infinite;` : ""}
+  `;
+  circle.textContent = emoji;
+
+  if (pulse) {
+    if (!document.getElementById("hazard-pulse-style")) {
+      const style = document.createElement("style");
+      style.id = "hazard-pulse-style";
+      style.textContent = `
+        @keyframes hazard-pulse {
+          0%,100% { box-shadow: 0 0 0 0 ${color}88, 0 2px 10px rgba(0,0,0,0.5); }
+          50%      { box-shadow: 0 0 0 10px ${color}00, 0 2px 10px rgba(0,0,0,0.5); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  outer.appendChild(circle);
+  return outer;
+}
+
+/** Build a crosshair drop-pin element */
+function makePickPinElement(color: string): HTMLElement {
+  const el = document.createElement("div");
+  el.style.cssText = `
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: ${color};
+    border: 4px solid #fff;
+    box-shadow: 0 0 0 3px ${color}88, 0 4px 16px rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: crosshair;
+    animation: pick-pin-drop 0.35s cubic-bezier(0.22,1,0.36,1);
+  `;
+  el.textContent = "📍";
+
+  if (!document.getElementById("pick-pin-drop-style")) {
+    const s = document.createElement("style");
+    s.id = "pick-pin-drop-style";
+    s.textContent = `
+      @keyframes pick-pin-drop {
+        from { transform: translateY(-30px) scale(1.3); opacity: 0; }
+        to   { transform: translateY(0)     scale(1);   opacity: 1; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  return el;
+}
+
 export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
   { hazards, mapMode, onPickLocation, onConfirm, onBroadcast, onClear },
   ref
 ) {
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const infoRef = useRef<google.maps.InfoWindow | null>(null);
-  const pickMarkerRef = useRef<google.maps.Marker | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  // Advanced markers for hazard pins
+  const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
+
+  // Pick-mode state
+  const pickMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const pickLatLngRef = useRef<{ lat: number; lng: number } | null>(null);
   const pickModeRef = useRef(false);
   const pickTypeRef = useRef<HazardType>("police_checkpoint");
-  const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
-  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  // Keep fresh reference to hazards for InfoWindow callbacks
   const hazardsRef = useRef(hazards);
   hazardsRef.current = hazards;
 
+  // ── Imperative handle ──────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
     focusHazard(h) {
       if (!mapRef.current || !h.lat || !h.lng) return;
@@ -62,8 +155,10 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
     },
     getPickedLatLng: () => pickLatLngRef.current,
     clearPickMarker() {
-      pickMarkerRef.current?.setMap(null);
-      pickMarkerRef.current = null;
+      if (pickMarkerRef.current) {
+        pickMarkerRef.current.map = null;
+        pickMarkerRef.current = null;
+      }
       pickLatLngRef.current = null;
     },
     setPickMode(on, type) {
@@ -72,20 +167,21 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
       if (mapRef.current) {
         mapRef.current.setOptions({ draggableCursor: on ? "crosshair" : "" });
       }
-      if (!on) {
-        pickMarkerRef.current?.setMap(null);
+      if (!on && pickMarkerRef.current) {
+        pickMarkerRef.current.map = null;
         pickMarkerRef.current = null;
         pickLatLngRef.current = null;
       }
     },
   }));
 
-  function openInfo(h: HazardAlert, marker: google.maps.Marker) {
+  // ── InfoWindow content builder ─────────────────────────────────────────────
+  function openInfo(h: HazardAlert, marker: google.maps.marker.AdvancedMarkerElement) {
     if (!infoRef.current || !mapRef.current) return;
     const col = HAZARD_COLOR[h.type] ?? "#ef4444";
     const bgCol = HAZARD_BG[h.type] ?? "rgba(239,68,68,0.1)";
     const confirmed = h.confirmedByDispatcher;
-    
+
     infoRef.current.setContent(`
       <div style="font-family: system-ui, -apple-system, sans-serif; color:#0f172a; max-width:280px; padding:6px 4px; line-height:1.4">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px">
@@ -114,10 +210,10 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
           <button onclick="window.__hazardClear('${h.id}')" style="background:#64748b; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:11px; cursor:pointer">Clear</button>
         </div>
       </div>`);
-    infoRef.current.open(mapRef.current, marker);
+    infoRef.current.open({ map: mapRef.current, anchor: marker });
   }
 
-  // Wire global callbacks for InfoWindow buttons
+  // ── Wire global InfoWindow button callbacks ────────────────────────────────
   useEffect(() => {
     (window as any).__hazardConfirm = (id: string) => onConfirm(id);
     (window as any).__hazardBroadcast = (id: string) => {
@@ -127,77 +223,12 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
     (window as any).__hazardClear = (id: string) => onClear(id);
   }, [onConfirm, onBroadcast, onClear]);
 
-  // Init map
-  useEffect(() => {
-    if (!nodeRef.current || mapRef.current || !hasGoogleMapsApiKey()) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { Map, InfoWindow, Geocoder } = (await loadMapsLibrary()) as any;
-        if (cancelled || !nodeRef.current) return;
-        const map = new Map(nodeRef.current, {
-          ...MAP_UI_OPTIONS,
-          center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
-          mapTypeId: mapMode === "satellite" ? "hybrid" : "roadmap",
-          styles: [],
-        });
-        mapRef.current = map;
-        infoRef.current = new InfoWindow();
-        geocoderRef.current = new Geocoder();
-
-        clickListenerRef.current = map.addListener(
-          "click",
-          (e: google.maps.MapMouseEvent) => {
-            if (!pickModeRef.current || !e.latLng) return;
-            const lat = e.latLng.lat();
-            const lng = e.latLng.lng();
-            pickLatLngRef.current = { lat, lng };
-
-            if (pickMarkerRef.current) {
-              pickMarkerRef.current.setPosition(e.latLng);
-            } else {
-              pickMarkerRef.current = new google.maps.Marker({
-                map,
-                position: e.latLng,
-                draggable: true,
-                title: "Drop pin here",
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 13,
-                  fillColor: HAZARD_COLOR[pickTypeRef.current] ?? "#ef4444",
-                  fillOpacity: 1,
-                  strokeColor: "#ffffff",
-                  strokeWeight: 3,
-                },
-                animation: google.maps.Animation.DROP,
-              });
-              pickMarkerRef.current.addListener(
-                "dragend",
-                (de: google.maps.MapMouseEvent) => {
-                  if (!de.latLng) return;
-                  pickLatLngRef.current = {
-                    lat: de.latLng.lat(),
-                    lng: de.latLng.lng(),
-                  };
-                  reverseGeocode(de.latLng.lat(), de.latLng.lng());
-                }
-              );
-            }
-            reverseGeocode(lat, lng);
-          }
-        );
-      } catch (e) {
-        console.error("Map initialization failed:", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  // ── Reverse geocode helper ─────────────────────────────────────────────────
   function reverseGeocode(lat: number, lng: number) {
-    if (!geocoderRef.current) return;
+    if (!geocoderRef.current) {
+      onPickLocation(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      return;
+    }
     geocoderRef.current.geocode(
       { location: { lat, lng } },
       (results: any, status: string) => {
@@ -210,51 +241,175 @@ export const HazardMap = forwardRef<HazardMapHandle, Props>(function HazardMap(
     );
   }
 
-  // Map type toggle
+  // ── Map initialisation — load ALL needed libraries up-front ───────────────
+  useEffect(() => {
+    if (!nodeRef.current || mapRef.current || !hasGoogleMapsApiKey()) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        // Ensure API key is configured before importing libraries
+        const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "").trim();
+        if (!apiKey) {
+          console.error("HazardMap: VITE_GOOGLE_MAPS_API_KEY is not set.");
+          return;
+        }
+        setOptions({ key: apiKey, v: "weekly" });
+
+        // Load all required libraries in parallel
+        const [{ Map, InfoWindow }, { AdvancedMarkerElement }, { Geocoder }] =
+          await Promise.all([
+            importLibrary("maps") as Promise<google.maps.MapsLibrary>,
+            importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
+            importLibrary("geocoding") as Promise<google.maps.GeocodingLibrary>,
+          ]);
+
+        if (cancelled || !nodeRef.current) return;
+
+        const map = new Map(nodeRef.current, {
+          ...MAP_UI_OPTIONS,
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
+          mapTypeId: mapMode === "satellite" ? "hybrid" : "roadmap",
+          mapId: "hazard-map", // required for AdvancedMarkerElement
+        });
+
+        mapRef.current = map;
+        infoRef.current = new InfoWindow();
+        geocoderRef.current = new Geocoder();
+
+        // ── Click handler for pick-mode pin dropping ───────────────────────
+        map.addListener("click", async (e: google.maps.MapMouseEvent) => {
+          if (!pickModeRef.current || !e.latLng) return;
+
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
+          pickLatLngRef.current = { lat, lng };
+
+          const color = HAZARD_COLOR[pickTypeRef.current] ?? "#ef4444";
+
+          if (pickMarkerRef.current) {
+            // Reuse existing pick marker — just move it
+            pickMarkerRef.current.position = { lat, lng };
+            // Update appearance for new hazard type
+            pickMarkerRef.current.content = makePickPinElement(color);
+          } else {
+            // Create fresh pick marker
+            const marker = new AdvancedMarkerElement({
+              map,
+              position: { lat, lng },
+              title: "Drop pin here",
+              content: makePickPinElement(color),
+              gmpDraggable: true,
+            });
+
+            marker.addListener("dragend", () => {
+              const pos = marker.position as google.maps.LatLngLiteral | null;
+              if (!pos) return;
+              const dLat = typeof pos.lat === "function"
+                ? (pos as any).lat()
+                : (pos as any).lat;
+              const dLng = typeof pos.lng === "function"
+                ? (pos as any).lng()
+                : (pos as any).lng;
+              pickLatLngRef.current = { lat: dLat, lng: dLng };
+              reverseGeocode(dLat, dLng);
+            });
+
+            pickMarkerRef.current = marker;
+          }
+
+          reverseGeocode(lat, lng);
+        });
+
+        // Sync any hazards that arrived before the map loaded
+        syncHazardMarkers(map, AdvancedMarkerElement);
+      } catch (err) {
+        console.error("HazardMap: initialization failed:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Map type toggle ────────────────────────────────────────────────────────
   useEffect(() => {
     mapRef.current?.setMapTypeId(mapMode === "satellite" ? "hybrid" : "roadmap");
   }, [mapMode]);
 
-  // Sync hazard markers
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const active = hazards.filter((h) => h.status === "active");
+  // ── Sync hazard markers whenever the hazards list changes ─────────────────
+  //    We store the latest AdvancedMarkerElement constructor once it loads.
+  const AdvancedMarkerElementRef = useRef<typeof google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  async function ensureMarkerClass() {
+    if (AdvancedMarkerElementRef.current) return AdvancedMarkerElementRef.current;
+    const lib = (await importLibrary("marker")) as google.maps.MarkerLibrary;
+    AdvancedMarkerElementRef.current = lib.AdvancedMarkerElement;
+    return lib.AdvancedMarkerElement;
+  }
+
+  function syncHazardMarkers(
+    map: google.maps.Map,
+    AME: typeof google.maps.marker.AdvancedMarkerElement
+  ) {
+    AdvancedMarkerElementRef.current = AME;
+    const active = hazardsRef.current.filter((h) => h.status === "active");
     const seen = new Set<string>();
+
     for (const h of active) {
       if (!h.lat || !h.lng) continue;
       seen.add(h.id);
       const color = HAZARD_COLOR[h.type] ?? "#ef4444";
+      const emoji = HAZARD_EMOJI[h.type] ?? "⚠️";
+
       let m = markersRef.current.get(h.id);
       if (!m) {
-        m = new google.maps.Marker({
+        m = new AME({
           map,
           position: { lat: h.lat, lng: h.lng },
           title: `${formatHazardType(h.type)}: ${h.locationName}`,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 11,
-            fillColor: color,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2.5,
-          },
-          animation: google.maps.Animation.DROP,
+          content: makePinElement(color, emoji, !h.confirmedByDispatcher),
         });
-        m.addListener("click", () => openInfo(h, m!));
+        // Capture h in closure for click handler
+        const hSnapshot = h;
+        m.addListener("click", () => {
+          const latest = hazardsRef.current.find((x) => x.id === hSnapshot.id) ?? hSnapshot;
+          openInfo(latest, m!);
+        });
         markersRef.current.set(h.id, m);
       } else {
-        m.setPosition({ lat: h.lat, lng: h.lng });
+        m.position = { lat: h.lat, lng: h.lng };
       }
     }
+
+    // Remove markers for hazards no longer active
     markersRef.current.forEach((m, id) => {
       if (!seen.has(id)) {
-        m.setMap(null);
+        m.map = null;
         markersRef.current.delete(id);
       }
     });
+  }
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return; // map not yet initialised; syncHazardMarkers() is called inside init
+
+    (async () => {
+      try {
+        const AME = await ensureMarkerClass();
+        syncHazardMarkers(map, AME);
+      } catch (err) {
+        console.error("HazardMap: failed to sync markers:", err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hazards]);
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
       ref={nodeRef}
