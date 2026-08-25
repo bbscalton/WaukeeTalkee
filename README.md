@@ -21,13 +21,33 @@ WaukeeTalkee/
 - Cloud Functions deployed: `createDriver`, `createPairCode`, `createDriverWithPairCode`, `redeemPairCode`
 - Org seed: `orgs/demo`
 
-## One manual step (Auth)
+## Auth (Email/Password + Google)
 
-Firebase Auth cannot be turned on fully from the CLI on a brand-new project. Open this link, click **Get started**, then enable **Email/Password**:
+Enable providers in Firebase Auth:
 
 https://console.firebase.google.com/project/waukee-talkee/authentication/providers
 
-Then tell the agent to finish seeding the dispatcher login.
+Authorized domains must include `bbscalton.github.io` (and the default `*.firebaseapp.com` / `*.web.app` hosts).
+
+### Google sign-in / Auth handler API key referrers
+
+TCD and other web apps use Firebase Auth redirect (`signInWithRedirect`), which loads:
+
+`https://waukee-talkee.firebaseapp.com/__/auth/handler`
+
+That handler calls Identity Toolkit with the **Browser key** (auto-created by Firebase). If HTTP referrer restrictions on that key omit the Auth domain, Google sign-in shows **"The requested action is invalid."**
+
+Required Browser key HTTP referrers (APIs & Services → Credentials):
+
+- `https://bbscalton.github.io/*`
+- `https://waukee-talkee.firebaseapp.com/*`
+- `https://waukee-talkee.web.app/*`
+- `http://localhost:*`
+- `http://127.0.0.1:*`
+
+Console: https://console.cloud.google.com/apis/credentials?project=waukee-talkee
+
+TCD admin UI: https://bbscalton.github.io/WaukeeTalkee/TCD/
 
 ## Website
 
@@ -54,7 +74,7 @@ Live map (`#/map`) and Map DVR (`#/replay`) use the Google Maps JavaScript API (
 
 1. Enable **Maps JavaScript API** (`maps-backend.googleapis.com`). Billing must be on (already linked for Firebase).
 2. On the **Browser key** (Firebase auto-created), allow API target `maps-backend.googleapis.com` in addition to Firebase APIs.
-3. HTTP referrers on that key: `https://bbscalton.github.io/*`, `http://localhost:*`, `http://127.0.0.1:*`.
+3. HTTP referrers on that key (and on the Firebase Browser key used for Auth): `https://bbscalton.github.io/*`, `https://waukee-talkee.firebaseapp.com/*`, `https://waukee-talkee.web.app/*`, `http://localhost:*`, `http://127.0.0.1:*`.
 4. Local: set `VITE_GOOGLE_MAPS_API_KEY` in `dispatcher/.env` to the Browser key. Pages deploy injects the same name from GitHub Actions secrets (`VITE_GOOGLE_MAPS_API_KEY`).
 
 If the map shows a red “Map unavailable” overlay, check the browser console for `RefererNotAllowedMapError` / `ApiNotActivatedMapError` / billing errors.
