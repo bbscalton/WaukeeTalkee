@@ -33,6 +33,18 @@ service firebase.storage {
         && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
+
+    // Floor plan images: orgs/{orgId}/floorplans/{floorId}/{fileName}
+    match /orgs/{orgId}/floorplans/{floorId}/{fileName} {
+      allow read: if isDispatcher(orgId) || (
+        signedIn()
+        && request.auth.token.role == 'driver'
+        && request.auth.token.orgId == orgId
+      );
+      allow write: if isDispatcher(orgId)
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
   }
 }
 

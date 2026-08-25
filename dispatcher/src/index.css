@@ -1546,6 +1546,98 @@ button.danger-ghost {
   gap: 0.35rem;
 }
 
+.floorplan-layout .floorplan-stage {
+  min-height: 420px;
+  background: #0a0c10;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+}
+
+.floorplan-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.floorplan-board {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.floorplan-board.is-placing {
+  cursor: crosshair;
+}
+
+.floorplan-board img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.floorplan-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.floorplan-marker-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 2px solid #12151a;
+  box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.35);
+}
+
+.floorplan-marker.is-onduty .floorplan-marker-dot {
+  background: #3dd68c;
+  box-shadow: 0 0 0 2px rgba(61, 214, 140, 0.4);
+}
+
+.floorplan-marker.is-draft .floorplan-marker-dot {
+  background: #4fc3f7;
+  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.45);
+}
+
+.floorplan-marker-label {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(18, 21, 26, 0.88);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floorplan-floor-btn {
+  text-align: left;
+  flex: 1;
+}
+
+.floorplan-floor-btn.is-active {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

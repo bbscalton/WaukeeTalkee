@@ -249,6 +249,17 @@ service cloud.firestore {
         allow delete: if isDispatcher(orgId);
       }
 
+      // Indoor floor blueprints + post/room pins (normalized x/y 0–1)
+      match /floorplans/{floorId} {
+        allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+        allow create, update, delete: if isDispatcher(orgId);
+
+        match /pins/{pinId} {
+          allow read: if isDispatcher(orgId) || isOrgDriver(orgId);
+          allow create, update, delete: if isDispatcher(orgId);
+        }
+      }
+
       // Saved corridors (home → checkpoint)
       match /routes/{routeId} {
         allow read: if isDispatcher(orgId) || isOrgDriver(orgId);

@@ -49,6 +49,7 @@ export const SOLUTION_FEATURES: Record<string, Record<string, boolean>> = {
     map: false,
     replay: false,
     geofences: false,
+    floorplan: false,
     routes: false,
     alerts: false,
     requestResponse: false,

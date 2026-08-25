@@ -6,6 +6,7 @@ import { BookingsPage } from "./pages/BookingsPage";
 import { RequestResponsePage } from "./pages/RequestResponsePage";
 import { DriversPage } from "./pages/DriversPage";
 import { GeofencesPage } from "./pages/GeofencesPage";
+import { FloorplanPage } from "./pages/FloorplanPage";
 import { GroupsPage } from "./pages/GroupsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
@@ -98,6 +99,14 @@ function AppRoutes() {
           element={
             <FeatureRoute feature="geofences">
               <GeofencesPage />
+            </FeatureRoute>
+          }
+        />
+        <Route
+          path="floorplan"
+          element={
+            <FeatureRoute feature="floorplan">
+              <FloorplanPage />
             </FeatureRoute>
           }
         />

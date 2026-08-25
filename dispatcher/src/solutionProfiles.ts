@@ -12,6 +12,7 @@ export type FeatureKey =
   | "inbox"
   | "replay"
   | "geofences"
+  | "floorplan"
   | "routes"
   | "alerts"
   | "drivers"
@@ -41,6 +42,7 @@ export type SolutionLabels = {
   inbox: string;
   replay: string;
   geofences: string;
+  floorplan: string;
   alerts: string;
   drivers: string;
   groups: string;
@@ -72,6 +74,7 @@ const ALL_FEATURES_ON: Record<FeatureKey, boolean> = {
   inbox: true,
   replay: true,
   geofences: true,
+  floorplan: true,
   routes: true,
   alerts: true,
   drivers: true,
@@ -112,6 +115,7 @@ const TAXI_LABELS: SolutionLabels = {
   inbox: "Inbox",
   replay: "Map DVR",
   geofences: "Bases",
+  floorplan: "Floor plan",
   alerts: "Alerts",
   drivers: "Drivers",
   groups: "Groups",
@@ -131,6 +135,7 @@ const CONCRETE_LABELS: SolutionLabels = {
   inbox: "Inbox",
   replay: "Map DVR",
   geofences: "Plant & job sites",
+  floorplan: "Plant floor plan",
   alerts: "Alerts",
   drivers: "Team",
   groups: "Groups",
@@ -150,6 +155,7 @@ const SECURITY_LABELS: SolutionLabels = {
   inbox: "Inbox",
   replay: "Map DVR",
   geofences: "Posts & patrol points",
+  floorplan: "Floor plan",
   alerts: "Alerts",
   drivers: "Guards",
   groups: "Groups",
@@ -169,6 +175,7 @@ const FIELD_LABELS: SolutionLabels = {
   inbox: "Inbox",
   replay: "Map DVR",
   geofences: "Job sites",
+  floorplan: "Site plan",
   alerts: "Alerts",
   drivers: "Workers",
   groups: "Groups",
@@ -188,6 +195,7 @@ const TRUCK_LABELS: SolutionLabels = {
   inbox: "Inbox",
   replay: "Map DVR",
   geofences: "Depots & stops",
+  floorplan: "Yard plan",
   alerts: "Alerts",
   drivers: "Drivers",
   groups: "Groups",
@@ -207,6 +215,7 @@ const FAMILY_LABELS: SolutionLabels = {
   inbox: "Messages",
   replay: "History",
   geofences: "Places",
+  floorplan: "Home plan",
   alerts: "Alerts",
   drivers: "Family members",
   groups: "Circle",
@@ -226,6 +235,7 @@ const RETAIL_LABELS: SolutionLabels = {
   inbox: "Inbox",
   replay: "Map DVR",
   geofences: "Stores & departments",
+  floorplan: "Store floor plan",
   alerts: "Alerts",
   drivers: "Staff",
   groups: "Groups",
@@ -314,6 +324,7 @@ export const SOLUTION_PROFILES: Record<SolutionId, SolutionProfile> = {
       map: false,
       replay: false,
       geofences: false,
+      floorplan: false,
       routes: false,
       alerts: false,
       requestResponse: false,
@@ -351,6 +362,7 @@ export type NavRouteKey =
   | "inbox"
   | "replay"
   | "geofences"
+  | "floorplan"
   | "alerts"
   | "drivers"
   | "groups"
@@ -377,6 +389,12 @@ export const NAV_ROUTES: {
     path: "/geofences",
     feature: "geofences",
     labelKey: "geofences",
+  },
+  {
+    key: "floorplan",
+    path: "/floorplan",
+    feature: "floorplan",
+    labelKey: "floorplan",
   },
   { key: "alerts", path: "/alerts", feature: "alerts", labelKey: "alerts" },
   { key: "drivers", path: "/drivers", feature: "drivers", labelKey: "drivers" },

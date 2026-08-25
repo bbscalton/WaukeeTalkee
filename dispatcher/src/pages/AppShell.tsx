@@ -16,6 +16,7 @@ const NAV_ICONS: Record<string, string> = {
   inbox:           "📻",
   replay:          "📹",
   geofences:       "📍",
+  floorplan:       "📐",
   alerts:          "🔔",
   drivers:         "🚗",
   groups:          "👥",

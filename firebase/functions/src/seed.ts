@@ -127,6 +127,7 @@ const ORG_PRESETS: Record<string, OrgPreset> = {
       map: false,
       replay: false,
       geofences: false,
+      floorplan: false,
       routes: false,
       alerts: false,
       requestResponse: false,
