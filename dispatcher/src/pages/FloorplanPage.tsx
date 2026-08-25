@@ -51,6 +51,7 @@ export function FloorplanPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState<string>("");
   const [floorName, setFloorName] = useState("");
+  const [floorImageUrl, setFloorImageUrl] = useState("");
   const [pinName, setPinName] = useState("");
   const [placing, setPlacing] = useState(false);
   const [draft, setDraft] = useState<{ x: number; y: number } | null>(null);
@@ -154,23 +155,29 @@ export function FloorplanPage() {
   async function createFloor(e: FormEvent, file: File | null) {
     e.preventDefault();
     if (!floorName.trim()) return;
-    if (!file) {
-      setError("Choose a floor plan image (PNG/JPG/WebP).");
+    const pastedUrl = floorImageUrl.trim();
+    if (!file && !pastedUrl) {
+      setError("Choose a floor plan image, or paste an image URL.");
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      setError("File must be an image.");
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      setError("Image must be under 8 MB.");
-      return;
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError("File must be an image.");
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        setError("Image must be under 8 MB.");
+        return;
+      }
     }
 
     setBusy(true);
-    setUploading(true);
+    setUploading(Boolean(file));
     setError(null);
     try {
+      let imageUrl = pastedUrl;
+      let storagePath = "";
+
       const floorRef = await addDoc(collection(db, "orgs", ORG_ID, "floorplans"), {
         name: floorName.trim(),
         imageUrl: "",
@@ -178,19 +185,30 @@ export function FloorplanPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      const storagePath = `orgs/${ORG_ID}/floorplans/${floorRef.id}/${Date.now()}_${file.name}`;
-      const fileRef = ref(storage, storagePath);
-      await uploadBytes(fileRef, file);
-      const imageUrl = await getDownloadURL(fileRef);
+
+      if (file) {
+        storagePath = `orgs/${ORG_ID}/floorplans/${floorRef.id}/${Date.now()}_${file.name}`;
+        const fileRef = ref(storage, storagePath);
+        await uploadBytes(fileRef, file);
+        imageUrl = await getDownloadURL(fileRef);
+      }
+
       await updateDoc(floorRef, {
         imageUrl,
         storagePath,
         updatedAt: serverTimestamp(),
       });
       setFloorName("");
+      setFloorImageUrl("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedFloorId(floorRef.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create floor plan.");
+      const msg = err instanceof Error ? err.message : "Could not create floor plan.";
+      setError(
+        /storage|bucket|404|unauthorized/i.test(msg)
+          ? `${msg} — If Firebase Storage is not set up yet, paste a public image URL instead, or enable Storage in the Firebase console.`
+          : msg
+      );
     } finally {
       setBusy(false);
       setUploading(false);
@@ -327,12 +345,20 @@ export function FloorplanPage() {
               />
             </label>
             <label>
-              Blueprint image
+              Blueprint image (upload)
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
-                required
+              />
+            </label>
+            <label>
+              Or image URL
+              <input
+                type="url"
+                value={floorImageUrl}
+                onChange={(e) => setFloorImageUrl(e.target.value)}
+                placeholder="https://…"
               />
             </label>
             <button type="submit" disabled={busy || uploading}>
