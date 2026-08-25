@@ -887,7 +887,8 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
       import { 
         getAuth, 
-        signInWithPopup, 
+        signInWithRedirect,
+        getRedirectResult,
         GoogleAuthProvider, 
         onAuthStateChanged, 
         signOut 
@@ -1192,6 +1193,46 @@
         }, 6000);
       }
 
+      function formatAuthError(error) {
+        const code = error?.code || "";
+        if (code === "auth/unauthorized-domain") {
+          return "This site's domain is not authorized in Firebase Auth. Add bbscalton.github.io (and localhost for local testing) under Authentication → Settings → Authorized domains.";
+        }
+        if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+          return "Sign-in was cancelled. On GitHub Pages, use the redirect flow (click Sign in with Google again and complete the Google prompt).";
+        }
+        if (code === "auth/popup-blocked") {
+          return "Sign-in was blocked by the browser. Allow redirects for this site, or try again.";
+        }
+        if (code === "auth/operation-not-allowed") {
+          return "Google sign-in is disabled for this Firebase project. Enable the Google provider in Authentication → Sign-in method.";
+        }
+        if (code === "auth/network-request-failed") {
+          return "Network error during Google sign-in. Check your connection and try again.";
+        }
+        return "Google sign-in failed: " + (error?.message || String(error));
+      }
+
+      function showAuthError(errorOrMessage) {
+        authError.innerText = typeof errorOrMessage === "string"
+          ? errorOrMessage
+          : formatAuthError(errorOrMessage);
+        authError.style.display = "block";
+      }
+
+      // Complete redirect-based Google sign-in (reliable on GitHub Pages;
+      // signInWithPopup often fails with auth/popup-closed-by-user due to COOP).
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result?.user) {
+            authError.style.display = "none";
+          }
+        })
+        .catch((error) => {
+          console.error("Google redirect sign-in failed:", error);
+          showAuthError(error);
+        });
+
       // Check Authentication
       onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -1207,8 +1248,7 @@
           } else {
             // Not Admin
             await signOut(auth);
-            authError.innerText = "Access denied. Only neuereatec@gmail.com is authorized to access the Control Desk.";
-            authError.style.display = "block";
+            showAuthError("Access denied. Only neuereatec@gmail.com is authorized to access the Control Desk.");
             authSection.style.display = "block";
             dashboardSection.style.display = "none";
           }
@@ -1219,14 +1259,30 @@
         }
       });
 
-      // Login trigger
+      // Login trigger — full-page redirect (not popup) for GitHub Pages reliability
       googleLoginBtn.addEventListener("click", async () => {
         try {
           authError.style.display = "none";
-          await signInWithPopup(auth, provider);
+          googleLoginBtn.disabled = true;
+          googleLoginBtn.style.opacity = "0.7";
+          const textNode = Array.from(googleLoginBtn.childNodes).find(
+            (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+          );
+          if (textNode) {
+            textNode.textContent = " Redirecting to Google…";
+          }
+          await signInWithRedirect(auth, provider);
         } catch (error) {
-          authError.innerText = "Google sign-in failed: " + error.message;
-          authError.style.display = "block";
+          console.error("Google sign-in redirect failed:", error);
+          googleLoginBtn.disabled = false;
+          googleLoginBtn.style.opacity = "";
+          const textNode = Array.from(googleLoginBtn.childNodes).find(
+            (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+          );
+          if (textNode) {
+            textNode.textContent = " Sign in with Google";
+          }
+          showAuthError(error);
         }
       });
 
