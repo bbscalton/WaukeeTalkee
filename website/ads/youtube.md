@@ -7,7 +7,8 @@ Canonical paste doc for Google Ads / YouTube lives at the repo root:
 ## Final URL
 
 ```
-https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana
+https://talk.neuereatec.org/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana
 ```
 
-Landing: this folder (`/get-started/`) — pick your world (7 verticals) → Get started / WhatsApp.
+Landing: `/get-started/` — pick your world (7 verticals) → Get started / WhatsApp.  
+Custom domain: **talk.neuereatec.org** (GitHub Pages).

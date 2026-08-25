@@ -10,7 +10,7 @@ Business: **Neuereatec Enterprise** · WhatsApp: **+592 7129487**
 ## Final URL (use this everywhere)
 
 ```
-https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana
+https://talk.neuereatec.org/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana
 ```
 
 | Piece | Value |
@@ -18,8 +18,9 @@ https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_med
 | Landing | `/get-started/` — first screen = **pick your world** (7 verticals, not taxi-only) |
 | Primary CTA on page | Get started → `/register/#picker` (UTMs preserved) |
 | Secondary CTA | [WhatsApp](https://wa.me/5927129487) |
-| Register (same UTMs) | `https://bbscalton.github.io/WaukeeTalkee/register/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana#picker` |
+| Register (same UTMs) | `https://talk.neuereatec.org/register/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana#picker` |
 | Thank-you | Existing register confirmation (“You’re in the queue”) after submit — no new CRM |
+| Custom domain | `talk.neuereatec.org` (GitHub Pages; replaces `bbscalton.github.io/WaukeeTalkee`) |
 
 Optional per-vertical deep links (same UTMs):
 
@@ -32,7 +33,6 @@ Optional per-vertical deep links (same UTMs):
 …/register/?sol=concrete&utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana#picker
 …/register/?sol=taxi&utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana#picker
 ```
-
 ---
 
 ## Campaign settings
@@ -122,7 +122,7 @@ Use **live site** frames — platform story, not taxi-only:
 7. **Placements / Networks:** YouTube only. Disable Search/Display partners and any “optimized targeting” that pulls non-YouTube sites.
 8. **Create ad group** → upload or select your YouTube video.
 9. **Final URL:** paste  
-   `https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana`
+   `https://talk.neuereatec.org/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana`
 10. Paste headline / long headline / descriptions from above. CTA: Learn more or Contact.
 11. Review → **Save as paused** (or pause immediately after create).
 12. After payment profile is active → enable campaign → watch first 48h for Guyana traffic only and waste placements.
@@ -140,4 +140,4 @@ Use **live site** frames — platform story, not taxi-only:
 - [ ] Geo = Guyana only  
 
 Live landing after Pages deploy:  
-https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana
+https://talk.neuereatec.org/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana

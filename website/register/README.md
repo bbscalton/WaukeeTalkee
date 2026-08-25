@@ -4,13 +4,15 @@
 
 | Page | URL |
 |------|-----|
-| Register | https://bbscalton.github.io/WaukeeTalkee/register/ |
-| Get started (YouTube / ads landing) | https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana |
-| Dynamic tenant site | https://bbscalton.github.io/WaukeeTalkee/sites/?org={orgId} |
-| TCD approval | https://bbscalton.github.io/WaukeeTalkee/TCD/ |
-| Dispatch console | https://bbscalton.github.io/WaukeeTalkee/app/?org={orgId} |
+| Register | https://talk.neuereatec.org/register/ |
+| Get started (YouTube / ads landing) | https://talk.neuereatec.org/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana |
+| Dynamic tenant site | https://talk.neuereatec.org/sites/?org={orgId} |
+| TCD approval | https://talk.neuereatec.org/TCD/ |
+| Dispatch console | https://talk.neuereatec.org/app/?org={orgId} |
 
-Examples: [`sites/?org=demo`](https://bbscalton.github.io/WaukeeTalkee/sites/?org=demo), [`sites/?org=rebert`](https://bbscalton.github.io/WaukeeTalkee/sites/?org=rebert), [`sites/?org=security`](https://bbscalton.github.io/WaukeeTalkee/sites/?org=security).
+Examples: [`sites/?org=demo`](https://talk.neuereatec.org/sites/?org=demo), [`sites/?org=rebert`](https://talk.neuereatec.org/sites/?org=rebert), [`sites/?org=security`](https://talk.neuereatec.org/sites/?org=security).
+
+Legacy GitHub Pages host (still may resolve): `https://bbscalton.github.io/WaukeeTalkee/` — prefer **talk.neuereatec.org**.
 
 ## Flow
 
