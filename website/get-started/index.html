@@ -2,12 +2,270 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=../register/" />
-    <link rel="canonical" href="../register/" />
-    <title>Get started — Waukee Talkee</title>
-    <script>location.replace("../register/" + location.search + location.hash);</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pick your world — Waukee Talkee</title>
+    <meta
+      name="description"
+      content="Dispatch that feels like a radio. Pick your world — security, field, truck, family, retail, concrete, or taxi — then get started with Waukee Talkee."
+    />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://bbscalton.github.io/WaukeeTalkee/get-started/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      /* YouTube entry: first screen = world picker (match register), mobile-first */
+      .yt-landing {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        padding: 1.25rem 1.25rem 2.5rem;
+        position: relative;
+      }
+      .yt-landing::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(900px 420px at 85% -10%, rgba(240, 180, 41, 0.16), transparent 60%),
+          radial-gradient(700px 380px at -10% 20%, rgba(70, 90, 120, 0.25), transparent 55%);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .yt-landing > * {
+        position: relative;
+        z-index: 1;
+      }
+      .yt-copy {
+        width: min(720px, 100%);
+        margin: 0.5rem auto 0;
+        text-align: left;
+      }
+      .yt-copy .brand {
+        margin: 0 0 0.6rem;
+        font-family: var(--font-display);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-size: clamp(1.6rem, 5vw, 2.2rem);
+        color: var(--amber);
+      }
+      .yt-copy h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        font-size: clamp(2rem, 7vw, 3.2rem);
+        line-height: 1.02;
+        font-weight: 400;
+        max-width: 14ch;
+      }
+      .yt-copy .lede {
+        margin: 0.85rem 0 0;
+        color: var(--muted);
+        font-size: 1.05rem;
+        max-width: 36ch;
+      }
+      .yt-worlds {
+        width: min(1040px, 100%);
+        margin: 1.75rem auto 0;
+        padding: 0;
+        border: 0;
+        background: none;
+      }
+      .yt-worlds .world-grid {
+        margin-top: 0;
+      }
+      .yt-worlds .world-card {
+        opacity: 1;
+        transform: none;
+      }
+      .yt-meta {
+        margin: 1.5rem auto 0;
+        width: min(720px, 100%);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .yt-foot {
+        margin-top: auto;
+        padding-top: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.25rem;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .yt-foot a {
+        color: var(--muted);
+      }
+      .yt-foot a:hover {
+        color: var(--ink);
+      }
+      @media (max-width: 520px) {
+        .yt-landing {
+          padding: 1rem 1rem 1.75rem;
+        }
+        .cta-row .btn {
+          flex: 1 1 auto;
+          min-width: calc(50% - 0.5rem);
+        }
+      }
+    </style>
   </head>
   <body>
-    <p><a href="../register/">Continue to registration</a></p>
+    <header class="top">
+      <a class="top-brand" href="../">Waukee Talkee</a>
+      <nav class="top-nav">
+        <a href="../register/#picker" data-keep-utm>Solutions</a>
+        <a
+          class="top-cta"
+          href="https://wa.me/5927129487"
+          target="_blank"
+          rel="noopener noreferrer"
+          >WhatsApp</a
+        >
+      </nav>
+    </header>
+
+    <main class="yt-landing" id="picker">
+      <div class="yt-copy">
+        <p class="brand">Waukee Talkee</p>
+        <h1>Which world are you in?</h1>
+        <p class="lede">
+          One radio-simple platform for security, field, truck, family, retail,
+          concrete, and taxi fleets. Pick your world to get started.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="../register/#picker" data-keep-utm id="cta-start"
+            >Get started</a
+          >
+          <a
+            class="btn btn-ghost"
+            href="https://wa.me/5927129487?text=Hi%20—%20I%20saw%20Waukee%20Talkee%20on%20YouTube.%20I%20want%20to%20get%20started."
+            target="_blank"
+            rel="noopener noreferrer"
+            >WhatsApp</a
+          >
+        </div>
+      </div>
+
+      <section class="yt-worlds" aria-label="Solution verticals">
+        <ul class="world-grid">
+          <li>
+            <a class="world-card in" href="../register/?sol=security#picker" data-keep-utm data-sol="security" style="--w-accent:#4fc3f7">
+              <span class="world-icon" aria-hidden="true">◎</span>
+              <strong>Security</strong>
+              <span>Guards, posts, and patrol radio.</span>
+            </a>
+          </li>
+          <li>
+            <a class="world-card in" href="../register/?sol=field#picker" data-keep-utm data-sol="field" style="--w-accent:#4caf50">
+              <span class="world-icon" aria-hidden="true">▴</span>
+              <strong>Field</strong>
+              <span>Workers, jobs, and sites.</span>
+            </a>
+          </li>
+          <li>
+            <a class="world-card in" href="../register/?sol=truck#picker" data-keep-utm data-sol="truck" style="--w-accent:#f0b429">
+              <span class="world-icon" aria-hidden="true">▣</span>
+              <strong>Truck</strong>
+              <span>Fleet routes and manifests.</span>
+            </a>
+          </li>
+          <li>
+            <a class="world-card in" href="../register/?sol=family#picker" data-keep-utm data-sol="family" style="--w-accent:#e8a87c">
+              <span class="world-icon" aria-hidden="true">◇</span>
+              <strong>Family</strong>
+              <span>Check-ins and stay safe.</span>
+            </a>
+          </li>
+          <li>
+            <a class="world-card in" href="../register/?sol=retail#picker" data-keep-utm data-sol="retail" style="--w-accent:#ff7043">
+              <span class="world-icon" aria-hidden="true">▢</span>
+              <strong>Retail</strong>
+              <span>Stores, staff, and tasks.</span>
+            </a>
+          </li>
+          <li>
+            <a class="world-card in" href="../register/?sol=concrete#picker" data-keep-utm data-sol="concrete" style="--w-accent:#c4a574">
+              <span class="world-icon" aria-hidden="true">⬡</span>
+              <strong>Concrete</strong>
+              <span>Plant-to-pour dispatch.</span>
+            </a>
+          </li>
+          <li>
+            <a class="world-card in" href="../register/?sol=taxi#picker" data-keep-utm data-sol="taxi" style="--w-accent:#f0b429">
+              <span class="world-icon" aria-hidden="true">◈</span>
+              <strong>Taxi / Fleet</strong>
+              <span>Radio dispatch for drivers.</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <p class="yt-meta">Seven verticals · One radio-simple platform · Neuereatec Enterprise</p>
+
+      <footer class="yt-foot">
+        <span>Waukee Talkee · Guyana</span>
+        <a href="../register/#picker" data-keep-utm>Full registration</a>
+        <a href="../">Home</a>
+      </footer>
+    </main>
+
+    <script>
+      (function () {
+        var UTM_KEYS = [
+          "utm_source",
+          "utm_medium",
+          "utm_campaign",
+          "utm_content",
+          "utm_term",
+          "gclid",
+          "gbraid",
+          "wbraid",
+        ];
+        var params = new URLSearchParams(location.search);
+        var stored = {};
+        try {
+          stored = JSON.parse(sessionStorage.getItem("wt_utm") || "{}") || {};
+        } catch (e) {
+          stored = {};
+        }
+        var merged = Object.assign({}, stored);
+        UTM_KEYS.forEach(function (k) {
+          if (params.has(k)) merged[k] = params.get(k);
+        });
+        try {
+          sessionStorage.setItem("wt_utm", JSON.stringify(merged));
+        } catch (e) {}
+
+        function withUtm(href) {
+          try {
+            var url = new URL(href, location.href);
+            if (url.origin !== location.origin && url.protocol !== "http:" && url.protocol !== "https:") {
+              return href;
+            }
+            if (url.origin !== location.origin) return href;
+            Object.keys(merged).forEach(function (k) {
+              if (merged[k] && !url.searchParams.has(k)) {
+                url.searchParams.set(k, merged[k]);
+              }
+            });
+            return url.pathname + url.search + url.hash;
+          } catch (e) {
+            return href;
+          }
+        }
+
+        document.querySelectorAll("a[data-keep-utm]").forEach(function (a) {
+          a.setAttribute("href", withUtm(a.getAttribute("href")));
+        });
+      })();
+    </script>
   </body>
 </html>

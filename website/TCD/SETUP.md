@@ -6,7 +6,8 @@ Master reference for all solution orgs, URLs, and Firebase seeding.
 
 | Step | Where |
 |------|--------|
-| Public register | [/register/](https://bbscalton.github.io/WaukeeTalkee/register/) (alias [/get-started/](https://bbscalton.github.io/WaukeeTalkee/get-started/)) |
+| Public register | [/register/](https://bbscalton.github.io/WaukeeTalkee/register/) |
+| YouTube / ads landing | [/get-started/](https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana) (pick your world → register / WhatsApp) |
 | Branded tenant site | [/sites/?org={orgId}](https://bbscalton.github.io/WaukeeTalkee/sites/?org=demo) |
 | Admin approve/reject | [/TCD/](https://bbscalton.github.io/WaukeeTalkee/TCD/) → Pending Registrations |
 

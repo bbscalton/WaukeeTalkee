@@ -5,7 +5,7 @@
 | Page | URL |
 |------|-----|
 | Register | https://bbscalton.github.io/WaukeeTalkee/register/ |
-| Get started (alias) | https://bbscalton.github.io/WaukeeTalkee/get-started/ |
+| Get started (YouTube / ads landing) | https://bbscalton.github.io/WaukeeTalkee/get-started/?utm_source=youtube&utm_medium=cpc&utm_campaign=yt_guyana |
 | Dynamic tenant site | https://bbscalton.github.io/WaukeeTalkee/sites/?org={orgId} |
 | TCD approval | https://bbscalton.github.io/WaukeeTalkee/TCD/ |
 | Dispatch console | https://bbscalton.github.io/WaukeeTalkee/app/?org={orgId} |
@@ -66,7 +66,9 @@ Backfills `publicSites` for demo, rebert, security, field, truck, family, retail
 
 ## Deploy notes
 
-- Website files under `website/register/`, `website/sites/`, `website/get-started/` deploy via GitHub Pages on push to `main`.
+- Website files under `website/register/`, `website/sites/`, `website/get-started/`, `website/ads/` deploy via GitHub Pages on push to `main`.
+- YouTube ad paste sheet: repo root [`ADS.md`](../../ADS.md) (also [`website/ads/youtube.md`](../ads/youtube.md)).
+- Deep-link a vertical: `/register/?sol=security#picker` (also `field`, `truck`, `family`, `retail`, `concrete`, `taxi`).
 - Deploy functions + rules separately:
 
 ```bash
