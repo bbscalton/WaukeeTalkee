@@ -13,6 +13,16 @@ Master reference for all solution orgs, URLs, and Firebase seeding.
 
 On approve, Cloud Functions provision `orgs/{orgId}`, `publicSites/{orgId}`, and link the platform admin as dispatcher. Optionally create a customer dispatcher password. Full details: [`../register/README.md`](../register/README.md).
 
+### Custom domain auth (`talk.neuereatec.org`)
+
+Firebase must allow the Pages host for Google / email sign-in on TCD and `/app/`:
+
+1. **Authentication → Settings → Authorized domains** — include `talk.neuereatec.org` (also keep `bbscalton.github.io`).
+2. **Google Cloud → APIs & Services → Credentials → Browser API key** — HTTP referrers must include `https://talk.neuereatec.org/*` (and optionally `http://talk.neuereatec.org/*`).
+3. Maps browser key (if separate) — same referrers for `/app/` map loads.
+
+Without those, sign-in fails with `auth/requests-from-referer-…-are-blocked`.
+
 Backfill public sites for existing orgs:
 
 ```bash
