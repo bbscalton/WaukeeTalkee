@@ -69,7 +69,7 @@ Security, field, truck, family, retail, concrete, taxi.
 Learn more (or **Contact** / message if Google Ads offers WhatsApp-compatible CTA for your account)
 
 **Display path** (optional)  
-`bbscalton.github.io` / `get-started`
+`talk.neuereatec.org` / `get-started`
 
 **WhatsApp (secondary — site + comments / pinned if allowed)**  
 `https://wa.me/5927129487`
@@ -89,7 +89,7 @@ There is only a still: `website/assets/hero-taxi-night.png` (taxi-leaning night 
 Use **live site** frames — platform story, not taxi-only:
 
 1. **0–3s** — Homepage hero atmosphere + brand **Waukee Talkee** + line: “One radio. Seven worlds.”  
-   Live: https://bbscalton.github.io/WaukeeTalkee/
+   Live: https://talk.neuereatec.org/
 2. **3–8s** — Quick flash of the seven worlds (Security → Field → Truck → Family → Retail → Concrete → Taxi) or the `/get-started/` picker grid.
 3. **8–12s** — On-duty / radio UI still (homepage “ON DUTY” panel) or dispatch map from `/app/?org=demo` — “Pair a phone with a code. See them live.”
 4. **12–15s** — End card: **Pick your world** + URL/path `get-started` + WhatsApp `+592 7129487`
