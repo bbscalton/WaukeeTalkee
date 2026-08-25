@@ -10,7 +10,18 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && token().email == 'neuereatec@gmail.com';
+      return signedIn() && (
+        token().email == 'neuereatec@gmail.com'
+        || exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid))
+      );
+    }
+
+    match /platformAdmins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == uid
+            && token().email == 'neuereatec@gmail.com');
     }
 
     match /{document=**} {

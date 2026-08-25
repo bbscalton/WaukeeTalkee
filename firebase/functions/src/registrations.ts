@@ -39,12 +39,78 @@ function auth() {
 }
 
 const ADMIN_EMAIL = "neuereatec@gmail.com";
+/** Legacy imported Auth UID (password-only). Prefer resolveAdminDispatcherUid(). */
 const ADMIN_DISPATCHER_UID = "neuereatecGmailDispatcher01";
+const DEMO_ORG = "demo";
 
-function assertAdmin(requestAuth: { uid?: string; token?: { email?: string } } | undefined): void {
-  if (!requestAuth?.uid || requestAuth.token?.email !== ADMIN_EMAIL) {
+function normalizeEmail(email: unknown): string {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isAdminEmail(email: unknown): boolean {
+  return normalizeEmail(email) === ADMIN_EMAIL;
+}
+
+async function assertAdmin(
+  requestAuth: { uid?: string; token?: { email?: string } } | undefined
+): Promise<void> {
+  if (!requestAuth?.uid) {
     throw new HttpsError("permission-denied", "Admin access required.");
   }
+  if (isAdminEmail(requestAuth.token?.email)) {
+    return;
+  }
+  const [padSnap, dispSnap] = await Promise.all([
+    db().doc(`platformAdmins/${requestAuth.uid}`).get(),
+    db().doc(`orgs/${DEMO_ORG}/dispatchers/${requestAuth.uid}`).get(),
+  ]);
+  if (padSnap.exists || dispSnap.exists) {
+    return;
+  }
+  throw new HttpsError("permission-denied", "Admin access required.");
+}
+
+/** Prefer live Auth UID for ADMIN_EMAIL; fall back to legacy import UID. */
+async function resolveAdminDispatcherUid(): Promise<string> {
+  try {
+    const user = await auth().getUserByEmail(ADMIN_EMAIL);
+    return user.uid;
+  } catch {
+    return ADMIN_DISPATCHER_UID;
+  }
+}
+
+/** Upsert platform admin + demo dispatcher membership for a signed-in admin UID. */
+export async function ensureAdminMembership(
+  uid: string,
+  email: string,
+  displayName?: string
+): Promise<void> {
+  const normalized = normalizeEmail(email);
+  const batchEmail = normalized || ADMIN_EMAIL;
+  await db()
+    .doc(`platformAdmins/${uid}`)
+    .set(
+      {
+        email: batchEmail,
+        role: "admin",
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  await db()
+    .doc(`orgs/${DEMO_ORG}/dispatchers/${uid}`)
+    .set(
+      {
+        email: batchEmail,
+        displayName: displayName || "Platform Admin",
+        role: "admin",
+        createdAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 }
 
 function isValidEmail(email: string): boolean {
@@ -167,7 +233,7 @@ export const submitRegistration = onCall(
 
 /** Admin: list registrations, optionally filter by status. */
 export const listRegistrations = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   const statusFilter = String(request.data?.status || "").trim().toLowerCase();
 
   let snap;
@@ -215,7 +281,7 @@ export const listRegistrations = onCall(async (request) => {
  * optionally create customer dispatcher Auth account.
  */
 export const approveRegistration = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   const registrationId = String(request.data?.registrationId || "").trim();
   if (!registrationId) {
     throw new HttpsError("invalid-argument", "registrationId is required.");
@@ -287,7 +353,9 @@ export const approveRegistration = onCall(async (request) => {
     solutionFields: (reg.solutionFields as Record<string, unknown>) || {},
   });
 
-  await db().doc(`orgs/${orgId}/dispatchers/${ADMIN_DISPATCHER_UID}`).set(
+  const adminUid = await resolveAdminDispatcherUid();
+  await ensureAdminMembership(adminUid, ADMIN_EMAIL, "Platform Admin");
+  await db().doc(`orgs/${orgId}/dispatchers/${adminUid}`).set(
     {
       email: ADMIN_EMAIL,
       displayName: "Platform Admin",
@@ -357,7 +425,7 @@ export const approveRegistration = onCall(async (request) => {
 
 /** Admin reject registration. */
 export const rejectRegistration = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   const registrationId = String(request.data?.registrationId || "").trim();
   const notes = String(request.data?.notes || "").trim().slice(0, 500);
   if (!registrationId) {
@@ -385,7 +453,7 @@ export const rejectRegistration = onCall(async (request) => {
 
 /** Admin: backfill publicSites for known preset orgs (demo, rebert, …). */
 export const backfillPublicSites = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
 
   const presets: Array<{
     orgId: string;
@@ -476,4 +544,44 @@ export const backfillPublicSites = onCall(async (request) => {
   }
 
   return { written, count: written.length };
+});
+
+/**
+ * Called by TCD after Google/password sign-in as neuereatec@gmail.com.
+ * Ensures platformAdmins/{uid} and orgs/demo/dispatchers/{uid} exist for the
+ * signed-in UID (Google may differ from the legacy password-import UID).
+ */
+export const ensureTcdAdminAccess = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+  const email = normalizeEmail(request.auth.token?.email);
+  if (!isAdminEmail(email)) {
+    throw new HttpsError(
+      "permission-denied",
+      `Only ${ADMIN_EMAIL} can claim TCD admin access.`
+    );
+  }
+  await ensureAdminMembership(
+    request.auth.uid,
+    email,
+    String(request.auth.token?.name || "Platform Admin")
+  );
+  // Keep legacy dispatcher doc in sync if Auth UID is still the import UID.
+  const legacyUid = ADMIN_DISPATCHER_UID;
+  if (request.auth.uid !== legacyUid) {
+    await db()
+      .doc(`orgs/${DEMO_ORG}/dispatchers/${legacyUid}`)
+      .set(
+        {
+          email: ADMIN_EMAIL,
+          displayName: "Platform Admin (legacy)",
+          role: "admin",
+          supersededBy: request.auth.uid,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+  }
+  return { ok: true, uid: request.auth.uid, email };
 });

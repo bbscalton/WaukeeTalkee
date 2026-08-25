@@ -559,12 +559,35 @@
           <p class="brand" style="font-size: 3rem; margin-bottom: 0;">WT</p>
           <h2>Control Desk</h2>
           <p class="muted">Sign in with the system administrator account to manage dispatchers and organizations.</p>
+          <p id="auth-status" class="muted" style="display: none; margin: 0; font-size: 0.9rem;">Checking sign-in…</p>
           <button id="google-login-btn" class="google-btn">
             <svg viewBox="0 0 488 512" fill="currentColor">
               <path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"/>
             </svg>
             Sign in with Google
           </button>
+          <div id="link-google-panel" style="display: none; width: 100%; text-align: left;">
+            <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.9rem;">
+              This email already has a password account. Enter that password once to link Google Sign-In.
+            </p>
+            <div class="form-group">
+              <label for="link-password">Password for <span id="link-email-label"></span></label>
+              <input type="password" id="link-password" autocomplete="current-password" minlength="6" placeholder="Account password" />
+            </div>
+            <button type="button" id="link-google-btn" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Link Google &amp; continue</button>
+          </div>
+          <div style="width: 100%; display: flex; flex-direction: column; gap: 0.75rem; text-align: left;">
+            <p class="muted" style="margin: 0; font-size: 0.8rem; text-align: center;">or use email / password</p>
+            <div class="form-group">
+              <label for="password-email">Email</label>
+              <input type="email" id="password-email" autocomplete="username" placeholder="neuereatec@gmail.com" />
+            </div>
+            <div class="form-group">
+              <label for="password-login">Password</label>
+              <input type="password" id="password-login" autocomplete="current-password" minlength="6" placeholder="Password" />
+            </div>
+            <button type="button" id="password-login-btn" class="btn btn-secondary" style="width: 100%;">Sign in with email</button>
+          </div>
           <div id="auth-error" class="error-alert" style="display: none; width: 100%;"></div>
         </div>
       </section>
@@ -889,7 +912,9 @@
         getAuth, 
         signInWithRedirect,
         getRedirectResult,
-        GoogleAuthProvider, 
+        GoogleAuthProvider,
+        signInWithEmailAndPassword,
+        linkWithCredential,
         onAuthStateChanged, 
         signOut 
       } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -920,6 +945,9 @@
       const db = getFirestore(app);
       const functions = getFunctions(app, "us-central1");
 
+      const ADMIN_EMAIL = "neuereatec@gmail.com";
+      const DEMO_ORG = "demo";
+
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
 
@@ -929,6 +957,14 @@
       const googleLoginBtn = document.getElementById("google-login-btn");
       const logoutBtn = document.getElementById("logout-btn");
       const authError = document.getElementById("auth-error");
+      const authStatus = document.getElementById("auth-status");
+      const linkGooglePanel = document.getElementById("link-google-panel");
+      const linkPasswordInput = document.getElementById("link-password");
+      const linkGoogleBtn = document.getElementById("link-google-btn");
+      const linkEmailLabel = document.getElementById("link-email-label");
+      const passwordEmailInput = document.getElementById("password-email");
+      const passwordLoginInput = document.getElementById("password-login");
+      const passwordLoginBtn = document.getElementById("password-login-btn");
       const userPhoto = document.getElementById("user-photo");
       const userEmailLabel = document.getElementById("user-email");
       const globalAlert = document.getElementById("global-alert");
@@ -960,6 +996,11 @@
 
       let currentResetUid = null;
       let activeOrgsList = [];
+      let pendingGoogleCredential = null;
+      let pendingGoogleEmail = null;
+      let authReady = false;
+      let handlingUser = false;
+      let dashboardLoadedForUid = null;
 
       const SOLUTION_VERTICALS = [
         { orgId: "demo", name: "Waukee Talkee", solution: "taxi", marketing: "../", features: "Full taxi demo — map, bookings, contacts, fleet" },
@@ -1210,6 +1251,21 @@
         if (code === "auth/network-request-failed") {
           return "Network error during Google sign-in. Check your connection and try again.";
         }
+        if (code === "auth/account-exists-with-different-credential") {
+          return "This email already has a password account. Enter that password below to link Google Sign-In, then the dashboard will open.";
+        }
+        if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+          return "Incorrect email or password.";
+        }
+        if (code === "auth/user-not-found") {
+          return "No account found for that email.";
+        }
+        if (code === "auth/credential-already-in-use") {
+          return "That Google account is already linked to a different Firebase user.";
+        }
+        if (code === "auth/provider-already-linked") {
+          return "Google is already linked to this account. Try Sign in with Google again.";
+        }
         return "Google sign-in failed: " + (error?.message || String(error));
       }
 
@@ -1220,42 +1276,179 @@
         authError.style.display = "block";
       }
 
-      // Complete redirect-based Google sign-in (reliable on GitHub Pages;
-      // signInWithPopup often fails with auth/popup-closed-by-user due to COOP).
-      getRedirectResult(auth)
-        .then((result) => {
+      function setAuthChecking(isChecking) {
+        if (!authStatus) return;
+        authStatus.style.display = isChecking ? "block" : "none";
+        authStatus.innerText = isChecking ? "Checking sign-in…" : "";
+      }
+
+      function showLogin() {
+        authSection.style.display = "block";
+        dashboardSection.style.display = "none";
+      }
+
+      function showDashboard(user) {
+        authSection.style.display = "none";
+        dashboardSection.style.display = "block";
+        userPhoto.src = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+        userEmailLabel.innerText = (user.email || "").toLowerCase();
+        authError.style.display = "none";
+        linkGooglePanel.style.display = "none";
+      }
+
+      function showLinkGooglePanel(email) {
+        pendingGoogleEmail = (email || ADMIN_EMAIL).toLowerCase();
+        linkEmailLabel.innerText = pendingGoogleEmail;
+        linkGooglePanel.style.display = "block";
+        passwordEmailInput.value = pendingGoogleEmail;
+        showLogin();
+      }
+
+      async function isAuthorizedAdmin(user) {
+        const email = (user.email || "").toLowerCase();
+        if (email === ADMIN_EMAIL) return { ok: true, reason: "email" };
+        try {
+          const [padSnap, dispSnap] = await Promise.all([
+            getDoc(doc(db, "platformAdmins", user.uid)),
+            getDoc(doc(db, "orgs", DEMO_ORG, "dispatchers", user.uid)),
+          ]);
+          if (padSnap.exists()) return { ok: true, reason: "platformAdmins" };
+          if (dispSnap.exists()) return { ok: true, reason: "demo-dispatcher" };
+        } catch (err) {
+          console.warn("Admin membership lookup failed:", err);
+        }
+        return { ok: false, reason: "none", email };
+      }
+
+      async function ensureAdminDocs(user) {
+        const email = (user.email || "").toLowerCase();
+        if (email !== ADMIN_EMAIL) return;
+        try {
+          const ensureFn = httpsCallable(functions, "ensureTcdAdminAccess");
+          await ensureFn({});
+        } catch (fnErr) {
+          console.warn("ensureTcdAdminAccess failed, writing client fallback:", fnErr);
+          try {
+            await setDoc(
+              doc(db, "platformAdmins", user.uid),
+              { email, role: "admin", updatedAt: new Date().toISOString() },
+              { merge: true }
+            );
+            await setDoc(
+              doc(db, "orgs", DEMO_ORG, "dispatchers", user.uid),
+              {
+                email,
+                displayName: user.displayName || "Platform Admin",
+                role: "admin",
+                createdAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          } catch (writeErr) {
+            console.warn("Client admin upsert failed:", writeErr);
+          }
+        }
+      }
+
+      async function enterDashboard(user) {
+        await ensureAdminDocs(user);
+        showDashboard(user);
+        if (dashboardLoadedForUid !== user.uid) {
+          dashboardLoadedForUid = user.uid;
+          await loadDashboard();
+        }
+      }
+
+      async function handleSignedInUser(user) {
+        if (handlingUser) return;
+        handlingUser = true;
+        try {
+          const access = await isAuthorizedAdmin(user);
+          if (access.ok) {
+            await enterDashboard(user);
+            return;
+          }
+          // Signed in but not authorized — keep session visible with a clear error (do not silent-bounce).
+          showLogin();
+          showAuthError(
+            `Signed in as ${access.email || user.uid}, but this account is not authorized for the Control Desk. ` +
+            `Use ${ADMIN_EMAIL}, or ask an admin to add your UID to platformAdmins / demo dispatchers.`
+          );
+          googleLoginBtn.style.display = "none";
+          // Offer sign-out so they can switch accounts
+          if (!document.getElementById("unauthorized-signout-btn")) {
+            const btn = document.createElement("button");
+            btn.id = "unauthorized-signout-btn";
+            btn.className = "btn-sm btn-secondary";
+            btn.style.marginTop = "0.5rem";
+            btn.innerText = "Sign out and try another account";
+            btn.addEventListener("click", () => signOut(auth));
+            authError.parentElement.appendChild(btn);
+          }
+        } finally {
+          handlingUser = false;
+        }
+      }
+
+      function resetGoogleBtnLabel() {
+        googleLoginBtn.disabled = false;
+        googleLoginBtn.style.opacity = "";
+        googleLoginBtn.style.display = "";
+        const textNode = Array.from(googleLoginBtn.childNodes).find(
+          (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+        );
+        if (textNode) {
+          textNode.textContent = " Sign in with Google";
+        }
+      }
+
+      // Complete redirect-based Google sign-in before trusting auth UI.
+      // Password-only account + Google hits auth/account-exists-with-different-credential —
+      // surface a one-time password link panel instead of silently staying on login.
+      setAuthChecking(true);
+      (async () => {
+        try {
+          const result = await getRedirectResult(auth);
           if (result?.user) {
             authError.style.display = "none";
           }
-        })
-        .catch((error) => {
+        } catch (error) {
           console.error("Google redirect sign-in failed:", error);
-          showAuthError(error);
-        });
-
-      // Check Authentication
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          const email = user.email ? user.email.toLowerCase() : "";
-          if (email === "neuereatec@gmail.com") {
-            // Logged in as Admin
-            authSection.style.display = "none";
-            dashboardSection.style.display = "block";
-            userPhoto.src = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
-            userEmailLabel.innerText = email;
-            authError.style.display = "none";
-            loadDashboard();
+          if (error?.code === "auth/account-exists-with-different-credential") {
+            pendingGoogleCredential = GoogleAuthProvider.credentialFromError(error);
+            const email = error?.customData?.email || ADMIN_EMAIL;
+            showAuthError(error);
+            showLinkGooglePanel(email);
           } else {
-            // Not Admin
-            await signOut(auth);
-            showAuthError("Access denied. Only neuereatec@gmail.com is authorized to access the Control Desk.");
-            authSection.style.display = "block";
-            dashboardSection.style.display = "none";
+            showAuthError(error);
           }
+        } finally {
+          authReady = true;
+          setAuthChecking(false);
+          // If redirect produced a user, onAuthStateChanged may have already fired;
+          // re-run against currentUser once redirect handling is done.
+          if (auth.currentUser) {
+            await handleSignedInUser(auth.currentUser);
+          } else if (!pendingGoogleCredential) {
+            showLogin();
+          }
+        }
+      })();
+
+      onAuthStateChanged(auth, async (user) => {
+        // Wait until getRedirectResult finishes so we don't flash login then dashboard
+        // (or bounce) during the redirect race.
+        if (!authReady) return;
+        if (user) {
+          await handleSignedInUser(user);
         } else {
-          // Logged Out
-          authSection.style.display = "block";
-          dashboardSection.style.display = "none";
+          dashboardLoadedForUid = null;
+          resetGoogleBtnLabel();
+          const unauthBtn = document.getElementById("unauthorized-signout-btn");
+          if (unauthBtn) unauthBtn.remove();
+          if (!pendingGoogleCredential) {
+            showLogin();
+          }
         }
       });
 
@@ -1274,15 +1467,67 @@
           await signInWithRedirect(auth, provider);
         } catch (error) {
           console.error("Google sign-in redirect failed:", error);
-          googleLoginBtn.disabled = false;
-          googleLoginBtn.style.opacity = "";
-          const textNode = Array.from(googleLoginBtn.childNodes).find(
-            (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
-          );
-          if (textNode) {
-            textNode.textContent = " Sign in with Google";
-          }
+          resetGoogleBtnLabel();
           showAuthError(error);
+        }
+      });
+
+      linkGoogleBtn.addEventListener("click", async () => {
+        const password = linkPasswordInput.value || "";
+        if (!pendingGoogleCredential) {
+          showAuthError("No pending Google credential. Click Sign in with Google again.");
+          return;
+        }
+        if (!password || password.length < 6) {
+          showAuthError("Enter the existing account password (at least 6 characters).");
+          return;
+        }
+        try {
+          linkGoogleBtn.disabled = true;
+          const email = pendingGoogleEmail || ADMIN_EMAIL;
+          const existing = await signInWithEmailAndPassword(auth, email, password);
+          await linkWithCredential(existing.user, pendingGoogleCredential);
+          pendingGoogleCredential = null;
+          pendingGoogleEmail = null;
+          linkGooglePanel.style.display = "none";
+          linkPasswordInput.value = "";
+          authError.style.display = "none";
+          await handleSignedInUser(existing.user);
+        } catch (error) {
+          console.error("Link Google failed:", error);
+          showAuthError(error);
+        } finally {
+          linkGoogleBtn.disabled = false;
+        }
+      });
+
+      passwordLoginBtn.addEventListener("click", async () => {
+        const email = (passwordEmailInput.value || ADMIN_EMAIL).trim().toLowerCase();
+        const password = passwordLoginInput.value || "";
+        if (!email || !password) {
+          showAuthError("Enter email and password.");
+          return;
+        }
+        try {
+          passwordLoginBtn.disabled = true;
+          authError.style.display = "none";
+          const cred = await signInWithEmailAndPassword(auth, email, password);
+          if (pendingGoogleCredential) {
+            try {
+              await linkWithCredential(cred.user, pendingGoogleCredential);
+              pendingGoogleCredential = null;
+              pendingGoogleEmail = null;
+              linkGooglePanel.style.display = "none";
+            } catch (linkErr) {
+              console.warn("Optional Google link after password login failed:", linkErr);
+            }
+          }
+          await handleSignedInUser(cred.user);
+        } catch (error) {
+          console.error("Password sign-in failed:", error);
+          showAuthError(error);
+        } finally {
+          passwordLoginBtn.disabled = false;
         }
       });
 

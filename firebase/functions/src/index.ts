@@ -19,6 +19,7 @@ export {
   approveRegistration,
   rejectRegistration,
   backfillPublicSites,
+  ensureTcdAdminAccess,
 } from "./registrations";
 
 initializeApp();
@@ -455,14 +456,36 @@ export const purgeExpiredArchive = onSchedule(
   }
 );
 
-function assertAdmin(requestAuth: any): asserts requestAuth is { uid: string; token: { email: string } } {
-  if (!requestAuth?.uid || requestAuth.token?.email !== "neuereatec@gmail.com") {
+const ADMIN_EMAIL = "neuereatec@gmail.com";
+const DEMO_ORG = "demo";
+
+function normalizeAdminEmail(email: unknown): string {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+}
+
+async function assertAdmin(
+  requestAuth: any
+): Promise<{ uid: string; token: { email: string } }> {
+  if (!requestAuth?.uid) {
     throw new HttpsError("permission-denied", "Admin access required.");
   }
+  if (normalizeAdminEmail(requestAuth.token?.email) === ADMIN_EMAIL) {
+    return requestAuth;
+  }
+  const [padSnap, dispSnap] = await Promise.all([
+    db.doc(`platformAdmins/${requestAuth.uid}`).get(),
+    db.doc(`orgs/${DEMO_ORG}/dispatchers/${requestAuth.uid}`).get(),
+  ]);
+  if (padSnap.exists || dispSnap.exists) {
+    return requestAuth;
+  }
+  throw new HttpsError("permission-denied", "Admin access required.");
 }
 
 export const adminListDispatchers = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const snapshot = await db.collectionGroup("dispatchers").get();
   const list = [];
@@ -482,7 +505,7 @@ export const adminListDispatchers = onCall(async (request) => {
 });
 
 export const adminCreateDispatcher = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const email = String(request.data?.email || "").trim().toLowerCase();
   const password = String(request.data?.password || "");
@@ -528,7 +551,7 @@ export const adminCreateDispatcher = onCall(async (request) => {
 
 
 export const adminDeleteDispatcher = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const uid = String(request.data?.uid || "").trim();
   const orgId = String(request.data?.orgId || "").trim();
@@ -548,7 +571,7 @@ export const adminDeleteDispatcher = onCall(async (request) => {
 });
 
 export const adminResetDispatcherPassword = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const uid = String(request.data?.uid || "").trim();
   const newPassword = String(request.data?.newPassword || "");
@@ -571,7 +594,7 @@ export const adminResetDispatcherPassword = onCall(async (request) => {
 });
 
 export const adminListOrgs = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const orgsSnap = await db.collection("orgs").get();
   const list = [];
@@ -591,7 +614,7 @@ export const adminListOrgs = onCall(async (request) => {
 });
 
 export const adminUpdateOrgFeatures = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const orgId = String(request.data?.orgId || "").trim().toLowerCase();
   const features = request.data?.features;
@@ -611,7 +634,7 @@ export const adminUpdateOrgFeatures = onCall(async (request) => {
 });
 
 export const adminCreateOrg = onCall(async (request) => {
-  assertAdmin(request.auth);
+  await assertAdmin(request.auth);
   
   const orgId = String(request.data?.orgId || "").trim().toLowerCase();
   const displayName = String(request.data?.displayName || "").trim();
