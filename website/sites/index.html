@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Waukee Talkee — Customer site</title>
     <meta name="description" content="Branded dispatch landing powered by Waukee Talkee." />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -498,6 +499,9 @@
         document.getElementById("foot-brand").textContent = `${name} · powered by Waukee Talkee`;
 
         boot.hidden = true;
+        boot.setAttribute("aria-hidden", "true");
+        boot.style.display = "none";
+        boot.replaceChildren();
         shell.hidden = false;
         document.body.classList.remove("site-loading");
       }
