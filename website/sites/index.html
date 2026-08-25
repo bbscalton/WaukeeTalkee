@@ -149,6 +149,12 @@
         text-align: center;
         padding: 2rem;
       }
+      /* Author display:grid beats the UA [hidden] rule — force hide when dismissed */
+      .site-empty[hidden],
+      .site-error[hidden],
+      .site-shell[hidden] {
+        display: none !important;
+      }
       .site-error h1, .site-empty h1 {
         font-family: var(--font-display);
         text-transform: uppercase;
