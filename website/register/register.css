@@ -415,6 +415,13 @@
   border-top: 1px solid var(--line);
 }
 
+.reg-nav[hidden],
+.reg-flow[hidden],
+.reg-hero[hidden],
+.reg-panel[hidden] {
+  display: none !important;
+}
+
 .reg-nav .btn-primary {
   margin-left: auto;
 }

@@ -419,6 +419,9 @@ function bindLiveFields() {
 }
 
 function setStep(step) {
+  // Confirmation is the last step — never advance past it (Continue used to
+  // reach step 6+ and hide every panel while the progress bar still said Review).
+  step = Math.max(0, Math.min(5, Number(step) || 0));
   state.step = step;
   if (step >= 1) {
     el.flow.hidden = false;
@@ -427,9 +430,11 @@ function setStep(step) {
 
   document.querySelectorAll("[data-step-panel]").forEach((panel) => {
     const n = Number(panel.dataset.stepPanel);
-    panel.classList.toggle("is-active", n === step);
+    const active = n === step;
+    panel.classList.toggle("is-active", active);
     if (n === 0) return;
-    panel.style.display = n === step ? "block" : "none";
+    panel.hidden = !active;
+    panel.style.display = active ? "block" : "none";
   });
 
   // hero is step 0 outside flow
@@ -442,13 +447,16 @@ function setStep(step) {
   el.progressFill.style.width = `${(progressStep / 4) * 100}%`;
   document.querySelectorAll("[data-step-label]").forEach((li) => {
     const n = Number(li.dataset.stepLabel);
-    li.classList.toggle("is-active", n === progressStep);
-    li.classList.toggle("is-done", n < progressStep);
+    li.classList.toggle("is-active", n === progressStep && step < 5);
+    li.classList.toggle("is-done", n < progressStep || step >= 5);
   });
 
-  el.regNav.hidden = step === 0 || step === 5;
+  const showNav = step >= 1 && step <= 4;
+  el.regNav.hidden = !showNav;
+  el.regNav.style.display = showNav ? "" : "none";
   el.backBtn.hidden = step <= 1;
-  el.nextBtn.textContent = step === 4 ? (state.submitting ? "Submitting…" : "Submit registration") : "Continue";
+  el.nextBtn.textContent =
+    step === 4 ? (state.submitting ? "Submitting…" : "Submit registration") : "Continue";
   el.nextBtn.disabled = state.submitting;
 
   if (step === 4) renderReview();
@@ -569,6 +577,7 @@ async function submit() {
 el.startBtn.addEventListener("click", () => setStep(1));
 el.backBtn.addEventListener("click", () => setStep(Math.max(1, state.step - 1)));
 el.nextBtn.addEventListener("click", async () => {
+  if (state.step >= 5) return;
   if (!validateStep(state.step)) return;
   if (state.step === 4) {
     await submit();
