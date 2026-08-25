@@ -261,26 +261,7 @@ function renderSolGrid() {
   ).join("");
 
   el.solGrid.querySelectorAll(".sol-tile").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.solution = btn.dataset.sol;
-      const sol = currentSolution();
-      if (sol) {
-        state.brandColor = sol.accent;
-        el.brandColor.value = sol.accent;
-        el.brandColorPicker.value = sol.accent;
-        if (!state.tagline) {
-          state.tagline = sol.promise;
-          el.tagline.value = sol.promise;
-        }
-        el.nameLabel.textContent = sol.nameLabel;
-        el.teamLabel.textContent = sol.teamLabel;
-        el.step2Sub.textContent = `Configuring ${sol.name} — fields adapt to your vertical.`;
-      }
-      renderSolGrid();
-      renderSolutionFields();
-      updatePreview();
-      updateSwatches();
-    });
+    btn.addEventListener("click", () => selectSolution(btn.dataset.sol));
   });
 }
 
@@ -601,7 +582,65 @@ updateSwatches();
 bindLiveFields();
 updatePreview();
 
-// Deep-link: /register/#flow or ?start=1
-if (location.hash === "#flow" || new URLSearchParams(location.search).has("start")) {
+// Persist YouTube / Ads UTMs across get-started → register (Google Ads reporting)
+(function captureUtm() {
+  const keys = [
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_content",
+    "utm_term",
+    "gclid",
+    "gbraid",
+    "wbraid",
+  ];
+  const params = new URLSearchParams(location.search);
+  let stored = {};
+  try {
+    stored = JSON.parse(sessionStorage.getItem("wt_utm") || "{}") || {};
+  } catch {
+    stored = {};
+  }
+  const merged = { ...stored };
+  keys.forEach((k) => {
+    if (params.has(k)) merged[k] = params.get(k);
+  });
+  try {
+    sessionStorage.setItem("wt_utm", JSON.stringify(merged));
+  } catch {
+    /* ignore quota */
+  }
+})();
+
+function selectSolution(solId) {
+  const sol = SOLUTIONS.find((s) => s.id === solId);
+  if (!sol) return;
+  state.solution = sol.id;
+  state.brandColor = sol.accent;
+  el.brandColor.value = sol.accent;
+  el.brandColorPicker.value = sol.accent;
+  if (!state.tagline) {
+    state.tagline = sol.promise;
+    el.tagline.value = sol.promise;
+  }
+  el.nameLabel.textContent = sol.nameLabel;
+  el.teamLabel.textContent = sol.teamLabel;
+  el.step2Sub.textContent = `Configuring ${sol.name} — fields adapt to your vertical.`;
+  renderSolGrid();
+  renderSolutionFields();
+  updatePreview();
+  updateSwatches();
+}
+
+// Deep-link: /register/#flow, #picker, ?start=1, or ?sol= → open world picker
+const bootParams = new URLSearchParams(location.search);
+const bootSol = (bootParams.get("sol") || "").trim().toLowerCase();
+if (
+  location.hash === "#flow" ||
+  location.hash === "#picker" ||
+  bootParams.has("start") ||
+  bootSol
+) {
   setStep(1);
 }
+if (bootSol) selectSolution(bootSol);

@@ -182,10 +182,10 @@
             <div class="site-hero-grid"></div>
           </div>
           <div class="site-hero-copy">
-            <div class="site-mark" id="site-mark">WT</div>
-            <p class="brand" id="site-brand">Company</p>
-            <h1 id="site-headline">Headline</h1>
-            <p class="lede" id="site-tagline">Tagline</p>
+            <div class="site-mark" id="site-mark">…</div>
+            <p class="brand" id="site-brand"></p>
+            <h1 id="site-headline"></h1>
+            <p class="lede" id="site-tagline"></p>
             <div class="site-meta-chip" id="site-chips"></div>
             <div class="cta-row">
               <a class="btn btn-primary" href="#" id="hero-cta">Open dispatch</a>
@@ -309,6 +309,73 @@
         },
       };
 
+      /** Same presets as backfillPublicSites / seed ORG_PRESETS — used when Firestore is empty. */
+      const PRESET_ORGS = {
+        demo: {
+          companyName: "Waukee Talkee",
+          solution: "taxi",
+          city: "Waukee",
+          region: "IA",
+          brandColor: "#f0b429",
+          tagline: "Dispatch that feels like a radio.",
+          teamSize: 12,
+        },
+        rebert: {
+          companyName: "Rebert Construction",
+          solution: "concrete",
+          city: "Des Moines",
+          region: "IA",
+          brandColor: "#f0b429",
+          tagline: "Plant-to-pour coordination without the chaos.",
+          teamSize: 12,
+        },
+        security: {
+          companyName: "Guard Watch",
+          solution: "security",
+          city: "Des Moines",
+          region: "IA",
+          brandColor: "#4fc3f7",
+          tagline: "Security guard dispatch & patrol coordination.",
+          teamSize: 12,
+        },
+        field: {
+          companyName: "Field Crew",
+          solution: "field",
+          city: "Des Moines",
+          region: "IA",
+          brandColor: "#4caf50",
+          tagline: "Field workers, jobs, and sites — radio-simple.",
+          teamSize: 12,
+        },
+        truck: {
+          companyName: "Truck Fleet",
+          solution: "truck",
+          city: "Des Moines",
+          region: "IA",
+          brandColor: "#f0b429",
+          tagline: "Routes, stops, and radio for the road.",
+          teamSize: 12,
+        },
+        family: {
+          companyName: "Family Talk",
+          solution: "family",
+          city: "Waukee",
+          region: "IA",
+          brandColor: "#e8a87c",
+          tagline: "Stay close. Check in. Stay safe.",
+          teamSize: 12,
+        },
+        retail: {
+          companyName: "Retail Team",
+          solution: "retail",
+          city: "Des Moines",
+          region: "IA",
+          brandColor: "#ff7043",
+          tagline: "Store staff coordination that keeps the floor moving.",
+          teamSize: 12,
+        },
+      };
+
       const params = new URLSearchParams(location.search);
       const orgId = (params.get("org") || "").trim().toLowerCase();
       const boot = document.getElementById("boot");
@@ -316,6 +383,7 @@
 
       function showError(title, msg) {
         boot.className = "site-error";
+        boot.hidden = false;
         boot.innerHTML = `<div>
           <h1>${title}</h1>
           <p class="muted">${msg}</p>
@@ -324,6 +392,7 @@
             <a class="btn btn-ghost" href="./?org=demo">Try demo</a>
           </div>
         </div>`;
+        shell.hidden = true;
         document.body.classList.remove("site-loading");
       }
 
@@ -334,20 +403,58 @@
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
       }
 
-      function render(site) {
-        const solution = site.solution || "taxi";
+      function pick(...vals) {
+        for (const v of vals) {
+          if (v == null) continue;
+          const s = typeof v === "string" ? v.trim() : v;
+          if (s === "" || s === "Company" || s === "Headline" || s === "Tagline") continue;
+          return typeof v === "string" ? s : v;
+        }
+        return "";
+      }
+
+      function resolveSite(raw) {
+        const preset = PRESET_ORGS[orgId] || {};
+        const data = raw && typeof raw === "object" ? raw : {};
+        const solution = pick(data.solution, preset.solution) || "taxi";
         const fb = FALLBACK[solution] || FALLBACK.taxi;
-        const name = site.companyName || site.displayName || orgId;
-        const accent = site.brandColor || fb.brandColor;
-        const tagline = site.tagline || fb.promise;
-        const headline = site.headline || fb.headline;
-        const features = Array.isArray(site.features) && site.features.length ? site.features : fb.features;
-        const cta = site.ctaLabel || fb.ctaLabel;
-        const teamNoun = site.teamNoun || fb.teamNoun;
+        const companyName =
+          pick(data.companyName, data.displayName, preset.companyName) || orgId;
+        return {
+          orgId,
+          solution,
+          companyName,
+          displayName: companyName,
+          brandColor: pick(data.brandColor, preset.brandColor, fb.brandColor),
+          tagline: pick(data.tagline, preset.tagline, fb.promise),
+          headline: pick(data.headline, fb.headline),
+          promise: pick(data.promise, fb.promise),
+          features:
+            Array.isArray(data.features) && data.features.length
+              ? data.features
+              : fb.features,
+          ctaLabel: pick(data.ctaLabel, fb.ctaLabel),
+          teamNoun: pick(data.teamNoun, fb.teamNoun),
+          city: pick(data.city, preset.city),
+          region: pick(data.region, preset.region),
+          teamSize: Number(data.teamSize) || Number(preset.teamSize) || 0,
+          initials: pick(data.initials) || initials(companyName),
+          productName: pick(data.productName, fb.productName),
+        };
+      }
+
+      function render(site) {
+        const name = site.companyName;
+        const accent = site.brandColor;
+        const tagline = site.tagline;
+        const headline = site.headline;
+        const features = site.features;
+        const cta = site.ctaLabel;
+        const teamNoun = site.teamNoun;
         const appHref = `../app/?org=${encodeURIComponent(orgId)}`;
 
         document.documentElement.style.setProperty("--site-accent", accent);
-        document.title = `${name} — ${fb.productName || "Waukee Talkee"}`;
+        document.title = `${name} — ${site.productName || "Waukee Talkee"}`;
         document.querySelector('meta[name="description"]')?.setAttribute("content", tagline);
 
         document.getElementById("nav-brand").textContent = name;
@@ -360,7 +467,7 @@
         const chips = [];
         if (site.city) chips.push(`${site.city}${site.region ? ", " + site.region : ""}`);
         if (site.teamSize) chips.push(`${site.teamSize} ${teamNoun}`);
-        chips.push(solution);
+        chips.push(site.solution);
         document.getElementById("site-chips").innerHTML = chips.map((c) => `<span>${c}</span>`).join("");
 
         ["nav-cta", "hero-cta", "closer-cta"].forEach((id) => {
@@ -370,8 +477,8 @@
           else a.textContent = "Open dispatch";
         });
 
-        document.getElementById("feat-solution").textContent = fb.productName || solution;
-        document.getElementById("feat-promise").textContent = site.promise || fb.promise;
+        document.getElementById("feat-solution").textContent = site.productName || site.solution;
+        document.getElementById("feat-promise").textContent = site.promise;
         document.getElementById("feat-grid").innerHTML = features
           .map(
             (f) =>
@@ -389,6 +496,18 @@
         document.body.classList.remove("site-loading");
       }
 
+      function loadFromPresetOrError(reason) {
+        if (PRESET_ORGS[orgId]) {
+          render(resolveSite(null));
+          return;
+        }
+        showError(
+          "Site not found",
+          reason ||
+            `No public site for org “${orgId}”. It may still be pending approval.`
+        );
+      }
+
       if (!orgId) {
         showError("Pick an organization", "Add ?org=your-id to this URL, or register a new team.");
       } else {
@@ -397,16 +516,17 @@
         getDoc(doc(db, "publicSites", orgId))
           .then((snap) => {
             if (!snap.exists()) {
-              showError(
-                "Site not found",
-                `No public site for org “${orgId}”. It may still be pending approval.`
-              );
+              loadFromPresetOrError();
               return;
             }
-            render({ orgId, ...snap.data() });
+            render(resolveSite(snap.data()));
           })
           .catch((err) => {
             console.error(err);
+            if (PRESET_ORGS[orgId]) {
+              render(resolveSite(null));
+              return;
+            }
             showError("Could not load site", err.message || "Check your connection and try again.");
           });
       }

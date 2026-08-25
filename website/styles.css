@@ -98,12 +98,49 @@ a {
   animation: heroDrift 18s ease-in-out infinite alternate;
 }
 
+.hero-atmosphere {
+  background:
+    radial-gradient(1000px 500px at 72% -8%, rgba(240, 180, 41, 0.2), transparent 55%),
+    radial-gradient(680px 400px at -5% 35%, rgba(79, 195, 247, 0.14), transparent 50%),
+    radial-gradient(520px 320px at 95% 75%, rgba(76, 175, 80, 0.1), transparent 50%),
+    radial-gradient(420px 280px at 40% 90%, rgba(255, 112, 67, 0.08), transparent 55%),
+    linear-gradient(165deg, #0e1116 0%, #161b22 45%, #0a0c10 100%);
+}
+
+.hero-grid-scan {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(243, 239, 230, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(243, 239, 230, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 75%);
+  animation: gridDrift 28s linear infinite;
+}
+
+.hero-pulse {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: 14%;
+  top: 20%;
+  border-radius: 50%;
+  border: 1px solid rgba(240, 180, 41, 0.28);
+  box-shadow: 0 0 0 36px rgba(240, 180, 41, 0.04);
+  animation: pulseRing 4.5s ease-in-out infinite;
+}
+
 .hero-veil {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(18, 21, 26, 0.25) 0%, rgba(18, 21, 26, 0.55) 42%, rgba(18, 21, 26, 0.94) 100%),
-    linear-gradient(90deg, rgba(18, 21, 26, 0.55) 0%, transparent 55%);
+    linear-gradient(180deg, rgba(18, 21, 26, 0.15) 0%, rgba(18, 21, 26, 0.45) 42%, rgba(18, 21, 26, 0.92) 100%),
+    linear-gradient(90deg, rgba(18, 21, 26, 0.5) 0%, transparent 55%);
+}
+
+.hero-platform .hero-veil {
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(18, 21, 26, 0.35) 50%, rgba(18, 21, 26, 0.92) 100%);
 }
 
 .hero-copy {
@@ -115,6 +152,14 @@ a {
   opacity: 0;
   transform: translateY(22px);
   animation: riseIn 0.9s ease 0.15s forwards;
+}
+
+.hero-meta {
+  margin-top: 1.5rem;
+  font-size: 0.82rem;
+  color: rgba(185, 176, 162, 0.75);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .brand {
@@ -193,6 +238,91 @@ a {
 .band-inner {
   width: min(1000px, 100%);
   margin: 0 auto;
+}
+
+.worlds {
+  padding: 4.5rem 1.25rem 5rem;
+  border-top: 1px solid var(--line);
+  background:
+    radial-gradient(700px 320px at 50% 0%, rgba(240, 180, 41, 0.08), transparent 55%),
+    var(--asphalt);
+}
+
+.worlds-inner {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.worlds h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  line-height: 1.05;
+  font-weight: 400;
+  max-width: 18ch;
+}
+
+.world-grid {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.world-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.05rem 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(28, 34, 43, 0.65);
+  border-top: 2px solid var(--w-accent, var(--amber));
+  transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease, opacity 0.5s ease;
+  min-height: 100%;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.world-card.in {
+  opacity: 1;
+  transform: none;
+}
+
+.world-card:hover {
+  transform: translateY(-3px);
+  background: rgba(36, 44, 56, 0.9);
+  border-color: color-mix(in srgb, var(--w-accent, var(--amber)) 45%, var(--line));
+}
+
+.world-card.in:hover {
+  transform: translateY(-3px);
+}
+
+.world-icon {
+  color: var(--w-accent, var(--amber));
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.world-card strong {
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+}
+
+.world-card span:last-child {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.inline-code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.88em;
+  color: var(--amber);
 }
 
 .band h2,
@@ -358,6 +488,27 @@ a {
   }
 }
 
+@keyframes gridDrift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(48px);
+  }
+}
+
+@keyframes pulseRing {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
 @keyframes riseIn {
   to {
     opacity: 1;
@@ -381,6 +532,7 @@ a {
   .top,
   .hero-copy,
   .band,
+  .worlds,
   .split,
   .closer,
   .foot {

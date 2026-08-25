@@ -1,4 +1,5 @@
 const steps = document.querySelectorAll(".steps li");
+const worldCards = document.querySelectorAll(".world-card");
 
 if ("IntersectionObserver" in window) {
   const io = new IntersectionObserver(
@@ -10,9 +11,11 @@ if ("IntersectionObserver" in window) {
         }
       });
     },
-    { threshold: 0.25 }
+    { threshold: 0.2 }
   );
   steps.forEach((step) => io.observe(step));
+  worldCards.forEach((card) => io.observe(card));
 } else {
   steps.forEach((step) => step.classList.add("in"));
+  worldCards.forEach((card) => card.classList.add("in"));
 }
