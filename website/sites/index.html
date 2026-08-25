@@ -511,11 +511,22 @@
       if (!orgId) {
         showError("Pick an organization", "Add ?org=your-id to this URL, or register a new team.");
       } else {
+        // Known demos: show preset immediately so custom-domain / referrer issues
+        // can't leave visitors stuck on "Loading your site…"
+        if (PRESET_ORGS[orgId]) {
+          render(resolveSite(null));
+        }
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        getDoc(doc(db, "publicSites", orgId))
+        const timeoutMs = 5000;
+        const timed = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publicSites lookup timed out")), timeoutMs);
+        });
+
+        Promise.race([getDoc(doc(db, "publicSites", orgId)), timed])
           .then((snap) => {
-            if (!snap.exists()) {
+            if (!snap || typeof snap.exists !== "function" || !snap.exists()) {
               loadFromPresetOrError();
               return;
             }
@@ -523,11 +534,7 @@
           })
           .catch((err) => {
             console.error(err);
-            if (PRESET_ORGS[orgId]) {
-              render(resolveSite(null));
-              return;
-            }
-            showError("Could not load site", err.message || "Check your connection and try again.");
+            loadFromPresetOrError(err.message || "Check your connection and try again.");
           });
       }
     </script>
