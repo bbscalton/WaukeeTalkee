@@ -528,6 +528,137 @@ a {
   }
 }
 
+/* Features section */
+.features {
+  padding: 5rem 1.25rem;
+  border-top: 1px solid var(--line);
+  background:
+    radial-gradient(600px 280px at 0% 50%, rgba(79, 195, 247, 0.08), transparent 55%),
+    var(--asphalt);
+}
+
+.features-inner {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.features h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  line-height: 1.05;
+  font-weight: 400;
+}
+
+.features-grid {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2.5rem;
+}
+
+.feature-col {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(28, 34, 43, 0.5);
+}
+
+.feature-col h3 {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  color: var(--amber);
+  letter-spacing: 0.02em;
+}
+
+.feature-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.feature-list li {
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding-left: 1.25rem;
+  position: relative;
+}
+
+.feature-list li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+/* Pricing section */
+.pricing {
+  padding: 5rem 1.25rem;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--asphalt-2) 0%, var(--asphalt) 100%);
+}
+
+.pricing-inner {
+  width: min(600px, 100%);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.pricing h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  line-height: 1.05;
+  font-weight: 400;
+}
+
+.pricing-card {
+  margin-top: 2rem;
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(28, 34, 43, 0.65);
+  border-top: 2px solid var(--amber);
+}
+
+.pricing-trial {
+  margin: 0;
+  color: var(--amber);
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pricing-rate {
+  margin: 1rem 0 0;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.pricing-amount {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  letter-spacing: 0.02em;
+}
+
+.pricing-min {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* Five-step layout */
+.steps-five {
+  grid-template-columns: 1fr;
+}
+
 @media (min-width: 860px) {
   .top,
   .hero-copy,
@@ -535,6 +666,8 @@ a {
   .worlds,
   .split,
   .closer,
+  .features,
+  .pricing,
   .foot {
     padding-left: 2.5rem;
     padding-right: 2.5rem;
@@ -549,6 +682,10 @@ a {
     gap: 1.75rem;
   }
 
+  .steps-five {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
   .steps li {
     border-top: none;
     border-left: 1px solid var(--line);
@@ -558,6 +695,10 @@ a {
   .split {
     grid-template-columns: 1.1fr 0.9fr;
     align-items: center;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
