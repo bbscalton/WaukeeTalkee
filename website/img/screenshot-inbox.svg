@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 576" style="background:#12151a">
+  <rect fill="#12151a" width="1024" height="576"/>
+  <rect x="0" y="40" width="160" height="536" fill="#1c222b" stroke="#2a313c"/>
+  <text x="20" y="70" fill="#b9b0a2" font-family="system-ui" font-size="11">CHANNELS</text>
+  <rect x="10" y="85" width="140" height="55" rx="6" fill="#f0b429" opacity="0.15" stroke="#f0b429"/>
+  <text x="20" y="105" fill="#f3efe6" font-family="system-ui" font-size="12" font-weight="bold">test</text>
+  <text x="20" y="125" fill="#b9b0a2" font-family="system-ui" font-size="9">24 clips · last Aug 25</text>
+  <rect x="10" y="150" width="140" height="55" rx="6" fill="#2a313c"/>
+  <text x="20" y="170" fill="#f3efe6" font-family="system-ui" font-size="12">migg</text>
+  <text x="20" y="190" fill="#b9b0a2" font-family="system-ui" font-size="9">20 clips · 3 unheard</text>
+  <rect x="10" y="215" width="140" height="55" rx="6" fill="#2a313c"/>
+  <text x="20" y="235" fill="#f3efe6" font-family="system-ui" font-size="12">angie</text>
+  <text x="20" y="255" fill="#b9b0a2" font-family="system-ui" font-size="9">2 clips · 2 unheard</text>
+  <rect x="180" y="40" width="824" height="60" fill="#1c222b"/>
+  <text x="200" y="60" fill="#ff7043" font-family="system-ui" font-size="10">RADIO ARCHIVE</text>
+  <text x="200" y="85" fill="#f3efe6" font-family="system-ui" font-size="24" font-weight="bold">INBOX</text>
+  <text x="200" y="115" fill="#b9b0a2" font-family="system-ui" font-size="11">Replay PTT clips and reply on channel. Kept 7 days.</text>
+  <rect x="180" y="130" width="824" height="50" fill="#f0b429"/>
+  <text x="592" y="162" fill="#12151a" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">HOLD TO TALK</text>
+  <text x="200" y="210" fill="#b9b0a2" font-family="system-ui" font-size="11">RECORDINGS</text>
+  <rect x="180" y="225" width="824" height="45" fill="#1c222b" stroke="#2a313c"/>
+  <text x="200" y="252" fill="#f3efe6" font-family="system-ui" font-size="12">test</text>
+  <text x="200" y="265" fill="#b9b0a2" font-family="system-ui" font-size="9">Aug 25, 3:04 PM · 1s · new</text>
+  <rect x="900" y="238" width="40" height="22" rx="4" fill="#2a313c"/>
+  <text x="920" y="253" fill="#f3efe6" font-family="system-ui" font-size="10" text-anchor="middle">Play</text>
+  <rect x="180" y="275" width="824" height="45" fill="#1c222b" stroke="#2a313c"/>
+  <text x="200" y="302" fill="#f3efe6" font-family="system-ui" font-size="12">test</text>
+  <text x="200" y="315" fill="#b9b0a2" font-family="system-ui" font-size="9">Aug 25, 3:04 PM · 1s · new</text>
+  <rect x="900" y="288" width="40" height="22" rx="4" fill="#2a313c"/>
+  <text x="920" y="303" fill="#f3efe6" font-family="system-ui" font-size="10" text-anchor="middle">Play</text>
+  <rect x="180" y="325" width="824" height="45" fill="#1c222b" stroke="#2a313c"/>
+  <text x="200" y="352" fill="#f3efe6" font-family="system-ui" font-size="12">test</text>
+  <text x="200" y="365" fill="#b9b0a2" font-family="system-ui" font-size="9">Aug 25, 1:46 PM · 1s</text>
+  <rect x="900" y="338" width="40" height="22" rx="4" fill="#2a313c"/>
+  <text x="920" y="353" fill="#f3efe6" font-family="system-ui" font-size="10" text-anchor="middle">Play</text>
+  <rect x="180" y="375" width="824" height="45" fill="#1c222b" stroke="#2a313c"/>
+  <text x="200" y="402" fill="#f3efe6" font-family="system-ui" font-size="12">Dispatch</text>
+  <rect x="200" y="408" width="60" height="16" rx="3" fill="#f0b429"/>
+  <text x="230" y="419" fill="#12151a" font-family="system-ui" font-size="8" text-anchor="middle">Broadcast</text>
+  <text x="270" y="418" fill="#b9b0a2" font-family="system-ui" font-size="9">Aug 25, 11:21 AM · Fleet</text>
+  <rect x="900" y="388" width="40" height="22" rx="4" fill="#2a313c"/>
+  <text x="920" y="403" fill="#f3efe6" font-family="system-ui" font-size="10" text-anchor="middle">Play</text>
+  <text x="512" y="540" fill="#b9b0a2" font-family="system-ui" font-size="14" text-anchor="middle">Voice Inbox (Replace with real screenshot)</text>
+</svg>
