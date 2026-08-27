@@ -129,6 +129,22 @@ function ShellNav() {
         {/* User cluster */}
         <div className="topbar-user">
           <span className="topbar-role-pill">{formatDispatcherRole(dispatcherRole)}</span>
+          <a
+            href="/downloads/WaukeeTalkee-dispatcher.apk"
+            download="WaukeeTalkee-dispatcher.apk"
+            className="topbar-download"
+            title="Download Dispatcher APK"
+          >
+            ⬇ Dispatcher
+          </a>
+          <a
+            href="/downloads/WaukeeTalkee-driver.apk"
+            download="WaukeeTalkee-driver.apk"
+            className="topbar-download"
+            title="Download Driver APK"
+          >
+            ⬇ Driver
+          </a>
           <div className="topbar-avatar" title={userEmail}>{userInitial}</div>
           <span className="topbar-email">{userEmail}</span>
           <button
@@ -172,6 +188,14 @@ function ShellNav() {
           <div className="drawer-user">
             <span className="topbar-role-pill">{formatDispatcherRole(dispatcherRole)}</span>
             <span className="muted">{userEmail}</span>
+            <div className="drawer-downloads">
+              <a href="/downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk" className="drawer-download">
+                ⬇ Dispatcher APK
+              </a>
+              <a href="/downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk" className="drawer-download">
+                ⬇ Driver APK
+              </a>
+            </div>
             <button type="button" className="ghost" onClick={() => void logout()}>
               Sign out
             </button>
