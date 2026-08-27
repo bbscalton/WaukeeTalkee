@@ -913,6 +913,17 @@ a {
   font-size: 1.05rem;
 }
 
+/* Small button */
+.btn-sm {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+/* Downloads row */
+.cta-row-downloads {
+  margin-top: 0.75rem;
+}
+
 @media (min-width: 860px) {
   .hero-split {
     padding: 4rem 2.5rem 5rem;
