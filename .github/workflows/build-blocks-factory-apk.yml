@@ -8,6 +8,9 @@ on:
       - "android/dispatcher/**"
       - ".github/workflows/build-blocks-factory-apk.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,20 +23,25 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Configure Blocks Factory URL
         run: |
-          sed -i 's|https://bbscalton.github.io/WaukeeTalkee/app/|https://talk.neuereatec.org/app/?org=blocks-factory|g' android/dispatcher/build.gradle.kts
+          sed -i 's#https://bbscalton.github.io/WaukeeTalkee/app/#https://talk.neuereatec.org/app/?org=blocks-factory#g' android/dispatcher/build.gradle.kts
+          echo "Updated URL in build.gradle.kts:"
+          grep DISPATCH_URL android/dispatcher/build.gradle.kts
 
       - name: Build APK
         working-directory: android
-        run: ./gradlew :dispatcher:assembleRelease
+        run: ./gradlew :dispatcher:assembleRelease --no-daemon
 
       - name: Copy APK to downloads
         run: |
+          mkdir -p website/downloads
+          cp android/dispatcher/build/outputs/apk/release/dispatcher-release-unsigned.apk website/downloads/BlocksFactory-dispatcher.apk || \
           cp android/dispatcher/build/outputs/apk/release/dispatcher-release.apk website/downloads/BlocksFactory-dispatcher.apk
+          ls -la website/downloads/
 
       - name: Commit APK
         run: |
