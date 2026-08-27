@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "android/dispatcher/**"
+      - "android/**"
       - ".github/workflows/build-blocks-factory-apk.yml"
 
 permissions:
