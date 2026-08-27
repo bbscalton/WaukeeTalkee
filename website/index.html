@@ -58,7 +58,8 @@
             <img
               src="./img/screenshot-map.svg"
               alt="Live dispatcher map showing drivers in Guyana — real screenshot from Waukee Talkee"
-              class="hero-screenshot"
+              class="hero-screenshot zoomable"
+              data-caption="Live dispatcher map — Guyana"
             />
             <p class="proof-caption">Live dispatcher map — Guyana</p>
           </div>
@@ -75,6 +76,8 @@
                 src="./img/screenshot-map.svg"
                 alt="Live map showing driver locations and speeds on Guyana roads"
                 loading="lazy"
+                class="zoomable"
+                data-caption="Live map with GPS + speed"
               />
               <figcaption>Live map with GPS + speed</figcaption>
             </figure>
@@ -83,6 +86,8 @@
                 src="./img/screenshot-drivers.svg"
                 alt="Drivers roster showing pairing status, duty state, and telemetry"
                 loading="lazy"
+                class="zoomable"
+                data-caption="Drivers roster + pair codes"
               />
               <figcaption>Drivers roster + pair codes</figcaption>
             </figure>
@@ -91,6 +96,8 @@
                 src="./img/screenshot-inbox.svg"
                 alt="Voice inbox with PTT recordings from drivers"
                 loading="lazy"
+                class="zoomable"
+                data-caption="Voice inbox (PTT playback)"
               />
               <figcaption>Voice inbox (PTT playback)</figcaption>
             </figure>
@@ -271,6 +278,13 @@
       <a href="./register/#picker">Solutions</a>
       <a href="https://github.com/bbscalton/WaukeeTalkee">GitHub</a>
     </footer>
+
+    <!-- Lightbox modal -->
+    <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="Image viewer">
+      <button class="lightbox-close" aria-label="Close">&times;</button>
+      <img class="lightbox-img" src="" alt="" />
+      <p class="lightbox-caption"></p>
+    </div>
 
     <script src="./main.js"></script>
   </body>
