@@ -753,6 +753,35 @@ a {
   color: var(--amber);
 }
 
+/* Demo credentials box */
+.demo-credentials {
+  margin-top: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: rgba(79, 195, 247, 0.1);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.demo-credentials strong {
+  color: #4fc3f7;
+}
+
+.demo-login {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  color: var(--amber);
+  font-weight: 600;
+  user-select: all;
+}
+
 .hero-proof {
   position: relative;
 }
