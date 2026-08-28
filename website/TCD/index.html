@@ -772,11 +772,12 @@
                     <th>Org ID</th>
                     <th>Display Name</th>
                     <th>Solution</th>
+                    <th>Trial</th>
                   </tr>
                 </thead>
                 <tbody id="orgs-table-body">
                   <tr>
-                    <td colspan="3" style="text-align: center; color: var(--muted); padding: 1rem;">Loading orgs...</td>
+                    <td colspan="4" style="text-align: center; color: var(--muted); padding: 1rem;">Loading orgs...</td>
                   </tr>
                 </tbody>
               </table>
@@ -805,6 +806,10 @@
               <div class="form-group">
                 <label for="org-name-input">Display Name</label>
                 <input type="text" id="org-name-input" placeholder="e.g., Rebert Construction" required />
+              </div>
+              <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.75rem;">
+                <input type="checkbox" id="org-trial-checkbox" checked style="width: 18px; height: 18px; accent-color: var(--amber); cursor: pointer;" />
+                <label for="org-trial-checkbox" style="cursor: pointer; font-size: 0.95rem; color: var(--ink);">14-day trial · max 3 devices</label>
               </div>
               <button type="submit" class="btn btn-primary" style="width: 100%;">Create Organization</button>
             </form>
@@ -1708,8 +1713,11 @@
       }
 
       async function approveRegistrationFlow(registrationId, email) {
+        const startTrial = confirm(
+          `Approve this registration?\n\nOK = start 14-day trial (max 3 devices).\nCancel = approve without trial.`
+        );
         const createAccount = confirm(
-          `Approve this registration?\n\nOK = also create a dispatcher login for ${email || "the customer"} (you'll set a temporary password).\nCancel = approve org only (you can create a dispatcher later).`
+          `Create a dispatcher login for ${email || "the customer"}?\n\nOK = create dispatcher account (you'll set a temporary password).\nCancel = approve org only (you can create a dispatcher later).`
         );
         let customerPassword = "";
         let createCustomerAccount = false;
@@ -1729,10 +1737,12 @@
             createCustomerAccount,
             customerPassword,
             notes,
+            startTrial,
           });
           const d = res.data || {};
+          const trialMsg = d.trial ? " (14-day trial started)" : "";
           showAlert(
-            `Approved ${d.orgId}. Site: sites/?org=${d.orgId} · Console: app/?org=${d.orgId}`,
+            `Approved ${d.orgId}${trialMsg}. Site: sites/?org=${d.orgId} · Console: app/?org=${d.orgId}`,
             "success"
           );
           await Promise.all([loadRegistrations(), loadOrgs()]);
@@ -1780,14 +1790,26 @@
           // Populate table
           orgsTableBody.innerHTML = "";
           if (orgs.length === 0) {
-            orgsTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--muted);">No organizations found.</td></tr>`;
+            orgsTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--muted);">No organizations found.</td></tr>`;
           } else {
             orgs.forEach(org => {
               const row = document.createElement("tr");
+              let trialBadge = "—";
+              if (org.trial && org.trial.enabled) {
+                const endDate = org.trial.trialEndAt ? new Date(org.trial.trialEndAt) : null;
+                const now = new Date();
+                if (endDate && endDate > now) {
+                  const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+                  trialBadge = `<span style="font-size: 0.75rem; font-weight: 700; background: rgba(76, 175, 80, 0.15); color: #81c784; padding: 0.15rem 0.5rem; border-radius: 4px;" title="Max ${org.trial.maxDevices} devices">${daysLeft}d left</span>`;
+                } else {
+                  trialBadge = `<span style="font-size: 0.75rem; font-weight: 700; background: rgba(220, 53, 69, 0.15); color: #ff8a95; padding: 0.15rem 0.5rem; border-radius: 4px;">Expired</span>`;
+                }
+              }
               row.innerHTML = `
                 <td style="font-weight: 700;">${org.id}</td>
                 <td>${org.displayName}</td>
                 <td><span class="badge-sol ${org.solution}">${org.solution}</span></td>
+                <td>${trialBadge}</td>
               `;
               orgsTableBody.appendChild(row);
             });
@@ -1984,12 +2006,15 @@
         const orgId = document.getElementById("org-id-input").value;
         const displayName = document.getElementById("org-name-input").value;
         const solution = document.getElementById("org-solution").value;
+        const trial = document.getElementById("org-trial-checkbox").checked;
         
         try {
           const createOrgFn = httpsCallable(functions, "adminCreateOrg");
-          await createOrgFn({ orgId, displayName, solution });
-          showAlert(`Organization '${displayName}' (${orgId}) created successfully!`, "success");
+          const res = await createOrgFn({ orgId, displayName, solution, trial });
+          const trialMsg = res.data?.trial ? " (14-day trial, max 3 devices)" : "";
+          showAlert(`Organization '${displayName}' (${orgId}) created successfully!${trialMsg}`, "success");
           createOrgForm.reset();
+          document.getElementById("org-trial-checkbox").checked = true;
           loadDashboard();
         } catch (err) {
           showAlert("Failed to create organization: " + err.message);
