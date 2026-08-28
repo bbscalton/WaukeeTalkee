@@ -656,9 +656,64 @@
 
         <div class="grid-dashboard">
           
-          <!-- Dispatcher Accounts Table -->
+          <!-- Dispatcher Accounts Table + Create Form (Combined Card) -->
           <div class="tcd-card full-width">
             <h2>Dispatcher Login Accounts <span id="dispatcher-count">Loading...</span></h2>
+            
+            <!-- Inline Add Dispatcher Form (collapsible) -->
+            <div id="add-dispatcher-panel" style="background: var(--asphalt); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <strong style="font-size: 1rem; color: var(--amber);">+ Add New Dispatcher Account</strong>
+                <button type="button" id="toggle-add-form-btn" class="btn-sm btn-secondary" style="font-size: 0.8rem;">Show Form</button>
+              </div>
+              <form id="create-dispatcher-form" class="tcd-form" style="display: none;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem;">
+                  <div class="form-group">
+                    <label for="disp-email">Email Address</label>
+                    <input type="email" id="disp-email" required placeholder="dispatcher@company.com" />
+                  </div>
+                  <div class="form-group">
+                    <label for="disp-password">Temp Password</label>
+                    <input type="text" id="disp-password" required placeholder="At least 6 chars" minlength="6" autocomplete="off" />
+                  </div>
+                  <div class="form-group">
+                    <label for="disp-org">Organization</label>
+                    <select id="disp-org" required>
+                      <option value="" disabled selected>Select org...</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="disp-role">Role</label>
+                    <select id="disp-role" required style="padding: 0.6rem 0.85rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line);">
+                      <option value="dispatcher" selected>Dispatcher</option>
+                      <option value="supervisor">Supervisor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="disp-name">Display Name</label>
+                    <input type="text" id="disp-name" placeholder="E.g., Bob, Shift Lead" value="Dispatcher" />
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 0.75rem;">Create Dispatcher Account</button>
+              </form>
+              
+              <!-- Created Account Credentials (shown after successful creation) -->
+              <div id="created-credentials-box" style="display: none; margin-top: 1rem; background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 8px; padding: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                  <strong style="color: #2ed573;">Account Created Successfully</strong>
+                  <button type="button" id="close-credentials-btn" class="btn-sm btn-secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Dismiss</button>
+                </div>
+                <p style="margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--muted);">Copy these credentials to send to the customer:</p>
+                <div style="background: var(--asphalt); border: 1px solid var(--line); border-radius: 6px; padding: 0.75rem; font-family: monospace; font-size: 0.9rem; position: relative;">
+                  <div id="created-email-line" style="color: var(--ink);">Email: <span id="created-email"></span></div>
+                  <div id="created-password-line" style="color: var(--amber);">Password: <span id="created-password"></span></div>
+                  <div id="created-org-line" style="color: var(--muted); font-size: 0.85rem;">Org: <span id="created-org"></span></div>
+                  <button type="button" id="copy-credentials-btn" class="copy-btn" style="top: 0.5rem; right: 0.5rem;">Copy</button>
+                </div>
+              </div>
+            </div>
+            
             <div class="tcd-table-container">
               <table class="tcd-table">
                 <thead>
@@ -678,40 +733,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <!-- Create Dispatcher Account Form -->
-          <div class="tcd-card">
-            <h2>Create Dispatcher Account</h2>
-            <form id="create-dispatcher-form" class="tcd-form">
-              <div class="form-group">
-                <label for="disp-email">Email Address</label>
-                <input type="email" id="disp-email" required placeholder="dispatcher@company.com" />
-              </div>
-              <div class="form-group">
-                <label for="disp-password">Password</label>
-                <input type="password" id="disp-password" required placeholder="At least 6 characters" minlength="6" />
-              </div>
-              <div class="form-group">
-                <label for="disp-org">Assign Organization</label>
-                <select id="disp-org" required>
-                  <option value="" disabled selected>Select active organization...</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="disp-role">Dispatcher Role</label>
-                <select id="disp-role" required style="padding: 0.6rem 0.85rem; border-radius: 8px; background: var(--asphalt); color: var(--ink); border: 1px solid var(--line);">
-                  <option value="dispatcher" selected>Dispatcher</option>
-                  <option value="supervisor">Supervisor</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="disp-name">Display Name</label>
-                <input type="text" id="disp-name" placeholder="E.g., Shift Lead, Bob" value="Dispatcher" />
-              </div>
-              <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;">Create Dispatcher Account</button>
-            </form>
           </div>
 
           <!-- Seeding CLI Generator -->
@@ -1534,6 +1555,44 @@
       // Logout trigger
       logoutBtn.addEventListener("click", () => signOut(auth));
 
+      // Toggle add dispatcher form visibility
+      const toggleAddFormBtn = document.getElementById("toggle-add-form-btn");
+      const addDispatcherForm = document.getElementById("create-dispatcher-form");
+      const createdCredentialsBox = document.getElementById("created-credentials-box");
+      const closeCredentialsBtn = document.getElementById("close-credentials-btn");
+      const copyCredentialsBtn = document.getElementById("copy-credentials-btn");
+      
+      let addFormVisible = false;
+      toggleAddFormBtn.addEventListener("click", () => {
+        addFormVisible = !addFormVisible;
+        addDispatcherForm.style.display = addFormVisible ? "block" : "none";
+        toggleAddFormBtn.innerText = addFormVisible ? "Hide Form" : "Show Form";
+      });
+      
+      closeCredentialsBtn.addEventListener("click", () => {
+        createdCredentialsBox.style.display = "none";
+      });
+      
+      copyCredentialsBtn.addEventListener("click", () => {
+        const email = document.getElementById("created-email").innerText;
+        const password = document.getElementById("created-password").innerText;
+        const org = document.getElementById("created-org").innerText;
+        const text = `Email: ${email}\nPassword: ${password}\nOrg: ${org}\nConsole: https://talk.neuereatec.org/app/?org=${org}`;
+        navigator.clipboard.writeText(text);
+        const originalText = copyCredentialsBtn.innerText;
+        copyCredentialsBtn.innerText = "Copied!";
+        setTimeout(() => copyCredentialsBtn.innerText = originalText, 1500);
+      });
+      
+      function showCreatedCredentials(email, password, orgId) {
+        document.getElementById("created-email").innerText = email;
+        document.getElementById("created-password").innerText = password;
+        document.getElementById("created-org").innerText = orgId;
+        createdCredentialsBox.style.display = "block";
+        // Auto-scroll to credentials
+        createdCredentialsBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
       // CLI Command builder update
       function updateCliText() {
         const org = (seedOrgInput.value || "demo").trim().toLowerCase();
@@ -1767,6 +1826,27 @@
         }
       }
 
+      // Detect malformed UIDs (e.g., Firestore REST API updateMask query strings leaked into document IDs)
+      function isValidUid(uid) {
+        if (!uid || typeof uid !== "string") return false;
+        // Known bad patterns: updateMask, fieldPaths=, query params, etc.
+        if (uid.includes("fieldPaths=") || uid.includes("updateMask") || uid.includes("&") || uid.includes("?")) {
+          return false;
+        }
+        // UIDs should be alphanumeric with limited special chars, not excessively long
+        if (uid.length > 128) return false;
+        return true;
+      }
+      
+      function formatUidDisplay(uid) {
+        if (!isValidUid(uid)) {
+          // Truncate and mark as invalid
+          const truncated = uid.length > 30 ? uid.slice(0, 30) + "…" : uid;
+          return `<span style="color: #ff6b6b;" title="Malformed UID (Firestore bug) — delete and recreate account">⚠️ ${escapeHtml(truncated)}</span>`;
+        }
+        return escapeHtml(uid);
+      }
+
       // Load Dispatchers
       async function loadDispatchers() {
         try {
@@ -1784,21 +1864,23 @@
               const dateStr = disp.createdAt ? new Date(disp.createdAt).toLocaleDateString() : "Unknown";
               const roleCap = (disp.role || 'dispatcher').toUpperCase();
               const row = document.createElement("tr");
+              const uidDisplay = formatUidDisplay(disp.uid);
+              const isBadUid = !isValidUid(disp.uid);
               
               const trContent = `
                 <td>
-                  <div style="font-weight: 600;">${disp.email}</div>
-                  <div style="font-size: 0.8rem; color: var(--muted);">${disp.displayName || 'No Name'}</div>
+                  <div style="font-weight: 600;">${escapeHtml(disp.email)}</div>
+                  <div style="font-size: 0.8rem; color: var(--muted);">${escapeHtml(disp.displayName || 'No Name')}</div>
                 </td>
                 <td><span style="font-size: 0.75rem; font-weight: 700; background: rgba(240, 180, 41, 0.15); color: var(--amber); padding: 0.15rem 0.5rem; border-radius: 4px;">${roleCap}</span></td>
-                <td style="font-weight: 700; color: var(--amber);">${disp.orgId}</td>
-                <td style="font-size: 0.8rem; color: var(--muted); font-family: monospace;">${disp.uid}</td>
+                <td style="font-weight: 700; color: var(--amber);">${escapeHtml(disp.orgId)}</td>
+                <td style="font-size: 0.8rem; color: var(--muted); font-family: monospace;">${uidDisplay}</td>
                 <td>${dateStr}</td>
                 <td>
-                  <div style="display: flex; gap: 0.4rem;">
-                    <button class="btn-sm btn-secondary act-seed" data-org="${disp.orgId}" data-uid="${disp.uid}" data-email="${disp.email}" title="Load into CLI Builder">Seed</button>
-                    <button class="btn-sm btn-secondary act-reset" data-uid="${disp.uid}" data-email="${disp.email}">Pass</button>
-                    <button class="btn-sm btn-danger act-del" data-uid="${disp.uid}" data-org="${disp.orgId}">Del</button>
+                  <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                    <button class="btn-sm btn-secondary act-seed" data-org="${escapeHtml(disp.orgId)}" data-uid="${escapeHtml(disp.uid)}" data-email="${escapeHtml(disp.email)}" title="Load into CLI Builder">Seed</button>
+                    <button class="btn-sm btn-secondary act-reset" data-uid="${escapeHtml(disp.uid)}" data-email="${escapeHtml(disp.email)}" ${isBadUid ? 'disabled title="Cannot reset password for malformed UID"' : ''}>Pass</button>
+                    <button class="btn-sm btn-danger act-del" data-uid="${escapeHtml(disp.uid)}" data-org="${escapeHtml(disp.orgId)}">Del</button>
                   </div>
                 </td>
               `;
@@ -1855,18 +1937,34 @@
       // Create Dispatcher Account Form Submission
       createDispatcherForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const email = document.getElementById("disp-email").value;
+        const email = document.getElementById("disp-email").value.trim().toLowerCase();
         const password = document.getElementById("disp-password").value;
         const orgId = dispOrgSelect.value;
         const role = document.getElementById("disp-role").value;
-        const displayName = document.getElementById("disp-name").value;
+        const displayName = document.getElementById("disp-name").value.trim() || "Dispatcher";
+        
+        if (!email || !password || !orgId) {
+          showAlert("Please fill in all required fields.", "error");
+          return;
+        }
+        
+        if (password.length < 6) {
+          showAlert("Password must be at least 6 characters.", "error");
+          return;
+        }
         
         try {
           const createDispatcherFn = httpsCallable(functions, "adminCreateDispatcher");
           const res = await createDispatcherFn({ email, password, orgId, role, displayName });
           
           showAlert(`Dispatcher ${email} (${role}) successfully created and linked to org ${orgId}!`, "success");
+          
+          // Show the credentials for copying to send to the customer
+          showCreatedCredentials(email, password, orgId);
+          
+          // Reset the form fields but keep form visible
           createDispatcherForm.reset();
+          document.getElementById("disp-name").value = "Dispatcher"; // Restore default
           
           // Seed the values into the CLI builder automatically so the admin has the option
           seedOrgInput.value = orgId;
