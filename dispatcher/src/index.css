@@ -150,6 +150,41 @@ label {
   font-weight: 400;
 }
 
+.demo-hint {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(79, 195, 247, 0.1);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.demo-hint span {
+  color: #4fc3f7;
+  font-weight: 600;
+}
+
+.demo-fill-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.65rem;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.82rem;
+  color: var(--amber);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.demo-fill-btn:hover {
+  background: rgba(240, 180, 41, 0.15);
+  border-color: rgba(240, 180, 41, 0.4);
+}
+
 .shell {
   min-height: 100vh;
   display: grid;

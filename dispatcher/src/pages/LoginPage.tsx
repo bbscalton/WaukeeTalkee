@@ -14,6 +14,13 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const isDemo = ORG_ID === "demo";
+
+  function fillDemoCredentials() {
+    setEmail("demo@neuereatec.org");
+    setPassword("demo123");
+  }
+
   if (!loading && !profileLoading && user && isDispatcher) {
     return <Navigate to={getDefaultRoute(profile)} replace />;
   }
@@ -69,6 +76,14 @@ export function LoginPage() {
         <button type="submit" disabled={busy}>
           {busy ? "Signing in…" : "Enter dispatch"}
         </button>
+        {isDemo && (
+          <div className="demo-hint">
+            <span>Try the demo:</span>
+            <button type="button" onClick={fillDemoCredentials} className="demo-fill-btn">
+              demo@neuereatec.org / demo123
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );
