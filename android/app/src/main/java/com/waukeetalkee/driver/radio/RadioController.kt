@@ -1,7 +1,6 @@
 package com.waukeetalkee.driver.radio
 
 import android.content.Context
-import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Base64
@@ -284,10 +283,6 @@ class RadioController(
     private fun playIncoming(b64: String, contentType: String) {
         scope.launch(Dispatchers.Main) {
             try {
-                val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                am.mode = AudioManager.MODE_NORMAL
-                am.isSpeakerphoneOn = true
-
                 val ext = when {
                     contentType.contains("webm") -> "webm"
                     contentType.contains("mp4") || contentType.contains("aac") || contentType.contains("m4a") -> "m4a"
@@ -299,6 +294,7 @@ class RadioController(
                 player?.release()
                 val exo = ExoPlayer.Builder(context).build()
                 player = exo
+                RadioPlaybackAudio.applyTo(exo, context)
                 exo.addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         when (playbackState) {

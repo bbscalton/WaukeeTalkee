@@ -53,6 +53,7 @@ class RadioForegroundService : Service() {
             try {
                 DriverPrefs(applicationContext).volumePttEnabled.collect { enabled ->
                     volumePttEnabled = enabled
+                    BtVolumePttBridge.setEnabled(applicationContext, "fgs", enabled)
                     updatePttStandbyWakeLock()
                 }
             } catch (e: Exception) {
@@ -349,6 +350,7 @@ class RadioForegroundService : Service() {
         receiving = false
         releaseWakeLock()
         releasePttStandbyWakeLock()
+        BtVolumePttBridge.setEnabled(applicationContext, "fgs", false)
         RadioBus.clear()
         getSystemService(NotificationManager::class.java).cancel(INCOMING_NOTIFICATION_ID)
     }

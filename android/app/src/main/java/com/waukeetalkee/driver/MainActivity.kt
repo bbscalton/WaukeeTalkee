@@ -34,6 +34,7 @@ import com.google.firebase.ktx.Firebase
 import com.waukeetalkee.driver.data.DriverPrefs
 import com.waukeetalkee.driver.radio.AccessibilityPttHelper
 import android.widget.Spinner
+import com.waukeetalkee.driver.radio.BtVolumePttBridge
 import com.waukeetalkee.driver.radio.DriverGroupInfo
 import com.waukeetalkee.driver.radio.RadioBus
 import com.waukeetalkee.driver.radio.RadioClipPlayer
@@ -285,6 +286,7 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     prefs.volumePttEnabled.collect { enabled ->
                         volumePttEnabled = enabled
+                        BtVolumePttBridge.setEnabled(this@MainActivity, "main", enabled)
                         applyVolumePttUi()
                     }
                 }
@@ -367,11 +369,16 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Enable volume push-to-talk?")
             .setMessage(
                 "When enabled:\n\n" +
-                    "• Hold Volume Up to talk (dispatch, or a group peer if selected)\n" +
-                    "• Hold Volume Down to broadcast to your whole group + dispatch\n" +
+                    "• Hold Volume Up on the phone to talk (dispatch, or a group peer if selected)\n" +
+                    "• Hold Volume Down on the phone for whole-group + dispatch\n" +
                     "• Volume Down while transmitting cancels\n\n" +
+                    "Bluetooth speaker volume buttons:\n" +
+                    "• Single press = normal volume\n" +
+                    "• Double-press Volume Up quickly = start/stop talk\n" +
+                    "• Double-press Volume Down = group talk (if in a group)\n" +
+                    "• While talking from BT, one Volume Down also stops\n\n" +
                     "Works while this app is open. With Accessibility enabled for " +
-                    "“Waukee Talkee volume PTT”, it also works in other apps and on the " +
+                    "“Waukee Talkee volume PTT”, phone keys also work in other apps and on the " +
                     "lock screen (best-effort when the screen is fully off — some phones " +
                     "still need the screen awake).\n\n" +
                     "Turn the toggle off anytime to restore normal volume keys.",
@@ -422,11 +429,11 @@ class MainActivity : AppCompatActivity() {
         val a11yOn = AccessibilityPttHelper.isServiceEnabled(this)
         volumePttDesc.text = when {
             !volumePttEnabled ->
-                "Off — volume keys change volume (recommended)"
+                "Off — phone & Bluetooth volume keys work normally"
             a11yOn ->
-                "On — Volume Up talks anywhere · Accessibility enabled"
+                "On — phone hold Vol Up · BT double-tap Vol Up to talk · Accessibility on"
             else ->
-                "On — in-app only · enable Accessibility for lock/background"
+                "On — in-app + BT double-tap Vol Up · enable Accessibility for lock/background"
         }
         refreshRadioHint()
     }
@@ -448,6 +455,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        BtVolumePttBridge.setEnabled(this, "main", false)
         radioHistoryListener?.remove()
         groupsListener?.remove()
         manifestListener?.remove()

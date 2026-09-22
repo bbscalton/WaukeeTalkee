@@ -1,7 +1,6 @@
 package com.waukeetalkee.driver.radio
 
 import android.content.Context
-import android.media.AudioManager
 import android.util.Base64
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -9,7 +8,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import java.io.File
 import java.io.FileOutputStream
 
-/** One-shot playback of an archived PTT clip (speakerphone). */
+/** One-shot playback of an archived PTT clip (phone speaker or Bluetooth A2DP). */
 class RadioClipPlayer(
     private val context: Context,
     private val onPlaying: (Boolean) -> Unit,
@@ -20,10 +19,6 @@ class RadioClipPlayer(
     fun play(audioBase64: String, contentType: String) {
         stop()
         try {
-            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            am.mode = AudioManager.MODE_NORMAL
-            am.isSpeakerphoneOn = true
-
             val ext = when {
                 contentType.contains("webm") -> "webm"
                 contentType.contains("mp4") || contentType.contains("aac") || contentType.contains("m4a") -> "m4a"
@@ -34,6 +29,7 @@ class RadioClipPlayer(
 
             val exo = ExoPlayer.Builder(context).build()
             player = exo
+            RadioPlaybackAudio.applyTo(exo, context)
             exo.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     when (playbackState) {

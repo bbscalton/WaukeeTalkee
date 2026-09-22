@@ -40,6 +40,7 @@ class RadioPttAccessibilityService : AccessibilityService() {
         scope.launch {
             prefs.volumePttEnabled.collect { enabled ->
                 volumePttEnabled = enabled
+                BtVolumePttBridge.setEnabled(this@RadioPttAccessibilityService, "a11y", enabled)
                 updateStandbyWakeLock()
             }
         }
@@ -181,6 +182,7 @@ class RadioPttAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        BtVolumePttBridge.setEnabled(this, "a11y", false)
         releaseCpuWakeLock()
         scope.cancel()
         super.onDestroy()
