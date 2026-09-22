@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { ORG_ID } from "../firebase";
 import { getDefaultRoute } from "../solutionProfiles";
 import { useSolutionProfile } from "../useSolutionProfile";
+import "../manga-shell.css";
 
 export function LoginPage() {
   const { user, loading, isDispatcher, login } = useAuth();
@@ -39,7 +40,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-shell">
+    <div className="auth-shell manga-auth">
       <form className="auth-card" onSubmit={onSubmit}>
         <p className="brand">{profile.displayName}</p>
         <h1>Dispatcher console</h1>
