@@ -10,6 +10,7 @@ import { useSolutionProfile } from "../useSolutionProfile";
 import { useSos } from "../SosProvider";
 import { formatDispatcherRole } from "../types";
 import "../manga-shell.css";
+import "../manga-pages.css";
 
 /** Map route keys to emoji icons for the nav */
 const NAV_ICONS: Record<string, string> = {
