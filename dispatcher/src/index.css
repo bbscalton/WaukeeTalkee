@@ -590,7 +590,7 @@ label {
   position: fixed;
   left: 50%;
   bottom: 1.25rem;
-  z-index: 40;
+  z-index: 10050;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
@@ -606,6 +606,26 @@ label {
   pointer-events: auto;
   cursor: pointer;
   animation: radioToastIn 0.22s ease-out;
+}
+
+.radio-unlock-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10060;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  border-bottom: 3px solid #111;
+  background: #e10600;
+  color: #fff;
+  font-family: "Bangers", Impact, sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  padding: 0.65rem 1rem;
+  box-shadow: 0 4px 0 #111;
+  cursor: pointer;
 }
 
 .radio-live-toast-warn {

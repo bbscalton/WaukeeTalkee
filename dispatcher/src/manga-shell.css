@@ -512,11 +512,16 @@
   box-shadow: 4px 4px 0 #111;
   pointer-events: auto;
   cursor: pointer;
+  z-index: 10050;
 }
 
 .manga-shell .radio-live-toast-warn {
   background: var(--amber);
   color: #111;
+}
+
+.manga-shell .radio-unlock-banner {
+  font-family: var(--font-manga);
 }
 
 .manga-shell .map-modes {

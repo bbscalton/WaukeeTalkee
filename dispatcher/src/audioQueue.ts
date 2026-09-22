@@ -17,6 +17,8 @@ export type AudioQueueState = {
   current: QueuedAudio | null;
   pending: number;
   playing: boolean;
+  /** True after a user gesture successfully unlocked autoplay. */
+  unlocked: boolean;
   /** Last autoplay / play failure (browser gesture policy, decode, etc.). */
   error: string | null;
 };
@@ -36,6 +38,8 @@ class AudioQueue {
   private error: string | null = null;
   private pumping = false;
   private unlockBound = false;
+  private unlocked = false;
+  private unlockChain: Promise<void> = Promise.resolve();
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
@@ -50,15 +54,32 @@ class AudioQueue {
       current: this.current,
       pending: this.pending.length,
       playing: this.current != null,
+      unlocked: this.unlocked,
       error: this.error,
     };
   }
 
-  /** Enqueue a clip. Same id already playing or queued is ignored. */
-  enqueue(item: QueuedAudio): void {
+  /**
+   * Enqueue a clip. Same id already playing or queued is ignored unless
+   * `force` (Inbox replay of a stuck live clip).
+   */
+  enqueue(item: QueuedAudio, opts?: { force?: boolean }): void {
     if (!item.audioBase64) return;
-    if (this.current?.id === item.id) return;
-    if (this.idsInFlight.has(item.id)) return;
+    if (this.current?.id === item.id && !opts?.force) return;
+    if (this.idsInFlight.has(item.id)) {
+      if (!opts?.force) return;
+      // Drop a stuck pending copy so Inbox can replay.
+      this.pending = this.pending.filter((p) => p.id !== item.id);
+      this.idsInFlight.delete(item.id);
+      if (this.current?.id === item.id) {
+        try {
+          this.audio?.pause();
+        } catch {
+          /* ignore */
+        }
+        this.releaseCurrent();
+      }
+    }
     this.idsInFlight.add(item.id);
     this.pending.push(item);
     this.notify();
@@ -72,15 +93,19 @@ class AudioQueue {
 
   /**
    * Call from a user gesture (click/tap) so the browser allows live autoplay.
-   * Safe to call repeatedly.
+   * Must finish the silent unlock BEFORE pumping, or Chrome still blocks play().
    */
   unlockFromUserGesture(): void {
-    if (this.error?.includes("unlock")) {
-      this.error = null;
-      this.notify();
-    }
-    void this.primeSilentUnlock();
-    void this.pump();
+    this.unlockChain = this.unlockChain
+      .then(async () => {
+        await this.primeSilentUnlock();
+        if (this.error?.includes("unlock")) {
+          this.error = null;
+        }
+        this.notify();
+        await this.pump();
+      })
+      .catch(() => undefined);
   }
 
   private async primeSilentUnlock(): Promise<void> {
@@ -93,8 +118,10 @@ class AudioQueue {
       a.volume = 0.01;
       await a.play();
       a.pause();
+      this.unlocked = true;
+      this.unlockBound = false;
     } catch {
-      /* still blocked — armUnlockRetry will catch the next gesture */
+      this.unlocked = false;
     }
   }
 
@@ -120,13 +147,10 @@ class AudioQueue {
     this.unlockBound = true;
     const resume = () => {
       this.unlockBound = false;
-      this.error = null;
-      this.notify();
-      void this.primeSilentUnlock();
-      void this.pump();
+      this.unlockFromUserGesture();
     };
-    window.addEventListener("pointerdown", resume, { once: true });
-    window.addEventListener("keydown", resume, { once: true });
+    window.addEventListener("pointerdown", resume, { once: true, capture: true });
+    window.addEventListener("keydown", resume, { once: true, capture: true });
   }
 
   private async pump(): Promise<void> {
@@ -139,12 +163,10 @@ class AudioQueue {
         this.error = null;
         this.notify();
 
-        const audio = new Audio(
-          `data:${next.contentType || "audio/webm"};base64,${next.audioBase64}`
-        );
+        const mime = next.contentType || "audio/mp4";
+        const audio = new Audio(`data:${mime};base64,${next.audioBase64}`);
         audio.preload = "auto";
         audio.volume = 1;
-        // Help Safari / Chromium treat this like media that may autoplay after gesture.
         try {
           (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
         } catch {
@@ -165,27 +187,31 @@ class AudioQueue {
           this.current = null;
           this.audio = null;
           if (blocked) {
+            this.unlocked = false;
             // Keep clip at front; resume after a user gesture unlocks audio.
             this.pending.unshift(next);
-            this.error = "Click once anywhere to unlock live radio audio";
+            this.error = "Click Unlock live radio to hear incoming talk";
             this.notify();
             this.armUnlockRetry();
             break;
           }
           this.idsInFlight.delete(next.id);
-          this.error = "Could not play radio audio";
+          this.error =
+            err instanceof Error
+              ? `Could not play radio audio (${err.message})`
+              : "Could not play radio audio";
           this.notify();
           continue;
         }
 
-        // Only after play() succeeds — otherwise inbox still shows unread.
+        this.unlocked = true;
         if (next.markHeard) {
           void markDispatchHeard(next.id).catch(() => undefined);
         }
 
         const result = await finished;
         if (result === "error" && !this.error) {
-          this.error = "Could not play radio audio";
+          this.error = "Could not play radio audio (decode failed)";
         }
         this.releaseCurrent();
         this.notify();

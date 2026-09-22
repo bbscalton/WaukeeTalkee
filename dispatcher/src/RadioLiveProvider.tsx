@@ -42,12 +42,12 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<AudioQueueState>(() =>
     audioQueue.snapshot()
   );
+  const [listenError, setListenError] = useState<string | null>(null);
   const driverNamesRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => audioQueue.subscribe(setQueue), []);
 
-  // Unlock browser autoplay on first interaction anywhere in the shell
-  // (nav click, map click, etc.) — required by Chrome before live radio can play.
+  // Any click/key in the console unlocks Chrome autoplay (must run in gesture).
   useEffect(() => {
     const unlock = () => audioQueue.unlockFromUserGesture();
     window.addEventListener("pointerdown", unlock, { capture: true });
@@ -82,13 +82,13 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
     return onSnapshot(
       q,
       (snap) => {
+        setListenError(null);
         if (!seeded) {
           seeded = true;
           snap.docs.forEach((d) => seen.add(d.id));
           return;
         }
 
-        // Chronological order so simultaneous TX stays FIFO by createdAt.
         const additions = snap
           .docChanges()
           .filter((c) => c.type === "added")
@@ -130,31 +130,26 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
           audioQueue.enqueue(item);
         }
       },
-      () => {
-        /* archive hook surfaces query errors */
+      (err) => {
+        setListenError(err.message || "Live radio listener failed");
       }
     );
   }, []);
 
-  // Keep live toast clickable so a blocked autoplay can unlock immediately.
-  useEffect(() => {
-    if (!queue.error?.includes("unlock")) return;
-    const onClick = () => audioQueue.unlockFromUserGesture();
-    window.addEventListener("pointerdown", onClick, { once: true });
-    return () => window.removeEventListener("pointerdown", onClick);
-  }, [queue.error]);
-
   const enqueueManual = useCallback((clip: RadioClip, driverName: string) => {
     if (!clip.audioBase64) return;
-    audioQueue.enqueue({
-      id: clip.id,
-      driverId: clip.driverId,
-      driverName,
-      audioBase64: clip.audioBase64,
-      contentType: clip.contentType,
-      source: "manual",
-      markHeard: clip.from === "driver" && !clip.dispatchHeardAt,
-    });
+    audioQueue.enqueue(
+      {
+        id: clip.id,
+        driverId: clip.driverId,
+        driverName,
+        audioBase64: clip.audioBase64,
+        contentType: clip.contentType,
+        source: "manual",
+        markHeard: clip.from === "driver" && !clip.dispatchHeardAt,
+      },
+      { force: true }
+    );
   }, []);
 
   const value = useMemo(
@@ -164,10 +159,29 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
 
   const toast =
     queue.current?.source === "live" ? queue.current : null;
+  const needsUnlock = !queue.unlocked || Boolean(queue.error?.includes("Unlock"));
 
   return (
     <RadioLiveContext.Provider value={value}>
       {children}
+
+      {/* Always-on bar above manga topbar — Chrome blocks audio until gestured */}
+      {needsUnlock && (
+        <button
+          type="button"
+          className="radio-unlock-banner"
+          onClick={() => audioQueue.unlockFromUserGesture()}
+        >
+          🔓 Tap to unlock live radio autoplay
+        </button>
+      )}
+
+      {listenError && (
+        <div className="radio-live-toast radio-live-toast-warn" role="alert">
+          Live radio error: {listenError}
+        </div>
+      )}
+
       {toast && (
         <div className="radio-live-toast" role="status" aria-live="polite">
           <span className="radio-live-toast-dot" aria-hidden />
@@ -179,7 +193,7 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
           ) : null}
         </div>
       )}
-      {queue.error && (
+      {queue.error && !queue.error.includes("Unlock") && (
         <div
           className="radio-live-toast radio-live-toast-warn"
           role="status"
