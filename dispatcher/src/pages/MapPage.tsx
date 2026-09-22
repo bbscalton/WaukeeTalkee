@@ -19,6 +19,7 @@ import {
 import { formatAge, formatSpeed, RADIO_RETENTION_DAYS, type Driver } from "../types";
 import { useRadioArchive } from "../useRadioArchive";
 import { useSolutionProfile } from "../useSolutionProfile";
+import "../manga-map.css";
 
 type MapMode = "streets" | "satellite";
 
@@ -307,14 +308,16 @@ export function MapPage() {
   const selectedUnread = selected ? unreadByDriver.get(selected.id) ?? 0 : 0;
 
   return (
-    <div className="map-layout">
-      <aside className="map-side">
-        <p className="map-kicker">Fleet radio</p>
-        <h1>Talk to {label("drivers").toLowerCase()}</h1>
-        <p className="muted">
-          {onDutyCount} {label("onDuty")} · {paired.length} paired · archive {RADIO_RETENTION_DAYS}d
+    <div className="map-layout manga-map">
+      <aside className="map-side manga-map-side">
+        <p className="map-kicker manga-chapter">Chapter · Live map</p>
+        <h1 className="manga-map-title">Talk to {label("drivers").toLowerCase()}</h1>
+        <p className="muted manga-map-stats">
+          <span className="manga-stat-pill">{onDutyCount} {label("onDuty")}</span>
+          <span className="manga-stat-pill">{paired.length} paired</span>
+          <span className="manga-stat-pill">archive {RADIO_RETENTION_DAYS}d</span>
         </p>
-        <div className="map-quick-links">
+        <div className="map-quick-links manga-quick-links">
           <Link to={selected ? `/inbox?driver=${selected.id}` : "/inbox"}>
             Inbox{selectedUnread > 0 ? ` (${selectedUnread})` : ""}
           </Link>
@@ -325,8 +328,11 @@ export function MapPage() {
         {error && <p className="error">{error}</p>}
 
         {selected ? (
-          <div className="panel detail radio-panel">
-            <p className="map-kicker">Channel open</p>
+          <div className="panel detail radio-panel manga-panel">
+            <p className="map-kicker">
+              Channel open
+              {selected.onDuty && <span className="manga-live-stamp">LIVE</span>}
+            </p>
             <h2>
               {selected.displayName}
               {selectedUnread > 0 && (
@@ -364,7 +370,7 @@ export function MapPage() {
             />
           </div>
         ) : (
-          <div className="panel detail">
+          <div className="panel detail manga-panel">
             <p className="muted">
               No paired driver yet. Open Drivers, create a pair code, connect the
               phone.
@@ -377,11 +383,11 @@ export function MapPage() {
         />
 
         <p className="list-label">Units</p>
-        <ul className="driver-list">
-          {paired.map((d) => {
+        <ul className="driver-list manga-driver-list">
+          {paired.map((d, i) => {
             const unread = unreadByDriver.get(d.id) ?? 0;
             return (
-              <li key={d.id}>
+              <li key={d.id} style={{ animationDelay: `${i * 60}ms` }}>
                 <button
                   type="button"
                   className={selectedId === d.id ? "selected" : ""}
@@ -389,6 +395,7 @@ export function MapPage() {
                 >
                   <strong>
                     {d.displayName}
+                    {d.onDuty && <span className="manga-dot-live" aria-hidden />}
                     {unread > 0 && <span className="nav-badge">{unread}</span>}
                   </strong>
                   <span>
@@ -411,8 +418,16 @@ export function MapPage() {
           )}
         </ul>
       </aside>
-      <div className={`map-stage${streetViewOpen ? " street-split" : ""}`}>
-        <div className="map-modes" role="group" aria-label="Map style">
+      <div className={`map-stage manga-map-stage${streetViewOpen ? " street-split" : ""}`}>
+        <div className="manga-map-frame" aria-hidden>
+          <span className="manga-corner manga-corner-tl" />
+          <span className="manga-corner manga-corner-tr" />
+          <span className="manga-corner manga-corner-bl" />
+          <span className="manga-corner manga-corner-br" />
+          <div className="manga-speedlines" />
+          <span className="manga-map-badge">作戦地図 · OPS MAP</span>
+        </div>
+        <div className="map-modes manga-map-modes" role="group" aria-label="Map style">
           <button
             type="button"
             className={mapMode === "streets" ? "active" : ""}
@@ -449,7 +464,12 @@ export function MapPage() {
             <p>{error}</p>
           </div>
         )}
-        {!mapReady && !error && <div className="map-loading">Loading map…</div>}
+        {!mapReady && !error && (
+          <div className="map-loading manga-map-loading">
+            <span className="manga-loading-stamp">読込中</span>
+            Loading map…
+          </div>
+        )}
       </div>
     </div>
   );

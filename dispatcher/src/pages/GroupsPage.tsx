@@ -209,100 +209,78 @@ export function GroupsPage() {
   }, [groups, driverMap]);
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto", color: "var(--ink)" }}>
-      {/* Hero Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+    <div className="manga-page">
+      <div className="manga-hero">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ background: "rgba(168, 85, 247, 0.2)", color: "#c084fc", border: "1px solid rgba(168, 85, 247, 0.4)", padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase" }}>
-              Radio Channel Command
-            </span>
-            <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+          <div className="manga-hero-meta">
+            <span className="manga-chip manga-chip--info">Radio Channel Command</span>
+            <span className="manga-hero-note">
               Hardware PTT Override: <strong>Volume Down</strong>
             </span>
           </div>
-          <h1 style={{ margin: "0.4rem 0 0 0", fontSize: "2rem", color: "#fff", fontWeight: 800 }}>
-            📻 Peer-to-Peer & Group Channels
-          </h1>
-          <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.95rem" }}>
+          <h1 className="manga-title">📻 Peer-to-Peer & Group Channels</h1>
+          <p className="manga-lead">
             Configure driver talkgroups, hardware push-to-talk volume keys, and channel broadcast targets.
           </p>
         </div>
 
         <button
+          type="button"
+          className="manga-btn manga-btn-primary"
           onClick={() => setShowCreateModal(true)}
-          style={{
-            background: "linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)",
-            color: "#fff",
-            border: "none",
-            fontWeight: 800,
-            padding: "0.75rem 1.25rem",
-            borderRadius: "10px",
-            boxShadow: "0 4px 14px rgba(168, 85, 247, 0.4)",
-            cursor: "pointer"
-          }}
         >
           + Create Radio Channel
         </button>
       </div>
 
-      {/* KPI Counters */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div style={{ background: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#c084fc", fontWeight: 700 }}>Active Radio Channels</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{groups.length}</div>
+      <div className="manga-kpi-grid">
+        <div className="manga-kpi manga-kpi--info">
+          <div className="manga-kpi-label">Active Radio Channels</div>
+          <div className="manga-kpi-value">{groups.length}</div>
         </div>
 
-        <div style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#4ade80", fontWeight: 700 }}>On-Duty In Channels</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{totalOnDutyInGroups}</div>
+        <div className="manga-kpi manga-kpi--ok">
+          <div className="manga-kpi-label">On-Duty In Channels</div>
+          <div className="manga-kpi-value">{totalOnDutyInGroups}</div>
         </div>
 
-        <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 700 }}>Assigned Fleet Drivers</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{totalMembersAssigned}</div>
+        <div className="manga-kpi">
+          <div className="manga-kpi-label">Assigned Fleet Drivers</div>
+          <div className="manga-kpi-value">{totalMembersAssigned}</div>
         </div>
 
-        <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 700 }}>Peer Talk Mode</div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--amber)", marginTop: "0.4rem" }}>VOLUME UP 🔊</div>
+        <div className="manga-kpi manga-kpi--warn">
+          <div className="manga-kpi-label">Peer Talk Mode</div>
+          <div className="manga-kpi-value" style={{ fontSize: "1.4rem" }}>VOLUME UP 🔊</div>
         </div>
       </div>
 
-      {/* Main Channels Console */}
-      <div style={{ background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(12px)", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.25rem" }}>
-        
-        {/* Search & Header Toolbar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
-          <h2 style={{ margin: 0, fontSize: "1.3rem", color: "#fff", fontWeight: 800 }}>
-            Fleet Channels & Driver Talkgroups ({filteredGroups.length})
-          </h2>
+      <div className="manga-console">
+        <div className="manga-toolbar">
+          <h2>Fleet Channels & Driver Talkgroups ({filteredGroups.length})</h2>
 
-          <input
-            type="text"
-            placeholder="🔍 Search channels..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: "0.55rem 0.9rem",
-              borderRadius: "8px",
-              background: "rgba(0,0,0,0.3)",
-              color: "#fff",
-              border: "1px solid var(--line)",
-              fontSize: "0.85rem",
-              minWidth: "240px"
-            }}
-          />
+          <div className="manga-filter-row">
+            <input
+              type="text"
+              placeholder="🔍 Search channels..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
-        {error && <p style={{ color: "#ef4444", marginBottom: "1rem" }}>{error}</p>}
+        {error && (
+          <div className="manga-banner" style={{ marginBottom: "1rem" }}>
+            <p style={{ margin: 0, color: "#ff6b6b", fontWeight: 700 }}>{error}</p>
+          </div>
+        )}
 
         {/* Group Cards Grid */}
         {filteredGroups.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3.5rem 1rem", color: "var(--muted)" }}>
+          <div style={{ textAlign: "center", padding: "3.5rem 1rem" }}>
             <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>📻</div>
-            <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#fff" }}>No Radio Channels Found</div>
-            <p style={{ margin: "0.4rem 0 0 0", fontSize: "0.9rem" }}>
+            <div className="manga-title" style={{ fontSize: "1.2rem" }}>No Radio Channels Found</div>
+            <p className="manga-lead">
               Click "+ Create Radio Channel" above to build a peer talkgroup.
             </p>
           </div>
@@ -318,93 +296,56 @@ export function GroupsPage() {
               return (
                 <div
                   key={g.id}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.025)",
-                    border: "1px solid var(--line)",
-                    borderRadius: "14px",
-                    padding: "1.25rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between"
-                  }}
+                  className="manga-console"
+                  style={{ marginBottom: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}
                 >
                   <div>
-                    {/* Card Title & Broadcast Button */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                           <span style={{ fontSize: "1.4rem" }}>📻</span>
-                          <h3 style={{ margin: 0, color: "#fff", fontSize: "1.25rem", fontWeight: 800 }}>
-                            {g.name}
-                          </h3>
+                          <h2 style={{ margin: 0, fontSize: "1.25rem" }}>{g.name}</h2>
                         </div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.2rem" }}>
-                          {members.length} Drivers Assigned · <strong style={{ color: "#4ade80" }}>{onDutyCount} On-Duty</strong>
+                        <div className="manga-hero-note" style={{ marginTop: "0.2rem" }}>
+                          {members.length} Drivers Assigned · <strong className="manga-kpi--ok">{onDutyCount} On-Duty</strong>
                         </div>
                       </div>
 
                       <button
+                        type="button"
+                        className="manga-btn manga-btn-primary"
+                        style={{ padding: "0.4rem 0.8rem", fontSize: "0.75rem" }}
                         onClick={() => handleBroadcastToGroup(g)}
-                        style={{
-                          background: "rgba(245, 158, 11, 0.18)",
-                          color: "#f59e0b",
-                          border: "1px solid rgba(245, 158, 11, 0.4)",
-                          borderRadius: "8px",
-                          padding: "0.4rem 0.8rem",
-                          fontSize: "0.75rem",
-                          fontWeight: 800,
-                          cursor: "pointer"
-                        }}
                       >
                         📢 PTT Broadcast
                       </button>
                     </div>
 
-                    {/* Member Chips Selector */}
                     <div style={{ marginTop: "1rem" }}>
-                      <div style={{ fontSize: "0.8rem", color: "#cbd5e1", fontWeight: 700, marginBottom: "0.5rem" }}>
+                      <div className="manga-kpi-label" style={{ marginBottom: "0.5rem" }}>
                         Assign Channel Members:
                       </div>
 
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", maxHeight: "180px", overflowY: "auto", paddingRight: "0.2rem" }}>
+                      <div className="manga-filter-row" style={{ maxHeight: "180px", overflowY: "auto" }}>
                         {pairedDrivers.map((d) => {
                           const isMember = g.memberDriverIds.includes(d.id);
+                          const btnClass = isMember
+                            ? d.onDuty
+                              ? "manga-btn manga-btn-ok"
+                              : "manga-btn manga-btn-primary"
+                            : "manga-btn manga-btn-ghost";
                           return (
                             <button
                               key={d.id}
                               type="button"
+                              className={btnClass}
+                              style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
                               disabled={busy}
                               onClick={() => void toggleGroupMember(g, d.id)}
-                              style={{
-                                background: isMember
-                                  ? d.onDuty
-                                    ? "rgba(34, 197, 94, 0.2)"
-                                    : "rgba(168, 85, 247, 0.2)"
-                                  : "rgba(255, 255, 255, 0.04)",
-                                color: isMember
-                                  ? d.onDuty
-                                    ? "#4ade80"
-                                    : "#c084fc"
-                                  : "#94a3b8",
-                                border: isMember
-                                  ? d.onDuty
-                                    ? "1px solid rgba(34, 197, 94, 0.5)"
-                                    : "1px solid rgba(168, 85, 247, 0.5)"
-                                  : "1px solid var(--line)",
-                                borderRadius: "8px",
-                                padding: "0.35rem 0.65rem",
-                                fontSize: "0.75rem",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.35rem",
-                                transition: "all 0.15s ease"
-                              }}
                             >
                               <span>{isMember ? "✓" : "+"}</span>
                               <span>{d.displayName}</span>
-                              {d.onDuty && <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />}
+                              {d.onDuty && <span className="manga-chip manga-chip--ok" style={{ padding: "0 0.25rem", fontSize: "0.5rem", transform: "none", boxShadow: "none" }} aria-hidden>●</span>}
                             </button>
                           );
                         })}
@@ -412,26 +353,17 @@ export function GroupsPage() {
                     </div>
                   </div>
 
-                  {/* Card Actions */}
-                  <div style={{ marginTop: "1.25rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                  <div className="manga-toolbar" style={{ marginTop: "1.25rem", paddingTop: "0.75rem", borderTop: "2px solid #111", marginBottom: 0 }}>
+                    <span className="manga-hero-note">
                       Channels automatically sync to mobile PTT devices
                     </span>
 
                     <button
                       type="button"
+                      className="manga-btn manga-btn-danger"
+                      style={{ padding: "0.35rem 0.75rem", fontSize: "0.75rem" }}
                       disabled={busy}
                       onClick={() => void removeGroup(g)}
-                      style={{
-                        background: "rgba(239, 68, 68, 0.12)",
-                        color: "#ef4444",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        borderRadius: "6px",
-                        padding: "0.35rem 0.75rem",
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        cursor: "pointer"
-                      }}
                     >
                       Delete Channel
                     </button>
@@ -443,37 +375,35 @@ export function GroupsPage() {
         )}
       </div>
 
-      {/* Create Channel Modal */}
       {showCreateModal && (
-        <div className="modal" style={{ display: "flex" }}>
-          <div className="modal-content" style={{ maxWidth: "540px", width: "90%", background: "#0f172a", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.3rem", fontWeight: 800 }}>Create New Radio Channel</h3>
-              <button onClick={() => setShowCreateModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
+        <div className="manga-modal-backdrop">
+          <div className="manga-modal" style={{ maxWidth: "540px" }}>
+            <div className="manga-toolbar" style={{ marginBottom: "0.75rem" }}>
+              <h2>Create New Radio Channel</h2>
+              <button type="button" className="manga-btn manga-btn-ghost" onClick={() => setShowCreateModal(false)}>✕</button>
             </div>
 
             <form onSubmit={createGroup}>
               <div className="form-group">
-                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Channel Name</label>
+                <label>Channel Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Haul Route Alpha / Night Patrol"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 />
               </div>
 
-              {/* Channel Presets */}
-              <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>Presets:</span>
+              <div className="manga-filter-row" style={{ marginTop: "0.75rem" }}>
+                <span className="manga-hero-note">Presets:</span>
                 {["Hauling Division", "Night Shift Patrol", "Site Operations", "Emergency Response"].map((preset) => (
                   <button
                     key={preset}
                     type="button"
+                    className="manga-btn manga-btn-ghost"
+                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
                     onClick={() => setName(preset)}
-                    style={{ background: "rgba(255,255,255,0.05)", color: "#cbd5e1", border: "1px solid var(--line)", padding: "0.25rem 0.5rem", borderRadius: "6px", fontSize: "0.75rem" }}
                   >
                     {preset}
                   </button>
@@ -481,47 +411,39 @@ export function GroupsPage() {
               </div>
 
               <div className="form-group" style={{ marginTop: "1.25rem" }}>
-                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Select Initial Channel Members</label>
+                <label>Select Initial Channel Members</label>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", maxHeight: "180px", overflowY: "auto" }}>
+                <div className="manga-filter-row" style={{ marginTop: "0.5rem", maxHeight: "180px", overflowY: "auto" }}>
                   {pairedDrivers.map((d) => (
                     <button
                       key={d.id}
                       type="button"
+                      className={`manga-btn ${selectedMembers.has(d.id) ? "manga-btn-primary" : "manga-btn-ghost"}`}
+                      style={{ fontSize: "0.8rem" }}
                       onClick={() => toggleMemberInState(d.id)}
-                      style={{
-                        background: selectedMembers.has(d.id) ? "rgba(168, 85, 247, 0.25)" : "rgba(255,255,255,0.04)",
-                        color: selectedMembers.has(d.id) ? "#c084fc" : "#94a3b8",
-                        border: selectedMembers.has(d.id) ? "1px solid rgba(168, 85, 247, 0.5)" : "1px solid var(--line)",
-                        borderRadius: "8px",
-                        padding: "0.4rem 0.75rem",
-                        fontSize: "0.8rem",
-                        fontWeight: 700,
-                        cursor: "pointer"
-                      }}
                     >
                       {selectedMembers.has(d.id) ? "✓ " : "+ "} {d.displayName}
                     </button>
                   ))}
                   {pairedDrivers.length === 0 && (
-                    <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No paired drivers currently available.</p>
+                    <p className="manga-hero-note">No paired drivers currently available.</p>
                   )}
                 </div>
               </div>
 
-              <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <div className="manga-filter-row" style={{ marginTop: "1.5rem", justifyContent: "flex-end" }}>
                 <button
                   type="button"
+                  className="manga-btn manga-btn-ghost"
                   onClick={() => setShowCreateModal(false)}
-                  style={{ background: "rgba(255,255,255,0.08)", color: "#cbd5e1", border: "1px solid var(--line)", padding: "0.7rem 1.25rem", borderRadius: "10px", fontWeight: 700 }}
                   disabled={busy}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  className="manga-btn manga-btn-primary"
                   disabled={busy}
-                  style={{ background: "linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)", color: "#fff", border: "none", padding: "0.7rem 1.4rem", borderRadius: "10px", fontWeight: 800, boxShadow: "0 4px 14px rgba(168, 85, 247, 0.4)" }}
                 >
                   {busy ? "Creating..." : "Save Channel"}
                 </button>

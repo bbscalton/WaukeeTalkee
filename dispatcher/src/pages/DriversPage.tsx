@@ -245,92 +245,73 @@ export function DriversPage() {
   const speedingCount = drivers.filter((d) => d.lastSpeed != null && d.speedLimitKmh != null && d.lastSpeed > d.speedLimitKmh).length;
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto", color: "var(--ink)" }}>
+    <div className="manga-page">
       {/* Hero Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="manga-hero">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ background: "rgba(59, 130, 246, 0.2)", color: "#60a5fa", border: "1px solid rgba(59, 130, 246, 0.4)", padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase" }}>
-              Fleet Personnel Telemetry
-            </span>
-            <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+          <div className="manga-hero-meta">
+            <span className="manga-chip">Fleet Personnel Telemetry</span>
+            <span className="manga-hero-note">
               Pairing Security: <strong>30-min One-time Pin</strong>
             </span>
           </div>
-          <h1 style={{ margin: "0.4rem 0 0 0", fontSize: "2rem", color: "#fff", fontWeight: 800 }}>
+          <h1 className="manga-title">
             🚘 {label("drivers")} Roster & Telemetry
           </h1>
-          <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.95rem" }}>
+          <p className="manga-lead">
             Manage driver profiles, issue pairing codes, set speed limit alerts, delete profiles, and monitor live telemetry.
           </p>
         </div>
 
         <button
+          type="button"
+          className="manga-btn manga-btn-primary"
           onClick={() => setShowCreateModal(true)}
-          style={{
-            background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-            color: "#fff",
-            border: "none",
-            fontWeight: 800,
-            padding: "0.75rem 1.25rem",
-            borderRadius: "10px",
-            boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
-            cursor: "pointer"
-          }}
         >
           + Add Driver & Pair Code
         </button>
       </div>
 
       {/* KPI Counters */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div style={{ background: "rgba(59, 130, 246, 0.12)", border: "1px solid rgba(59, 130, 246, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#60a5fa", fontWeight: 700 }}>Total Registered Drivers</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{drivers.length}</div>
+      <div className="manga-kpi-grid">
+        <div className="manga-kpi">
+          <div className="manga-kpi-label">Total Registered Drivers</div>
+          <div className="manga-kpi-value">{drivers.length}</div>
         </div>
 
-        <div style={{ background: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#4ade80", fontWeight: 700 }}>Active On-Duty Drivers</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{onDutyCount}</div>
+        <div className="manga-kpi manga-kpi--ok">
+          <div className="manga-kpi-label">Active On-Duty Drivers</div>
+          <div className="manga-kpi-value">{onDutyCount}</div>
         </div>
 
-        <div style={{ background: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#c084fc", fontWeight: 700 }}>Paired Devices</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{pairedCount}</div>
+        <div className="manga-kpi manga-kpi--info">
+          <div className="manga-kpi-label">Paired Devices</div>
+          <div className="manga-kpi-value">{pairedCount}</div>
         </div>
 
-        <div style={{ background: speedingCount > 0 ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.03)", border: speedingCount > 0 ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: speedingCount > 0 ? "#ef4444" : "var(--muted)", fontWeight: 700 }}>Speeding Warnings</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: speedingCount > 0 ? "#ef4444" : "#fff", marginTop: "0.2rem" }}>{speedingCount}</div>
+        <div className={`manga-kpi${speedingCount > 0 ? " manga-kpi--danger" : ""}`}>
+          <div className="manga-kpi-label">Speeding Warnings</div>
+          <div className="manga-kpi-value">{speedingCount}</div>
         </div>
       </div>
 
       {/* Pair Code Generated Banner */}
       {lastPair && (
-        <div style={{ background: "linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%)", border: "1px solid rgba(59, 130, 246, 0.5)", borderRadius: "14px", padding: "1.25rem", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+        <div className="manga-banner">
           <div>
-            <div style={{ fontSize: "0.85rem", color: "#60a5fa", fontWeight: 700 }}>
+            <div className="manga-kpi-label">
               📱 Active Pair Code for <strong>{lastPair.displayName || "Driver"}</strong>:
             </div>
-            <div style={{ fontSize: "2.5rem", fontWeight: 900, color: "#fff", letterSpacing: "0.15em", fontFamily: "monospace", margin: "0.2rem 0" }}>
-              {lastPair.code}
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+            <div className="manga-banner-code">{lastPair.code}</div>
+            <div className="manga-hero-note">
               Valid for 30 minutes · Expires {new Date(lastPair.expiresAt).toLocaleTimeString()}
             </div>
           </div>
 
           <button
+            type="button"
+            className={`manga-btn ${copiedCode ? "manga-btn-ok" : "manga-btn-primary"}`}
             onClick={() => handleCopyCode(lastPair.code)}
-            style={{
-              background: copiedCode ? "#22c55e" : "#3b82f6",
-              color: "#fff",
-              border: "none",
-              padding: "0.6rem 1.25rem",
-              borderRadius: "10px",
-              fontWeight: 800,
-              cursor: "pointer"
-            }}
           >
             {copiedCode ? "✓ Copied to Clipboard!" : "📋 Copy Code"}
           </button>
@@ -340,26 +321,15 @@ export function DriversPage() {
       {error && <p style={{ color: "#ef4444", marginBottom: "1rem" }}>{error}</p>}
 
       {/* Driver Roster Console */}
-      <div style={{ background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(12px)", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.25rem" }}>
-        
+      <div className="manga-console">
         {/* Toolbar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-            <h2 style={{ margin: 0, fontSize: "1.3rem", color: "#fff", fontWeight: 800 }}>
-              Fleet Drivers ({filteredDrivers.length})
-            </h2>
+        <div className="manga-toolbar">
+          <div className="manga-filter-row">
+            <h2>Fleet Drivers ({filteredDrivers.length})</h2>
 
             <select
               value={dutyFilter}
               onChange={(e) => setDutyFilter(e.target.value)}
-              style={{
-                padding: "0.55rem 0.9rem",
-                borderRadius: "8px",
-                background: "rgba(0,0,0,0.3)",
-                color: "#fff",
-                border: "1px solid var(--line)",
-                fontSize: "0.85rem"
-              }}
             >
               <option value="all">All Drivers</option>
               <option value="onduty">🟢 On Duty Only ({onDutyCount})</option>
@@ -368,21 +338,13 @@ export function DriversPage() {
             </select>
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+          <div className="manga-filter-row">
             {selectedIds.size > 0 && (
               <button
+                type="button"
+                className="manga-btn manga-btn-danger"
                 onClick={handleClearSelectedDrivers}
                 disabled={busy}
-                style={{
-                  background: "#ef4444",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "0.55rem 0.9rem",
-                  fontSize: "0.85rem",
-                  fontWeight: 800,
-                  cursor: "pointer"
-                }}
               >
                 🗑️ Delete Selected ({selectedIds.size})
               </button>
@@ -393,25 +355,16 @@ export function DriversPage() {
               placeholder="🔍 Search driver or plate..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: "0.55rem 0.9rem",
-                borderRadius: "8px",
-                background: "rgba(0,0,0,0.3)",
-                color: "#fff",
-                border: "1px solid var(--line)",
-                fontSize: "0.85rem",
-                minWidth: "220px"
-              }}
             />
           </div>
         </div>
 
         {/* Drivers Table */}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 0.5rem" }}>
+        <div className="manga-table-wrap">
+          <table>
             <thead>
-              <tr style={{ color: "var(--muted)", textAlign: "left", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                <th style={{ padding: "0.75rem 0.5rem", width: "40px", textAlign: "center" }}>
+              <tr>
+                <th style={{ width: "40px", textAlign: "center" }}>
                   <input
                     type="checkbox"
                     checked={filteredDrivers.length > 0 && selectedIds.size === filteredDrivers.length}
@@ -419,13 +372,13 @@ export function DriversPage() {
                     style={{ cursor: "pointer" }}
                   />
                 </th>
-                <th style={{ padding: "0.75rem 1rem" }}>Driver & Vehicle</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Status</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Duty State</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Current Speed</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Speed Limit (km/h)</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Last Telemetry</th>
-                <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
+                <th>Driver & Vehicle</th>
+                <th>Status</th>
+                <th>Duty State</th>
+                <th>Current Speed</th>
+                <th>Speed Limit (km/h)</th>
+                <th>Last Telemetry</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -619,54 +572,59 @@ export function DriversPage() {
 
       {/* Add Driver Modal */}
       {showCreateModal && (
-        <div className="modal" style={{ display: "flex" }}>
-          <div className="modal-content" style={{ maxWidth: "500px", width: "90%", background: "#0f172a", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.3rem", fontWeight: 800 }}>Create Driver Profile</h3>
-              <button onClick={() => setShowCreateModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
+        <div className="manga-modal-backdrop">
+          <div className="manga-modal">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <h2>Create Driver Profile</h2>
+              <button
+                type="button"
+                className="manga-btn manga-btn-ghost"
+                onClick={() => setShowCreateModal(false)}
+                style={{ padding: "0.25rem 0.5rem !important" }}
+              >
+                ✕
+              </button>
             </div>
 
             <form onSubmit={(e) => void createWithCode(e)}>
               <div className="form-group">
-                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Driver Name</label>
+                <label>Driver Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Driver Alex / Unit 104"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 />
               </div>
 
               <div className="form-group" style={{ marginTop: "1rem" }}>
-                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Vehicle License Plate / ID (Optional)</label>
+                <label>Vehicle License Plate / ID (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. GR-9988-B"
                   value={plate}
                   onChange={(e) => setPlate(e.target.value)}
-                  style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 />
               </div>
 
-              <div style={{ background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.4)", padding: "0.75rem", borderRadius: "10px", marginTop: "1.25rem", fontSize: "0.85rem", color: "#60a5fa" }}>
+              <p style={{ marginTop: "1.25rem", fontSize: "0.85rem" }}>
                 ℹ️ Generating a driver profile will issue a 6-character <strong>One-Time Pairing Code</strong> valid for 30 minutes. Enter this code into the mobile driver app to pair the device.
-              </div>
+              </p>
 
               <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
                 <button
                   type="button"
+                  className="manga-btn manga-btn-ghost"
                   onClick={() => setShowCreateModal(false)}
-                  style={{ background: "rgba(255,255,255,0.08)", color: "#cbd5e1", border: "1px solid var(--line)", padding: "0.7rem 1.25rem", borderRadius: "10px", fontWeight: 700 }}
                   disabled={busy}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  className="manga-btn manga-btn-primary"
                   disabled={busy}
-                  style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", color: "#fff", border: "none", padding: "0.7rem 1.4rem", borderRadius: "10px", fontWeight: 800, boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)" }}
                 >
                   {busy ? "Generating..." : "Create & Get Pair Code"}
                 </button>
