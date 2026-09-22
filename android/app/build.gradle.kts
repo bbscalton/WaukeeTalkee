@@ -12,8 +12,8 @@ android {
         applicationId = "com.waukeetalkee.driver"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "0.6.14"
+        versionCode = 24
+        versionName = "0.6.15"
 
         buildConfigField("boolean", "USE_EMULATORS", "false")
     }

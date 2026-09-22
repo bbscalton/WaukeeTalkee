@@ -46,11 +46,12 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => audioQueue.subscribe(setQueue), []);
 
-  // Unlock browser autoplay on first click/key in the dispatcher shell.
+  // Unlock browser autoplay on first interaction anywhere in the shell
+  // (nav click, map click, etc.) — required by Chrome before live radio can play.
   useEffect(() => {
     const unlock = () => audioQueue.unlockFromUserGesture();
-    window.addEventListener("pointerdown", unlock, { once: true, capture: true });
-    window.addEventListener("keydown", unlock, { once: true, capture: true });
+    window.addEventListener("pointerdown", unlock, { capture: true });
+    window.addEventListener("keydown", unlock, { capture: true });
     return () => {
       window.removeEventListener("pointerdown", unlock, true);
       window.removeEventListener("keydown", unlock, true);

@@ -32,8 +32,9 @@ import kotlinx.coroutines.launch
  * OIJIGE / Absolute-Volume Bluetooth speakers do not deliver KEYCODE_VOLUME_* to Accessibility.
  * They drive AVRCP Absolute Volume → AudioService (often with FLAG_BLUETOOTH_ABS_VOLUME).
  *
- * BT path (toggle): first Vol Up starts talk, next Up/Down ends. Driven by VOLUME_CHANGED
- * only while a Bluetooth audio output is connected.
+ * BT path (toggle): first Vol Up starts talk, next Up/Down ends.
+ * Driven by VolumeProvider.onSetVolumeTo (Absolute Volume, including same-index
+ * repeats when maxed) plus VOLUME_CHANGED while Bluetooth audio is connected.
  *
  * Phone hardware keys stay hold-to-talk via Accessibility / MainActivity. STREAM_MUSIC
  * echoes from phone keys must not latch the BT toggle — see [onPhonePttHoldChanged].
@@ -66,6 +67,8 @@ object BtVolumePttBridge {
     private var restoringVolume = false
     private var lastHandledAt = 0L
     private var settleUntil = 0L
+    /** Last Absolute Volume index from VolumeProvider / STREAM_MUSIC. */
+    private var lastAbsVolume = -1
 
     private var btLatchedTx = false
     private var btLatchedGroup = false
@@ -73,6 +76,7 @@ object BtVolumePttBridge {
     /** First idle Vol Down arms group talk on the next Down. */
     private var awaitingGroupStartDown = false
     private val disarmGroup = Runnable { awaitingGroupStartDown = false }
+    private val ensureHeadroomRunnable = Runnable { ensureVolumeHeadroom() }
 
     @Synchronized
     fun setClientEnabled(context: Context, clientId: String, enabled: Boolean) {
@@ -121,7 +125,8 @@ object BtVolumePttBridge {
 
         registerVolumeReceiver(app)
         startMediaSession(app)
-        Log.i(TAG, "BT Absolute Volume PTT bridge on (MediaSession + VOLUME_CHANGED)")
+        mainHandler.post(ensureHeadroomRunnable)
+        Log.i(TAG, "BT Absolute Volume PTT bridge on (remote VolumeProvider + VOLUME_CHANGED)")
     }
 
     private fun stop() {
@@ -132,6 +137,7 @@ object BtVolumePttBridge {
         btLatchedGroup = false
         awaitingGroupStartDown = false
         mainHandler.removeCallbacks(disarmGroup)
+        mainHandler.removeCallbacks(ensureHeadroomRunnable)
         session = null
         sessionJob?.cancel()
         sessionJob = null
@@ -172,17 +178,51 @@ object BtVolumePttBridge {
     private fun startMediaSession(app: Context) {
         try {
             val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            // Do NOT use setPlaybackToRemote: OIJIGE Absolute Volume sends absolute
-            // setVolume updates that only bump STREAM_MUSIC / VolumeProvider.currentVolume
-            // without onAdjustVolume/onSetVolumeTo. Keeping a local session still helps
-            // process priority; PTT is driven by VOLUME_CHANGED.
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            ensureVolumeHeadroom(am)
+            val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            lastAbsVolume = cur
+
+            // OIJIGE Absolute Volume often re-sends the SAME index (e.g. 11→11) on each
+            // Vol Up when already near max — STREAM_MUSIC never changes, so VOLUME_CHANGED
+            // never fires. Own Absolute Volume via VolumeProvider.onSetVolumeTo so those
+            // presses still toggle PTT.
+            val provider =
+                object : VolumeProvider(VOLUME_CONTROL_ABSOLUTE, max, cur) {
+                    override fun onAdjustVolume(direction: Int) {
+                        Log.i(TAG, "onAdjustVolume dir=$direction")
+                        onRemoteAdjust(direction)
+                    }
+
+                    override fun onSetVolumeTo(volume: Int) {
+                        val prev = lastAbsVolume
+                        lastAbsVolume = volume
+                        try {
+                            currentVolume = volume
+                        } catch (_: Exception) {
+                        }
+                        Log.i(TAG, "onSetVolumeTo $prev->$volume")
+                        if (restoringVolume) return
+                        if (RadioBus.phoneVolumePttHeld) return
+                        if (SystemClock.elapsedRealtime() < settleUntil) return
+                        val ctx = appContext ?: return
+                        if (!isBluetoothAudioConnected(ctx) || !canTalk(ctx)) return
+                        if (!debounceOk()) return
+
+                        when {
+                            volume > prev -> toggleOrStartDirect(ctx)
+                            volume < prev -> onBtVolumeDown(ctx)
+                            else -> {
+                                // Same absolute level (maxed / OIJIGE repeat press).
+                                toggleOrStartDirect(ctx)
+                            }
+                        }
+                    }
+                }
+            volumeProvider = provider
+
             val ms = MediaSession(app, "WaukeeTalkeeBtPtt").apply {
-                setPlaybackToLocal(
-                    android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build(),
-                )
+                setPlaybackToRemote(provider)
                 setPlaybackState(
                     PlaybackState.Builder()
                         .setActions(
@@ -190,21 +230,39 @@ object BtVolumePttBridge {
                                 PlaybackState.ACTION_PAUSE or
                                 PlaybackState.ACTION_PLAY_PAUSE,
                         )
-                        // NONE — do not hold AUDIOFOCUS / look like active media forever;
-                        // that can starve ExoPlayer clip playback on Bluetooth A2DP.
-                        .setState(PlaybackState.STATE_NONE, 0L, 0f)
+                        // PLAYING so Absolute Volume targets this session; ExoPlayer still
+                        // requests its own audio focus for clip playback.
+                        .setState(PlaybackState.STATE_PLAYING, 0L, 1f)
                         .build(),
                 )
                 isActive = true
             }
             mediaSession = ms
-            volumeProvider = null
-            Log.i(
-                TAG,
-                "MediaSession local (STREAM_MUSIC=${am.getStreamVolume(AudioManager.STREAM_MUSIC)})",
-            )
+            Log.i(TAG, "MediaSession remote Absolute Volume (STREAM_MUSIC=$cur max=$max)")
         } catch (e: Exception) {
             Log.e(TAG, "MediaSession start failed", e)
+        }
+    }
+
+    /** Keep one step of headroom so Vol Up can still move STREAM_MUSIC if needed. */
+    private fun ensureVolumeHeadroom(am: AudioManager? = null) {
+        val ctx = appContext ?: return
+        if (btLatchedTx || btLatchedGroup || RadioBus.phoneVolumePttHeld) return
+        if (SystemClock.elapsedRealtime() < settleUntil) return
+        val audio = am ?: ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val cur = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        if (cur < max) return
+        restoringVolume = true
+        try {
+            audio.setStreamVolume(AudioManager.STREAM_MUSIC, (max - 1).coerceAtLeast(0), 0)
+            lastAbsVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            volumeProvider?.currentVolume = lastAbsVolume
+            Log.i(TAG, "headroom: music volume $cur -> $lastAbsVolume")
+        } catch (e: Exception) {
+            Log.w(TAG, "ensureVolumeHeadroom failed", e)
+        } finally {
+            mainHandler.postDelayed({ restoringVolume = false }, 160L)
         }
     }
 
@@ -430,6 +488,8 @@ object BtVolumePttBridge {
         markSettle()
         RadioForegroundService.endTransmit(ctx)
         RadioPlaybackAudio.prepareRouting(ctx)
+        mainHandler.removeCallbacks(ensureHeadroomRunnable)
+        mainHandler.postDelayed(ensureHeadroomRunnable, SETTLE_MS + 50L)
     }
 
     private fun launchTransmitUi(ctx: Context) {
