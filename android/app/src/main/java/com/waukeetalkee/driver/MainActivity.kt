@@ -373,10 +373,10 @@ class MainActivity : AppCompatActivity() {
                     "• Hold Volume Down on the phone for whole-group + dispatch\n" +
                     "• Volume Down while transmitting cancels\n\n" +
                     "Bluetooth speaker volume buttons:\n" +
-                    "• Single press = normal volume\n" +
-                    "• Double-press Volume Up quickly = start/stop talk\n" +
-                    "• Double-press Volume Down = group talk (if in a group)\n" +
-                    "• While talking from BT, one Volume Down also stops\n\n" +
+                    "• 1st Volume Up = normal volume (shows slider)\n" +
+                    "• 2nd Volume Up = start talk · 3rd Volume Up = stop talk\n" +
+                    "• 1st Volume Down = normal volume · 2nd = group talk (if in a group)\n" +
+                    "• Volume Down while talking also stops\n\n" +
                     "Works while this app is open. With Accessibility enabled for " +
                     "“Waukee Talkee volume PTT”, phone keys also work in other apps and on the " +
                     "lock screen (best-effort when the screen is fully off — some phones " +
@@ -431,9 +431,9 @@ class MainActivity : AppCompatActivity() {
             !volumePttEnabled ->
                 "Off — phone & Bluetooth volume keys work normally"
             a11yOn ->
-                "On — phone hold Vol Up · BT double-tap Vol Up to talk · Accessibility on"
+                "On — phone hold Vol Up · BT 2nd Vol Up to talk · Accessibility on"
             else ->
-                "On — in-app + BT double-tap Vol Up · enable Accessibility for lock/background"
+                "On — in-app + BT 2nd Vol Up to talk · enable Accessibility for lock/background"
         }
         refreshRadioHint()
     }
