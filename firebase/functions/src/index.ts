@@ -600,6 +600,7 @@ export const adminListOrgs = onCall(async (request) => {
   const list = [];
   for (const doc of orgsSnap.docs) {
     const data = doc.data();
+    const trial = data.trial as { enabled?: boolean; trialStartAt?: Timestamp; trialEndAt?: Timestamp; maxDevices?: number } | undefined;
     list.push({
       id: doc.id,
       name: data.name || data.displayName || doc.id,
@@ -608,6 +609,12 @@ export const adminListOrgs = onCall(async (request) => {
       features: data.features || {},
       driverFeatures: data.driverFeatures || {},
       createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
+      trial: trial ? {
+        enabled: trial.enabled ?? false,
+        trialStartAt: trial.trialStartAt ? trial.trialStartAt.toDate().toISOString() : null,
+        trialEndAt: trial.trialEndAt ? trial.trialEndAt.toDate().toISOString() : null,
+        maxDevices: trial.maxDevices ?? 3,
+      } : null,
     });
   }
   return { orgs: list };
@@ -639,6 +646,7 @@ export const adminCreateOrg = onCall(async (request) => {
   const orgId = String(request.data?.orgId || "").trim().toLowerCase();
   const displayName = String(request.data?.displayName || "").trim();
   const solution = String(request.data?.solution || "taxi").trim().toLowerCase();
+  const enableTrial = Boolean(request.data?.trial);
   
   if (!orgId || !displayName) {
     throw new HttpsError("invalid-argument", "orgId and displayName are required.");
@@ -661,6 +669,18 @@ export const adminCreateOrg = onCall(async (request) => {
     settings: { speedUnit: "kmh" },
     createdAt: FieldValue.serverTimestamp(),
   };
+
+  if (enableTrial) {
+    const now = Date.now();
+    const trialEndMs = now + 14 * 24 * 60 * 60 * 1000;
+    orgPayload.trial = {
+      enabled: true,
+      trialStartAt: Timestamp.fromMillis(now),
+      trialEndAt: Timestamp.fromMillis(trialEndMs),
+      maxDevices: 3,
+      createdBy: request.auth!.uid,
+    };
+  }
 
   const plantBillingOff = {
     plantQueue: false,
@@ -724,5 +744,5 @@ export const adminCreateOrg = onCall(async (request) => {
   }
   
   await docRef.set(orgPayload);
-  return { orgId, displayName, solution };
+  return { orgId, displayName, solution, trial: enableTrial };
 });

@@ -279,6 +279,7 @@ export const listRegistrations = onCall(async (request) => {
 /**
  * Admin approve: provision org + publicSites, link admin as initial dispatcher,
  * optionally create customer dispatcher Auth account.
+ * If startTrial=true, sets up a 14-day trial with max 3 devices.
  */
 export const approveRegistration = onCall(async (request) => {
   await assertAdmin(request.auth);
@@ -290,6 +291,7 @@ export const approveRegistration = onCall(async (request) => {
   const createCustomerAccount = Boolean(request.data?.createCustomerAccount);
   const customerPassword = String(request.data?.customerPassword || "");
   const notes = String(request.data?.notes || "").trim().slice(0, 500);
+  const startTrial = Boolean(request.data?.startTrial);
 
   const regRef = db().doc(`registrations/${registrationId}`);
   const regSnap = await regRef.get();
@@ -337,6 +339,18 @@ export const approveRegistration = onCall(async (request) => {
   };
   if (SOLUTION_FEATURES[solution]) {
     orgPayload.features = SOLUTION_FEATURES[solution];
+  }
+
+  if (startTrial) {
+    const now = Date.now();
+    const trialEndMs = now + 14 * 24 * 60 * 60 * 1000;
+    orgPayload.trial = {
+      enabled: true,
+      trialStartAt: Timestamp.fromMillis(now),
+      trialEndAt: Timestamp.fromMillis(trialEndMs),
+      maxDevices: 3,
+      createdBy: request.auth!.uid,
+    };
   }
 
   await orgRef.set(orgPayload, { merge: true });
@@ -419,7 +433,8 @@ export const approveRegistration = onCall(async (request) => {
     appUrl: `app/?org=${orgId}`,
     publicSite,
     customerUid,
-    message: `Approved — ${companyName} is live.`,
+    trial: startTrial,
+    message: `Approved — ${companyName} is live.${startTrial ? " 14-day trial started." : ""}`,
   };
 });
 
