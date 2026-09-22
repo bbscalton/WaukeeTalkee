@@ -1,14 +1,20 @@
 package com.waukeetalkee.driver.radio
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.media.VolumeProvider
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.waukeetalkee.driver.data.DriverSession
@@ -21,14 +27,15 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Bluetooth Absolute Volume does not deliver hold/release key events — only stream
- * volume steps. Phone keys still use hold-to-talk via Accessibility.
+ * OIJIGE / Absolute-Volume Bluetooth speakers do not deliver KEYCODE_VOLUME_* to Accessibility.
+ * They drive AVRCP Absolute Volume → AudioService (often with FLAG_BLUETOOTH_ABS_VOLUME).
  *
- * With Volume PTT on, BT speaker Vol Up is a simple toggle:
- * - Vol Up while idle → start talk (volume step kept so the system slider shows)
- * - Vol Up while talking → end talk (that step undone)
- * - Vol Down while talking → end talk (step undone)
- * - Vol Down while idle → normal volume; 2nd Vol Down → group talk (if in a group)
+ * When Volume PTT is on we own media volume via [MediaSession.setPlaybackToRemote] so the
+ * first BT Vol Up calls [VolumeProvider.onAdjustVolume] even when STREAM_MUSIC index does
+ * not change (maxed volume / same-index abs sync). That path also works with the screen off
+ * while the radio foreground service / accessibility host keeps the process alive.
+ *
+ * Phone hardware keys stay hold-to-talk via Accessibility — they are filtered before this.
  */
 object BtVolumePttBridge {
 
@@ -37,29 +44,32 @@ object BtVolumePttBridge {
     private const val EXTRA_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
     private const val EXTRA_VOLUME = "android.media.EXTRA_VOLUME_STREAM_VALUE"
     private const val EXTRA_PREV_VOLUME = "android.media.EXTRA_PREV_VOLUME_STREAM_VALUE"
-    private const val DISARM_MS = 45_000L
+    private const val DEBOUNCE_MS = 350L
+    /** Ignore Absolute Volume echoes right after we start/stop BT talk. */
+    private const val SETTLE_MS = 700L
 
     private var scope: CoroutineScope? = null
     private var sessionJob: Job? = null
+    private var radioStateJob: Job? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile private var enabled = false
     private val clients = mutableSetOf<String>()
     private var appContext: Context? = null
     private var receiver: BroadcastReceiver? = null
+    private var mediaSession: MediaSession? = null
+    private var volumeProvider: VolumeProvider? = null
     private var session: DriverSession? = null
     private var restoringVolume = false
+    private var lastHandledAt = 0L
+    private var settleUntil = 0L
 
-    /** First Vol Down armed group start on the next Vol Down. */
-    private var awaitingGroupStartDown = false
-
-    private val disarmAwaiting = Runnable {
-        awaitingGroupStartDown = false
-    }
-
-    /** TX started from BT Vol Up (no KEY_UP). */
     private var btLatchedTx = false
     private var btLatchedGroup = false
+
+    /** First idle Vol Down arms group talk on the next Down. */
+    private var awaitingGroupStartDown = false
+    private val disarmGroup = Runnable { awaitingGroupStartDown = false }
 
     @Synchronized
     fun setClientEnabled(context: Context, clientId: String, enabled: Boolean) {
@@ -78,36 +88,40 @@ object BtVolumePttBridge {
         val sc = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         scope = sc
         sessionJob = sc.launch {
-            SessionStore(app).session.collect { session = it }
-        }
-
-        val filter = IntentFilter(VOLUME_CHANGED_ACTION)
-        val recv = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                if (intent?.action != VOLUME_CHANGED_ACTION) return
-                handleVolumeChanged(intent)
+            SessionStore(app).session.collect { s ->
+                session = s
+                if (s != null) {
+                    ensureRadio(app)
+                }
             }
         }
-        try {
-            ContextCompat.registerReceiver(app, recv, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-            receiver = recv
-        } catch (e: Exception) {
-            Log.w(TAG, "register VOLUME_CHANGED failed", e)
+        radioStateJob = sc.launch {
+            RadioBus.state.collect { snap ->
+                if (!snap.transmitting) {
+                    btLatchedTx = false
+                    btLatchedGroup = false
+                }
+            }
         }
 
-        Log.i(TAG, "BT Vol Up toggle Absolute Volume PTT bridge on")
+        registerVolumeReceiver(app)
+        startMediaSession(app)
+        Log.i(TAG, "BT Absolute Volume PTT bridge on (MediaSession + VOLUME_CHANGED)")
     }
 
     private fun stop() {
-        if (!enabled && receiver == null) return
+        if (!enabled && receiver == null && mediaSession == null) return
         enabled = false
         clients.clear()
         btLatchedTx = false
         btLatchedGroup = false
-        clearAwaiting()
+        awaitingGroupStartDown = false
+        mainHandler.removeCallbacks(disarmGroup)
         session = null
         sessionJob?.cancel()
         sessionJob = null
+        radioStateJob?.cancel()
+        radioStateJob = null
         scope?.cancel()
         scope = null
         val app = appContext
@@ -118,23 +132,108 @@ object BtVolumePttBridge {
             }
         }
         receiver = null
+        releaseMediaSession()
         appContext = null
         Log.i(TAG, "BT Absolute Volume PTT bridge off")
     }
 
-    private fun clearAwaiting() {
-        mainHandler.removeCallbacks(disarmAwaiting)
-        awaitingGroupStartDown = false
+    private fun registerVolumeReceiver(app: Context) {
+        val filter = IntentFilter(VOLUME_CHANGED_ACTION)
+        val recv = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.action != VOLUME_CHANGED_ACTION) return
+                handleVolumeChanged(intent)
+            }
+        }
+        try {
+            // EXPORTED so system AudioService volume broadcasts are delivered on Android 13+.
+            ContextCompat.registerReceiver(app, recv, filter, ContextCompat.RECEIVER_EXPORTED)
+            receiver = recv
+        } catch (e: Exception) {
+            Log.w(TAG, "register VOLUME_CHANGED failed", e)
+        }
     }
 
-    private fun armGroupStart() {
-        awaitingGroupStartDown = true
-        mainHandler.removeCallbacks(disarmAwaiting)
-        mainHandler.postDelayed(disarmAwaiting, DISARM_MS)
+    private fun startMediaSession(app: Context) {
+        try {
+            val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            // Do NOT use setPlaybackToRemote: OIJIGE Absolute Volume sends absolute
+            // setVolume updates that only bump STREAM_MUSIC / VolumeProvider.currentVolume
+            // without onAdjustVolume/onSetVolumeTo. Keeping a local session still helps
+            // process priority; PTT is driven by VOLUME_CHANGED.
+            val ms = MediaSession(app, "WaukeeTalkeeBtPtt").apply {
+                setPlaybackToLocal(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build(),
+                )
+                setPlaybackState(
+                    PlaybackState.Builder()
+                        .setActions(
+                            PlaybackState.ACTION_PLAY or
+                                PlaybackState.ACTION_PAUSE or
+                                PlaybackState.ACTION_PLAY_PAUSE,
+                        )
+                        .setState(PlaybackState.STATE_PLAYING, 0L, 1f)
+                        .build(),
+                )
+                isActive = true
+            }
+            mediaSession = ms
+            volumeProvider = null
+            Log.i(
+                TAG,
+                "MediaSession local (STREAM_MUSIC=${am.getStreamVolume(AudioManager.STREAM_MUSIC)})",
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "MediaSession start failed", e)
+        }
+    }
+
+    private fun releaseMediaSession() {
+        try {
+            mediaSession?.isActive = false
+            mediaSession?.release()
+        } catch (_: Exception) {
+        }
+        mediaSession = null
+        volumeProvider = null
+    }
+
+    private fun onRemoteAdjust(direction: Int) {
+        if (!enabled) return
+        if (RadioBus.phoneVolumePttHeld) {
+            Log.i(TAG, "onRemoteAdjust ignored (phone PTT held)")
+            return
+        }
+        val ctx = appContext ?: return
+        if (!canTalk(ctx)) {
+            Log.w(TAG, "onRemoteAdjust ignored (no session/mic)")
+            return
+        }
+        if (!debounceOk()) return
+
+        when (direction) {
+            AudioManager.ADJUST_RAISE -> toggleOrStartDirect(ctx)
+            AudioManager.ADJUST_LOWER -> onBtVolumeDown(ctx)
+            else -> Unit
+        }
+        syncProviderFromSystem(ctx)
     }
 
     private fun handleVolumeChanged(intent: Intent) {
         if (!enabled || restoringVolume) return
+        if (RadioBus.phoneVolumePttHeld) {
+            Log.i(TAG, "VOLUME_CHANGED ignored (phone PTT held)")
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (now < settleUntil) {
+            Log.i(TAG, "VOLUME_CHANGED ignored (settle)")
+            return
+        }
+
         val stream = intent.getIntExtra(EXTRA_STREAM_TYPE, -1)
         if (stream != AudioManager.STREAM_MUSIC &&
             stream != AudioManager.STREAM_VOICE_CALL
@@ -146,38 +245,86 @@ object BtVolumePttBridge {
         if (value < 0 || prev < 0 || value == prev) return
 
         val ctx = appContext ?: return
+        if (!canTalk(ctx)) return
+        if (!debounceOk()) return
+
         val goingUp = value > prev
+        Log.i(TAG, "VOLUME_CHANGED stream=$stream $prev->$value latched=${btLatchedTx || btLatchedGroup}")
 
         if (goingUp) {
-            if (btLatchedTx || btLatchedGroup) {
-                // End talk — undo this volume bump so hang-up does not raise loudness.
-                restoreVolume(stream, prev)
-                clearAwaiting()
-                endBtTransmit(ctx)
-                return
-            }
-            // First Vol Up: keep the volume step so the system volume UI appears,
-            // and start talk on that same press.
-            clearAwaiting()
-            startBtDirectPtt(ctx)
+            toggleOrStartDirect(ctx, stream = stream, prevVolume = prev)
             return
         }
+        onBtVolumeDown(ctx, stream = stream, prevVolume = prev)
+    }
 
-        // Volume down
+    private fun toggleOrStartDirect(
+        ctx: Context,
+        stream: Int = -1,
+        prevVolume: Int = -1,
+    ) {
         if (btLatchedTx || btLatchedGroup) {
-            restoreVolume(stream, prev)
-            clearAwaiting()
+            if (stream >= 0 && prevVolume >= 0) restoreVolume(stream, prevVolume)
+            endBtTransmit(ctx)
+            return
+        }
+        // Keep the Absolute Volume step so the system slider appears with talk.
+        startBtDirectPtt(ctx)
+    }
+
+    private fun onBtVolumeDown(
+        ctx: Context,
+        stream: Int = -1,
+        prevVolume: Int = -1,
+    ) {
+        if (btLatchedTx || btLatchedGroup) {
+            if (stream >= 0 && prevVolume >= 0) restoreVolume(stream, prevVolume)
             endBtTransmit(ctx)
             return
         }
         if (awaitingGroupStartDown) {
-            restoreVolume(stream, prev)
-            clearAwaiting()
+            if (stream >= 0 && prevVolume >= 0) restoreVolume(stream, prevVolume)
+            awaitingGroupStartDown = false
+            mainHandler.removeCallbacks(disarmGroup)
             startBtGroupPtt(ctx)
             return
         }
-        // Idle Vol Down: normal volume; arm group on a follow-up Down.
-        armGroupStart()
+        awaitingGroupStartDown = true
+        mainHandler.removeCallbacks(disarmGroup)
+        mainHandler.postDelayed(disarmGroup, 45_000L)
+    }
+
+    private fun debounceOk(): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastHandledAt < DEBOUNCE_MS) return false
+        lastHandledAt = now
+        return true
+    }
+
+    private fun markSettle() {
+        settleUntil = SystemClock.elapsedRealtime() + SETTLE_MS
+    }
+
+    private fun applyLocalVolume(ctx: Context, direction: Int) {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        try {
+            am.adjustStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                direction,
+                AudioManager.FLAG_SHOW_UI,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "adjustStreamVolume failed", e)
+        }
+    }
+
+    private fun syncProviderFromSystem(ctx: Context) {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val vol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        try {
+            volumeProvider?.currentVolume = vol
+        } catch (_: Exception) {
+        }
     }
 
     private fun restoreVolume(stream: Int, level: Int) {
@@ -186,35 +333,65 @@ object BtVolumePttBridge {
         restoringVolume = true
         try {
             am.setStreamVolume(stream, level, 0)
+            volumeProvider?.currentVolume = level
         } catch (e: Exception) {
             Log.w(TAG, "restore volume failed", e)
         }
-        mainHandler.postDelayed({ restoringVolume = false }, 150L)
+        mainHandler.postDelayed({ restoringVolume = false }, 160L)
     }
 
     private fun startBtDirectPtt(ctx: Context) {
-        if (!canTalk(ctx)) return
+        Log.i(TAG, "startBtDirectPtt")
         ensureRadio(ctx)
         RadioBus.pttConfig = RadioBus.buildPttConfigForVolumeUp()
         btLatchedTx = true
         btLatchedGroup = false
+        markSettle()
         RadioForegroundService.beginTransmit(ctx, RadioBus.pttConfig)
+        launchTransmitUi(ctx)
     }
 
     private fun startBtGroupPtt(ctx: Context) {
-        if (!canTalk(ctx)) return
-        val groupCfg = RadioBus.buildPttConfigForVolumeDown() ?: return
+        val groupCfg = RadioBus.buildPttConfigForVolumeDown()
+        if (groupCfg == null) {
+            Log.i(TAG, "startBtGroupPtt skipped (no group)")
+            return
+        }
+        Log.i(TAG, "startBtGroupPtt")
         ensureRadio(ctx)
         RadioBus.pttConfig = groupCfg
         btLatchedGroup = true
         btLatchedTx = false
+        markSettle()
         RadioForegroundService.beginTransmit(ctx, groupCfg)
+        launchTransmitUi(ctx)
     }
 
     private fun endBtTransmit(ctx: Context) {
+        Log.i(TAG, "endBtTransmit")
         btLatchedTx = false
         btLatchedGroup = false
+        markSettle()
         RadioForegroundService.endTransmit(ctx)
+    }
+
+    private fun launchTransmitUi(ctx: Context) {
+        val km = ctx.getSystemService(KeyguardManager::class.java)
+        val pm = ctx.getSystemService(PowerManager::class.java)
+        val lockedOrAsleep = km?.isKeyguardLocked == true || pm?.isInteractive != true
+        if (!lockedOrAsleep) return
+        val intent = Intent(ctx, PttTransmitActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
+            )
+        }
+        try {
+            ctx.startActivity(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "launchTransmitUi failed", e)
+        }
     }
 
     private fun canTalk(ctx: Context): Boolean {

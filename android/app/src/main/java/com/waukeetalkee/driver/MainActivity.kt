@@ -316,6 +316,7 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_DOWN -> {
                         if (!volumeUpHeld && event.repeatCount == 0) {
                             volumeUpHeld = true
+                            RadioBus.phoneVolumePttHeld = true
                             RadioBus.pttConfig = RadioBus.buildPttConfigForVolumeUp()
                             RadioForegroundService.beginTransmit(this, RadioBus.pttConfig)
                         }
@@ -324,6 +325,7 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_UP -> {
                         if (volumeUpHeld) {
                             volumeUpHeld = false
+                            RadioBus.phoneVolumePttHeld = false
                             RadioForegroundService.endTransmit(this)
                         }
                         return true
@@ -336,6 +338,7 @@ class MainActivity : AppCompatActivity() {
                         if (event.repeatCount == 0 && !volumeDownHeld) {
                             if (volumeUpHeld || RadioBus.state.value.transmitting) {
                                 volumeUpHeld = false
+                                RadioBus.phoneVolumePttHeld = false
                                 RadioForegroundService.cancelTransmit(this)
                                 Toast.makeText(this, "Transmit cancelled", Toast.LENGTH_SHORT).show()
                                 return true
@@ -343,6 +346,7 @@ class MainActivity : AppCompatActivity() {
                             val groupCfg = RadioBus.buildPttConfigForVolumeDown()
                             if (groupCfg != null) {
                                 volumeDownHeld = true
+                                RadioBus.phoneVolumePttHeld = true
                                 RadioBus.pttConfig = groupCfg
                                 RadioForegroundService.beginTransmit(this, groupCfg)
                                 return true
@@ -353,6 +357,7 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_UP -> {
                         if (volumeDownHeld) {
                             volumeDownHeld = false
+                            RadioBus.phoneVolumePttHeld = false
                             RadioForegroundService.endTransmit(this)
                             return true
                         }
@@ -372,10 +377,10 @@ class MainActivity : AppCompatActivity() {
                     "• Hold Volume Up on the phone to talk (dispatch, or a group peer if selected)\n" +
                     "• Hold Volume Down on the phone for whole-group + dispatch\n" +
                     "• Volume Down while transmitting cancels\n\n" +
-                    "Bluetooth speaker volume buttons:\n" +
-                    "• Volume Up = start talk (volume slider also shows) · press again to stop\n" +
-                    "• Volume Down while talking also stops\n" +
-                    "• Volume Down when idle = volume · 2nd Down = group talk (if in a group)\n\n" +
+                    "Bluetooth speaker (e.g. OIJIGE) volume buttons:\n" +
+                    "• Volume Up = start talk on the first press · press again to stop\n" +
+                    "• Works with screen locked / off while radio is live\n" +
+                    "• Volume Down while talking stops · idle Down adjusts volume\n\n" +
                     "Works while this app is open. With Accessibility enabled for " +
                     "“Waukee Talkee volume PTT”, phone keys also work in other apps and on the " +
                     "lock screen (best-effort when the screen is fully off — some phones " +

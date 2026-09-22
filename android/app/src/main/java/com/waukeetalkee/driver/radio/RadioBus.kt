@@ -48,6 +48,13 @@ object RadioBus {
     /** Set before beginTransmit() — volume up/down routing. */
     var pttConfig: PttConfig = PttConfig()
 
+    /**
+     * True while phone hardware Volume Up/Down is held for PTT (Accessibility / MainActivity).
+     * Bluetooth Absolute Volume must ignore STREAM_MUSIC changes during that hold.
+     */
+    @Volatile
+    var phoneVolumePttHeld: Boolean = false
+
     /** Live group membership for PTT UI + accessibility service. */
     var activeGroupId: String? = null
     var peerTargetDriverId: String? = null
@@ -62,6 +69,7 @@ object RadioBus {
     fun clear() {
         _state.value = RadioUiSnapshot()
         pttConfig = PttConfig()
+        phoneVolumePttHeld = false
         activeGroupId = null
         peerTargetDriverId = null
         groups = emptyList()

@@ -68,6 +68,7 @@ class RadioPttAccessibilityService : AccessibilityService() {
                     KeyEvent.ACTION_DOWN -> {
                         if (event.repeatCount == 0 && !volumeUpHeld) {
                             volumeUpHeld = true
+                            RadioBus.phoneVolumePttHeld = true
                             ensureRadioRunning(paired)
                             acquireCpuWakeLock()
                             RadioBus.pttConfig = RadioBus.buildPttConfigForVolumeUp()
@@ -79,6 +80,7 @@ class RadioPttAccessibilityService : AccessibilityService() {
                     KeyEvent.ACTION_UP -> {
                         if (volumeUpHeld) {
                             volumeUpHeld = false
+                            RadioBus.phoneVolumePttHeld = false
                             RadioForegroundService.endTransmit(this)
                         }
                         return true
@@ -91,12 +93,14 @@ class RadioPttAccessibilityService : AccessibilityService() {
                         if (event.repeatCount == 0 && !volumeDownHeld) {
                             if (volumeUpHeld || RadioBus.state.value.transmitting) {
                                 volumeUpHeld = false
+                                RadioBus.phoneVolumePttHeld = false
                                 RadioForegroundService.cancelTransmit(this)
                                 return true
                             }
                             val groupCfg = RadioBus.buildPttConfigForVolumeDown()
                             if (groupCfg != null) {
                                 volumeDownHeld = true
+                                RadioBus.phoneVolumePttHeld = true
                                 ensureRadioRunning(paired)
                                 acquireCpuWakeLock()
                                 RadioBus.pttConfig = groupCfg
@@ -110,6 +114,7 @@ class RadioPttAccessibilityService : AccessibilityService() {
                     KeyEvent.ACTION_UP -> {
                         if (volumeDownHeld) {
                             volumeDownHeld = false
+                            RadioBus.phoneVolumePttHeld = false
                             RadioForegroundService.endTransmit(this)
                             return true
                         }
