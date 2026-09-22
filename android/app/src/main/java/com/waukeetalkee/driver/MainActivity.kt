@@ -379,6 +379,7 @@ class MainActivity : AppCompatActivity() {
                     "• Volume Down while transmitting cancels\n\n" +
                     "Bluetooth speaker (e.g. OIJIGE) volume buttons:\n" +
                     "• Volume Up = start talk on the first press · press again to stop\n" +
+                    "• You will hear a short beep when talk starts and when it ends\n" +
                     "• Works with screen locked / off while radio is live\n" +
                     "• Volume Down while talking stops · idle Down adjusts volume\n\n" +
                     "Works while this app is open. With Accessibility enabled for " +

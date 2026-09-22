@@ -162,12 +162,19 @@ class RadioForegroundService : Service() {
             context = applicationContext,
             scope = scope,
             onTxChanged = { tx ->
+                val wasTx = transmitting
                 transmitting = tx
                 if (tx) {
                     acquireWakeLock()
                     overlay?.showTransmitting()
+                    if (!wasTx) {
+                        PttCuePlayer.playTalkStarted(applicationContext)
+                    }
                 } else {
                     overlay?.hide()
+                    if (wasTx) {
+                        PttCuePlayer.playTalkEnded(applicationContext)
+                    }
                     if (!receiving) releaseWakeLock()
                 }
                 updateNotification()
