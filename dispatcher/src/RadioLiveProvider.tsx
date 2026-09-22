@@ -165,14 +165,14 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
     <RadioLiveContext.Provider value={value}>
       {children}
 
-      {/* Always-on bar above manga topbar — Chrome blocks audio until gestured */}
+      {/* Chrome blocks audio until the console gets a user gesture */}
       {needsUnlock && (
         <button
           type="button"
           className="radio-unlock-banner"
           onClick={() => audioQueue.unlockFromUserGesture()}
         >
-          🔓 Tap to unlock live radio autoplay
+          Tap to unlock live radio autoplay
         </button>
       )}
 

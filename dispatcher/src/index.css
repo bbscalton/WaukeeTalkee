@@ -617,14 +617,15 @@ label {
   margin: 0;
   border: none;
   border-radius: 0;
-  border-bottom: 3px solid #111;
-  background: #e10600;
-  color: #fff;
-  font-family: "Bangers", Impact, sans-serif;
-  font-size: 1.15rem;
+  border-bottom: 1px solid rgba(240, 180, 41, 0.45);
+  background: linear-gradient(90deg, #c8890f, #f0b429);
+  color: #12151a;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
   padding: 0.65rem 1rem;
-  box-shadow: 0 4px 0 #111;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
   cursor: pointer;
 }
 
