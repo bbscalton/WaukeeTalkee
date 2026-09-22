@@ -143,6 +143,8 @@ class RadioController(
         }
         recorder = null
         transmitting = false
+        // Tear SCO before end-beep / UI so A2DP speaker can play again.
+        RadioPlaybackAudio.prepareRouting(context)
         onTxChanged(false)
 
         if (o == null || d == null || file == null || !file.exists() || file.length() < 800) {
@@ -248,6 +250,7 @@ class RadioController(
     fun cancelTransmit() {
         if (!transmitting) return
         stopTransmit()
+        RadioPlaybackAudio.prepareRouting(context)
         onTxChanged(false)
         try {
             recordFile?.delete()

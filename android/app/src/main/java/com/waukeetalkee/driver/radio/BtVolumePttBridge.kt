@@ -190,7 +190,9 @@ object BtVolumePttBridge {
                                 PlaybackState.ACTION_PAUSE or
                                 PlaybackState.ACTION_PLAY_PAUSE,
                         )
-                        .setState(PlaybackState.STATE_PLAYING, 0L, 1f)
+                        // NONE — do not hold AUDIOFOCUS / look like active media forever;
+                        // that can starve ExoPlayer clip playback on Bluetooth A2DP.
+                        .setState(PlaybackState.STATE_NONE, 0L, 0f)
                         .build(),
                 )
                 isActive = true
@@ -427,6 +429,7 @@ object BtVolumePttBridge {
         btLatchedGroup = false
         markSettle()
         RadioForegroundService.endTransmit(ctx)
+        RadioPlaybackAudio.prepareRouting(ctx)
     }
 
     private fun launchTransmitUi(ctx: Context) {

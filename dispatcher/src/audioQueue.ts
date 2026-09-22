@@ -9,7 +9,7 @@ export type QueuedAudio = {
   audioBase64: string;
   contentType: string;
   source: QueuedAudioSource;
-  /** Mark dispatchHeardAt when this item starts playing. */
+  /** Mark dispatchHeardAt when this item starts playing successfully. */
   markHeard: boolean;
 };
 
@@ -70,6 +70,34 @@ class AudioQueue {
     return this.current?.id === id || this.idsInFlight.has(id);
   }
 
+  /**
+   * Call from a user gesture (click/tap) so the browser allows live autoplay.
+   * Safe to call repeatedly.
+   */
+  unlockFromUserGesture(): void {
+    if (this.error?.includes("unlock")) {
+      this.error = null;
+      this.notify();
+    }
+    void this.primeSilentUnlock();
+    void this.pump();
+  }
+
+  private async primeSilentUnlock(): Promise<void> {
+    if (typeof window === "undefined") return;
+    try {
+      // Tiny silent WAV — satisfies autoplay policy after a gesture.
+      const silent =
+        "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+      const a = new Audio(silent);
+      a.volume = 0.01;
+      await a.play();
+      a.pause();
+    } catch {
+      /* still blocked — armUnlockRetry will catch the next gesture */
+    }
+  }
+
   private notify(): void {
     const state = this.snapshot();
     this.listeners.forEach((l) => l(state));
@@ -94,9 +122,11 @@ class AudioQueue {
       this.unlockBound = false;
       this.error = null;
       this.notify();
+      void this.primeSilentUnlock();
       void this.pump();
     };
     window.addEventListener("pointerdown", resume, { once: true });
+    window.addEventListener("keydown", resume, { once: true });
   }
 
   private async pump(): Promise<void> {
@@ -109,13 +139,17 @@ class AudioQueue {
         this.error = null;
         this.notify();
 
-        if (next.markHeard) {
-          void markDispatchHeard(next.id).catch(() => undefined);
-        }
-
         const audio = new Audio(
-          `data:${next.contentType};base64,${next.audioBase64}`
+          `data:${next.contentType || "audio/webm"};base64,${next.audioBase64}`
         );
+        audio.preload = "auto";
+        audio.volume = 1;
+        // Help Safari / Chromium treat this like media that may autoplay after gesture.
+        try {
+          (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+        } catch {
+          /* ignore */
+        }
         this.audio = audio;
 
         const finished = new Promise<"ended" | "error">((resolve) => {
@@ -133,7 +167,7 @@ class AudioQueue {
           if (blocked) {
             // Keep clip at front; resume after a user gesture unlocks audio.
             this.pending.unshift(next);
-            this.error = "Click once on the page to unlock live radio audio";
+            this.error = "Click once anywhere to unlock live radio audio";
             this.notify();
             this.armUnlockRetry();
             break;
@@ -142,6 +176,11 @@ class AudioQueue {
           this.error = "Could not play radio audio";
           this.notify();
           continue;
+        }
+
+        // Only after play() succeeds — otherwise inbox still shows unread.
+        if (next.markHeard) {
+          void markDispatchHeard(next.id).catch(() => undefined);
         }
 
         const result = await finished;

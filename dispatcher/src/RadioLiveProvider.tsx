@@ -46,6 +46,17 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => audioQueue.subscribe(setQueue), []);
 
+  // Unlock browser autoplay on first click/key in the dispatcher shell.
+  useEffect(() => {
+    const unlock = () => audioQueue.unlockFromUserGesture();
+    window.addEventListener("pointerdown", unlock, { once: true, capture: true });
+    window.addEventListener("keydown", unlock, { once: true, capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock, true);
+      window.removeEventListener("keydown", unlock, true);
+    };
+  }, []);
+
   useEffect(() => {
     return onSnapshot(collection(db, "orgs", ORG_ID, "drivers"), (snap) => {
       const map = new Map<string, string>();
@@ -124,6 +135,14 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  // Keep live toast clickable so a blocked autoplay can unlock immediately.
+  useEffect(() => {
+    if (!queue.error?.includes("unlock")) return;
+    const onClick = () => audioQueue.unlockFromUserGesture();
+    window.addEventListener("pointerdown", onClick, { once: true });
+    return () => window.removeEventListener("pointerdown", onClick);
+  }, [queue.error]);
+
   const enqueueManual = useCallback((clip: RadioClip, driverName: string) => {
     if (!clip.audioBase64) return;
     audioQueue.enqueue({
@@ -160,7 +179,11 @@ export function RadioLiveProvider({ children }: { children: ReactNode }) {
         </div>
       )}
       {queue.error && (
-        <div className="radio-live-toast radio-live-toast-warn" role="status">
+        <div
+          className="radio-live-toast radio-live-toast-warn"
+          role="status"
+          onClick={() => audioQueue.unlockFromUserGesture()}
+        >
           {queue.error}
         </div>
       )}

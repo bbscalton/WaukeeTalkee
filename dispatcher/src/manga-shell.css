@@ -510,6 +510,13 @@
   font-family: var(--font-manga);
   letter-spacing: 0.04em;
   box-shadow: 4px 4px 0 #111;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.manga-shell .radio-live-toast-warn {
+  background: var(--amber);
+  color: #111;
 }
 
 .manga-shell .map-modes {
