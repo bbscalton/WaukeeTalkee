@@ -316,7 +316,7 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_DOWN -> {
                         if (!volumeUpHeld && event.repeatCount == 0) {
                             volumeUpHeld = true
-                            RadioBus.phoneVolumePttHeld = true
+                            BtVolumePttBridge.onPhonePttHoldChanged(true)
                             RadioBus.pttConfig = RadioBus.buildPttConfigForVolumeUp()
                             RadioForegroundService.beginTransmit(this, RadioBus.pttConfig)
                         }
@@ -325,7 +325,7 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_UP -> {
                         if (volumeUpHeld) {
                             volumeUpHeld = false
-                            RadioBus.phoneVolumePttHeld = false
+                            BtVolumePttBridge.onPhonePttHoldChanged(false)
                             RadioForegroundService.endTransmit(this)
                         }
                         return true
@@ -338,7 +338,7 @@ class MainActivity : AppCompatActivity() {
                         if (event.repeatCount == 0 && !volumeDownHeld) {
                             if (volumeUpHeld || RadioBus.state.value.transmitting) {
                                 volumeUpHeld = false
-                                RadioBus.phoneVolumePttHeld = false
+                                BtVolumePttBridge.onPhonePttHoldChanged(false)
                                 RadioForegroundService.cancelTransmit(this)
                                 Toast.makeText(this, "Transmit cancelled", Toast.LENGTH_SHORT).show()
                                 return true
@@ -346,7 +346,7 @@ class MainActivity : AppCompatActivity() {
                             val groupCfg = RadioBus.buildPttConfigForVolumeDown()
                             if (groupCfg != null) {
                                 volumeDownHeld = true
-                                RadioBus.phoneVolumePttHeld = true
+                                BtVolumePttBridge.onPhonePttHoldChanged(true)
                                 RadioBus.pttConfig = groupCfg
                                 RadioForegroundService.beginTransmit(this, groupCfg)
                                 return true
@@ -357,7 +357,7 @@ class MainActivity : AppCompatActivity() {
                     KeyEvent.ACTION_UP -> {
                         if (volumeDownHeld) {
                             volumeDownHeld = false
-                            RadioBus.phoneVolumePttHeld = false
+                            BtVolumePttBridge.onPhonePttHoldChanged(false)
                             RadioForegroundService.endTransmit(this)
                             return true
                         }

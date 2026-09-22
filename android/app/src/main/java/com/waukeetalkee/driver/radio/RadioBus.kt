@@ -50,7 +50,8 @@ object RadioBus {
 
     /**
      * True while phone hardware Volume Up/Down is held for PTT (Accessibility / MainActivity).
-     * Bluetooth Absolute Volume must ignore STREAM_MUSIC changes during that hold.
+     * Bluetooth Absolute Volume must ignore STREAM_MUSIC changes during that hold
+     * (and briefly after release — see [BtVolumePttBridge.onPhonePttHoldChanged]).
      */
     @Volatile
     var phoneVolumePttHeld: Boolean = false

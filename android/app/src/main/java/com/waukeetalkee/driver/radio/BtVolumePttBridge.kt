@@ -7,10 +7,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.VolumeProvider
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -30,12 +32,11 @@ import kotlinx.coroutines.launch
  * OIJIGE / Absolute-Volume Bluetooth speakers do not deliver KEYCODE_VOLUME_* to Accessibility.
  * They drive AVRCP Absolute Volume → AudioService (often with FLAG_BLUETOOTH_ABS_VOLUME).
  *
- * When Volume PTT is on we own media volume via [MediaSession.setPlaybackToRemote] so the
- * first BT Vol Up calls [VolumeProvider.onAdjustVolume] even when STREAM_MUSIC index does
- * not change (maxed volume / same-index abs sync). That path also works with the screen off
- * while the radio foreground service / accessibility host keeps the process alive.
+ * BT path (toggle): first Vol Up starts talk, next Up/Down ends. Driven by VOLUME_CHANGED
+ * only while a Bluetooth audio output is connected.
  *
- * Phone hardware keys stay hold-to-talk via Accessibility — they are filtered before this.
+ * Phone hardware keys stay hold-to-talk via Accessibility / MainActivity. STREAM_MUSIC
+ * echoes from phone keys must not latch the BT toggle — see [onPhonePttHoldChanged].
  */
 object BtVolumePttBridge {
 
@@ -47,6 +48,8 @@ object BtVolumePttBridge {
     private const val DEBOUNCE_MS = 350L
     /** Ignore Absolute Volume echoes right after we start/stop BT talk. */
     private const val SETTLE_MS = 700L
+    /** Extra ignore window after phone hardware PTT release (STREAM_MUSIC echo). */
+    private const val PHONE_RELEASE_SETTLE_MS = 900L
 
     private var scope: CoroutineScope? = null
     private var sessionJob: Job? = null
@@ -79,6 +82,18 @@ object BtVolumePttBridge {
 
     fun setEnabled(context: Context, clientId: String, enabled: Boolean) =
         setClientEnabled(context, clientId, enabled)
+
+    /**
+     * Phone Volume Up/Down hold-to-talk. While held, ignore BT Absolute Volume echoes.
+     * On release, keep ignoring briefly so STREAM_MUSIC changes do not latch toggle TX.
+     */
+    fun onPhonePttHoldChanged(held: Boolean) {
+        RadioBus.phoneVolumePttHeld = held
+        if (!held) {
+            settleUntil = SystemClock.elapsedRealtime() + PHONE_RELEASE_SETTLE_MS
+            Log.i(TAG, "phone PTT released — settle ${PHONE_RELEASE_SETTLE_MS}ms")
+        }
+    }
 
     private fun start(context: Context) {
         if (this.enabled) return
@@ -208,6 +223,10 @@ object BtVolumePttBridge {
             return
         }
         val ctx = appContext ?: return
+        if (!isBluetoothAudioConnected(ctx)) {
+            Log.i(TAG, "onRemoteAdjust ignored (no BT audio)")
+            return
+        }
         if (!canTalk(ctx)) {
             Log.w(TAG, "onRemoteAdjust ignored (no session/mic)")
             return
@@ -245,8 +264,19 @@ object BtVolumePttBridge {
         if (value < 0 || prev < 0 || value == prev) return
 
         val ctx = appContext ?: return
+        // Phone STREAM_MUSIC changes must never drive toggle PTT.
+        if (!isBluetoothAudioConnected(ctx)) {
+            Log.i(TAG, "VOLUME_CHANGED ignored (no BT audio) $prev->$value")
+            return
+        }
         if (!canTalk(ctx)) return
         if (!debounceOk()) return
+
+        // Phone hold-to-talk already owns TX — do not latch BT toggle on top.
+        if (RadioBus.state.value.transmitting && !btLatchedTx && !btLatchedGroup) {
+            Log.i(TAG, "VOLUME_CHANGED ignored (phone/UI TX active)")
+            return
+        }
 
         val goingUp = value > prev
         Log.i(TAG, "VOLUME_CHANGED stream=$stream $prev->$value latched=${btLatchedTx || btLatchedGroup}")
@@ -256,6 +286,30 @@ object BtVolumePttBridge {
             return
         }
         onBtVolumeDown(ctx, stream = stream, prevVolume = prev)
+    }
+
+    /** True when Absolute Volume / BT speaker path should own volume PTT. */
+    private fun isBluetoothAudioConnected(ctx: Context): Boolean {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        @Suppress("DEPRECATION")
+        if (am.isBluetoothA2dpOn) return true
+        if (am.isBluetoothScoOn) return true
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        return try {
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { device ->
+                when (device.type) {
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                    AudioDeviceInfo.TYPE_BLE_HEADSET,
+                    AudioDeviceInfo.TYPE_BLE_SPEAKER,
+                    -> true
+                    else -> false
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "getDevices failed", e)
+            false
+        }
     }
 
     private fun toggleOrStartDirect(

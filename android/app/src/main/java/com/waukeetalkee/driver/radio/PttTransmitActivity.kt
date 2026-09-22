@@ -63,11 +63,13 @@ class PttTransmitActivity : AppCompatActivity() {
                 when (event.action) {
                     KeyEvent.ACTION_DOWN -> {
                         if (event.repeatCount == 0) {
+                            BtVolumePttBridge.onPhonePttHoldChanged(true)
                             RadioForegroundService.beginTransmit(this)
                         }
                         return true
                     }
                     KeyEvent.ACTION_UP -> {
+                        BtVolumePttBridge.onPhonePttHoldChanged(false)
                         RadioForegroundService.endTransmit(this)
                         return true
                     }
@@ -75,6 +77,7 @@ class PttTransmitActivity : AppCompatActivity() {
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    BtVolumePttBridge.onPhonePttHoldChanged(false)
                     RadioForegroundService.cancelTransmit(this)
                     return true
                 }
