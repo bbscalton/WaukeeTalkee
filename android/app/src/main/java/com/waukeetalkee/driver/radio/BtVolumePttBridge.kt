@@ -24,12 +24,11 @@ import kotlinx.coroutines.launch
  * Bluetooth Absolute Volume does not deliver hold/release key events — only stream
  * volume steps. Phone keys still use hold-to-talk via Accessibility.
  *
- * With Volume PTT on, BT speaker buttons use a toggle (no tight double-tap window):
- * - Vol Up #1 → normal volume (shows slider)
- * - Vol Up #2 → start talk (that step undone)
- * - Vol Up again while talking → end talk (step undone)
- * - Vol Down while talking → end talk
- * - Vol Down #1 → normal volume; Vol Down #2 → group talk (if in a group)
+ * With Volume PTT on, BT speaker Vol Up is a simple toggle:
+ * - Vol Up while idle → start talk (volume step kept so the system slider shows)
+ * - Vol Up while talking → end talk (that step undone)
+ * - Vol Down while talking → end talk (step undone)
+ * - Vol Down while idle → normal volume; 2nd Vol Down → group talk (if in a group)
  */
 object BtVolumePttBridge {
 
@@ -38,7 +37,6 @@ object BtVolumePttBridge {
     private const val EXTRA_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
     private const val EXTRA_VOLUME = "android.media.EXTRA_VOLUME_STREAM_VALUE"
     private const val EXTRA_PREV_VOLUME = "android.media.EXTRA_PREV_VOLUME_STREAM_VALUE"
-    /** Reset armed state if the driver pauses before the next PTT tap. */
     private const val DISARM_MS = 45_000L
 
     private var scope: CoroutineScope? = null
@@ -52,17 +50,14 @@ object BtVolumePttBridge {
     private var session: DriverSession? = null
     private var restoringVolume = false
 
-    /** First Vol Up seen — next Vol Up starts talk (any time before disarm). */
-    private var awaitingPttStartUp = false
-    /** First Vol Down seen — next Vol Down starts group talk. */
+    /** First Vol Down armed group start on the next Vol Down. */
     private var awaitingGroupStartDown = false
 
     private val disarmAwaiting = Runnable {
-        awaitingPttStartUp = false
         awaitingGroupStartDown = false
     }
 
-    /** TX started from BT toggle (no KEY_UP). */
+    /** TX started from BT Vol Up (no KEY_UP). */
     private var btLatchedTx = false
     private var btLatchedGroup = false
 
@@ -100,7 +95,7 @@ object BtVolumePttBridge {
             Log.w(TAG, "register VOLUME_CHANGED failed", e)
         }
 
-        Log.i(TAG, "BT toggle Absolute Volume PTT bridge on")
+        Log.i(TAG, "BT Vol Up toggle Absolute Volume PTT bridge on")
     }
 
     private fun stop() {
@@ -129,23 +124,11 @@ object BtVolumePttBridge {
 
     private fun clearAwaiting() {
         mainHandler.removeCallbacks(disarmAwaiting)
-        awaitingPttStartUp = false
         awaitingGroupStartDown = false
-    }
-
-    private fun armPttStart() {
-        awaitingPttStartUp = true
-        awaitingGroupStartDown = false
-        scheduleDisarm()
     }
 
     private fun armGroupStart() {
         awaitingGroupStartDown = true
-        awaitingPttStartUp = false
-        scheduleDisarm()
-    }
-
-    private fun scheduleDisarm() {
         mainHandler.removeCallbacks(disarmAwaiting)
         mainHandler.postDelayed(disarmAwaiting, DISARM_MS)
     }
@@ -167,19 +150,16 @@ object BtVolumePttBridge {
 
         if (goingUp) {
             if (btLatchedTx || btLatchedGroup) {
+                // End talk — undo this volume bump so hang-up does not raise loudness.
                 restoreVolume(stream, prev)
                 clearAwaiting()
                 endBtTransmit(ctx)
                 return
             }
-            if (awaitingPttStartUp) {
-                restoreVolume(stream, prev)
-                clearAwaiting()
-                startBtDirectPtt(ctx)
-                return
-            }
-            // First tap: leave volume alone so the slider / level update normally.
-            armPttStart()
+            // First Vol Up: keep the volume step so the system volume UI appears,
+            // and start talk on that same press.
+            clearAwaiting()
+            startBtDirectPtt(ctx)
             return
         }
 
@@ -196,6 +176,7 @@ object BtVolumePttBridge {
             startBtGroupPtt(ctx)
             return
         }
+        // Idle Vol Down: normal volume; arm group on a follow-up Down.
         armGroupStart()
     }
 
