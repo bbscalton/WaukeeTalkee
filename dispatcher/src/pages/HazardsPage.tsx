@@ -199,36 +199,60 @@ export const HazardsPage: React.FC = () => {
   const unconfirmedCount = activeHazards.filter((h) => !h.confirmedByDispatcher).length;
 
   return (
-    <div className="manga-page">
-      <div className="manga-hero">
+    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto", color: "var(--ink)" }}>
+      {/* Hero Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <div className="manga-hero-meta">
-            <span className="manga-chip manga-chip--danger">Live Patrol Radar</span>
-            <span className="manga-hero-note">
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ background: "rgba(239, 68, 68, 0.2)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.4)", padding: "0.2rem 0.6rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase" }}>
+              Live Patrol Radar
+            </span>
+            <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
               Proximity Alert Radius: <strong>1.5 km (1 mi)</strong>
             </span>
           </div>
-          <h1 className="manga-title">👮 Police Radar Trap & Checkpoint Command</h1>
-          <p className="manga-lead">
+          <h1 style={{ margin: "0.4rem 0 0 0", fontSize: "2rem", color: "#fff", fontWeight: 800, letterSpacing: "-0.02em" }}>
+            👮 Police Radar Trap & Checkpoint Command
+          </h1>
+          <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", fontSize: "0.95rem" }}>
             Tactical map, pin placement, real-time driver sirens & proximity hazard warnings.
           </p>
         </div>
 
-        <div className="manga-filter-row">
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <button
-            type="button"
-            className={`manga-btn ${isPickMode ? "manga-btn-primary" : "manga-btn-ghost"}`}
             onClick={togglePickMode}
+            style={{
+              background: isPickMode ? "#f59e0b" : "rgba(245, 158, 11, 0.15)",
+              color: isPickMode ? "#000" : "#f59e0b",
+              border: "1px solid #f59e0b",
+              fontWeight: 800,
+              padding: "0.75rem 1.25rem",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              boxShadow: isPickMode ? "0 0 15px rgba(245, 158, 11, 0.4)" : "none",
+              transition: "all 0.2s ease"
+            }}
           >
             {isPickMode ? "🎯 Map Targeting Mode Active" : "📍 Drop Pin on Map"}
           </button>
           <button
-            type="button"
-            className="manga-btn manga-btn-danger"
             onClick={() => {
               setShowModal(true);
               setIsPickMode(true);
               hazardMapRef.current?.setPickMode(true, type);
+            }}
+            style={{
+              background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+              color: "#fff",
+              border: "none",
+              fontWeight: 800,
+              padding: "0.75rem 1.25rem",
+              borderRadius: "10px",
+              boxShadow: "0 4px 14px rgba(239, 68, 68, 0.4)",
+              transition: "all 0.2s ease"
             }}
           >
             + Report Speed Trap / Checkpoint
@@ -236,74 +260,75 @@ export const HazardsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="manga-kpi-grid">
-        <div className="manga-kpi manga-kpi--danger">
-          <div className="manga-kpi-label">Active Police & Radar Traps</div>
-          <div className="manga-kpi-value">{policeCount}</div>
+      {/* KPI Counters */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
+        <div style={{ background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
+          <div style={{ fontSize: "0.85rem", color: "#ef4444", fontWeight: 700 }}>Active Police & Radar Traps</div>
+          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{policeCount}</div>
         </div>
-        <div className={`manga-kpi${unconfirmedCount > 0 ? " manga-kpi--warn" : ""}`}>
-          <div className="manga-kpi-label">Awaiting Verification</div>
-          <div className="manga-kpi-value">{unconfirmedCount}</div>
+        <div style={{ background: unconfirmedCount > 0 ? "rgba(245, 158, 11, 0.12)" : "rgba(255, 255, 255, 0.03)", border: unconfirmedCount > 0 ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
+          <div style={{ fontSize: "0.85rem", color: unconfirmedCount > 0 ? "#f59e0b" : "var(--muted)", fontWeight: 700 }}>Awaiting Verification</div>
+          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{unconfirmedCount}</div>
         </div>
-        <div className="manga-kpi">
-          <div className="manga-kpi-label">Total Active Hazards</div>
-          <div className="manga-kpi-value">{activeHazards.length}</div>
+        <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
+          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 700 }}>Total Active Hazards</div>
+          <div style={{ fontSize: "2.4rem", fontWeight: 900, color: "#fff", marginTop: "0.2rem" }}>{activeHazards.length}</div>
         </div>
-        <div className="manga-kpi manga-kpi--ok">
-          <div className="manga-kpi-label">Automatic Driver Siren</div>
-          <div className="manga-kpi-value" style={{ fontSize: "1.5rem" }}>ENABLED 🔊</div>
+        <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--line)", borderRadius: "12px", padding: "1.1rem" }}>
+          <div style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 700 }}>Automatic Driver Siren</div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#22c55e", marginTop: "0.4rem" }}>ENABLED 🔊</div>
         </div>
       </div>
 
-      <div className="manga-console" style={{ position: "relative" }}>
-        <div className="manga-toolbar">
-          <div className="manga-hero-meta">
-            <h2 style={{ margin: 0 }}>🗺️ Tactical Map Pinpoint Console</h2>
+      {/* Main Tactical Map Hero Card */}
+      <div style={{ background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(12px)", border: "1px solid var(--line)", borderRadius: "16px", padding: "1rem", marginBottom: "1.5rem", position: "relative" }}>
+        
+        {/* Map Top Action Toolbar */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 800, fontSize: "1.1rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              🗺️ Tactical Map Pinpoint Console
+            </span>
             {isPickMode && (
-              <span className="manga-chip">🎯 CLICK MAP TO LOCK HAZARD LOCATION</span>
+              <span style={{ background: "#f59e0b", color: "#000", padding: "0.25rem 0.75rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                🎯 CLICK MAP TO LOCK HAZARD LOCATION
+              </span>
             )}
           </div>
 
-          <div className="manga-filter-row">
-            <span className="manga-hero-note">Quick Pin:</span>
+          {/* Quick Preset Pin Buttons on Map Header */}
+          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>Quick Pin:</span>
             <button
-              type="button"
-              className="manga-btn manga-btn-danger"
-              style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
               onClick={() => startQuickPinDrop("police_checkpoint")}
+              style={{ background: "rgba(239,68,68,0.2)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.4)", padding: "0.35rem 0.65rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700 }}
             >
               👮 Police
             </button>
             <button
-              type="button"
-              className="manga-btn manga-btn-primary"
-              style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
               onClick={() => startQuickPinDrop("speed_trap")}
+              style={{ background: "rgba(245,158,11,0.2)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.4)", padding: "0.35rem 0.65rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700 }}
             >
               ⚡ Radar Trap
             </button>
             <button
-              type="button"
-              className="manga-btn manga-btn-ghost"
-              style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
               onClick={() => startQuickPinDrop("road_hazard")}
+              style={{ background: "rgba(234,179,8,0.2)", color: "#eab308", border: "1px solid rgba(234,179,8,0.4)", padding: "0.35rem 0.65rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700 }}
             >
               ⚠️ Road Danger
             </button>
 
+            <div style={{ width: "1px", height: "20px", background: "var(--line)", margin: "0 0.2rem" }} />
+
             <button
-              type="button"
-              className={`manga-btn ${mapMode === "streets" ? "manga-btn-primary" : "manga-btn-ghost"}`}
-              style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
               onClick={() => setMapMode("streets")}
+              style={{ background: mapMode === "streets" ? "var(--amber)" : "rgba(255,255,255,0.05)", color: mapMode === "streets" ? "#000" : "#fff", border: "1px solid var(--line)", padding: "0.35rem 0.65rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700 }}
             >
               Streets
             </button>
             <button
-              type="button"
-              className={`manga-btn ${mapMode === "satellite" ? "manga-btn-primary" : "manga-btn-ghost"}`}
-              style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
               onClick={() => setMapMode("satellite")}
+              style={{ background: mapMode === "satellite" ? "var(--amber)" : "rgba(255,255,255,0.05)", color: mapMode === "satellite" ? "#000" : "#fff", border: "1px solid var(--line)", padding: "0.35rem 0.65rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700 }}
             >
               Satellite
             </button>
@@ -324,21 +349,43 @@ export const HazardsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="manga-console">
-        <div className="manga-toolbar">
-          <h2>Active Reports & Fleet Warnings ({filteredHazards.length})</h2>
+      {/* Reports Section with Filter Tabs */}
+      <div style={{ background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(12px)", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.25rem" }}>
+        
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
+          <h2 style={{ margin: 0, fontSize: "1.3rem", color: "#fff", fontWeight: 800 }}>
+            Active Reports & Fleet Warnings ({filteredHazards.length})
+          </h2>
 
-          <div className="manga-filter-row">
+          {/* Search Bar & Filter Options */}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
             <input
               type="text"
               placeholder="🔍 Search location, driver or notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: "0.55rem 0.9rem",
+                borderRadius: "8px",
+                background: "rgba(0,0,0,0.3)",
+                color: "#fff",
+                border: "1px solid var(--line)",
+                fontSize: "0.85rem",
+                minWidth: "240px"
+              }}
             />
 
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
+              style={{
+                padding: "0.55rem 0.9rem",
+                borderRadius: "8px",
+                background: "rgba(0,0,0,0.3)",
+                color: "#fff",
+                border: "1px solid var(--line)",
+                fontSize: "0.85rem"
+              }}
             >
               <option value="all">All Active Reports</option>
               <option value="unconfirmed">⚠️ Needs Dispatch Verification ({unconfirmedCount})</option>
@@ -350,13 +397,14 @@ export const HazardsPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Hazard Cards Grid */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "3rem" }} className="manga-hero-note">Loading active hazard reports...</div>
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--muted)" }}>Loading active hazard reports...</div>
         ) : filteredHazards.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3.5rem 1rem" }}>
+          <div style={{ textAlign: "center", padding: "3.5rem 1rem", color: "var(--muted)" }}>
             <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>🛡️</div>
-            <div className="manga-title" style={{ fontSize: "1.2rem" }}>No Active Police Traps or Hazards</div>
-            <p className="manga-lead">
+            <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#fff" }}>No Active Police Traps or Hazards</div>
+            <p style={{ margin: "0.4rem 0 0 0", fontSize: "0.9rem" }}>
               Click "📍 Drop Pin on Map" or "+ Report Speed Trap" above to pinpoint a hazard.
             </p>
           </div>
@@ -364,79 +412,86 @@ export const HazardsPage: React.FC = () => {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "1rem" }}>
             {filteredHazards.map((h) => {
               const isPolice = h.type === "police_checkpoint" || h.type === "speed_trap";
+              const cardBorder = isPolice ? "#ef4444" : "#f59e0b";
               const isSelected = selectedHazardId === h.id;
 
               return (
                 <div
                   key={h.id}
-                  className="manga-console"
-                  style={{
-                    marginBottom: 0,
-                    cursor: "pointer",
-                    outline: isSelected ? "3px solid var(--manga-accent)" : undefined,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                  }}
                   onClick={() => {
                     setSelectedHazardId(h.id);
                     hazardMapRef.current?.focusHazard(h);
                   }}
+                  style={{
+                    background: isSelected ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.025)",
+                    borderLeft: `4px solid ${cardBorder}`,
+                    borderTop: isSelected ? `1px solid ${cardBorder}` : "1px solid var(--line)",
+                    borderRight: isSelected ? `1px solid ${cardBorder}` : "1px solid var(--line)",
+                    borderBottom: isSelected ? `1px solid ${cardBorder}` : "1px solid var(--line)",
+                    borderRadius: "12px",
+                    padding: "1.1rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
                 >
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
-                      <span className={`manga-chip ${isPolice ? "manga-chip--danger" : ""}`}>
+                      <span style={{
+                        padding: "0.25rem 0.65rem",
+                        borderRadius: "6px",
+                        fontSize: "0.85rem",
+                        fontWeight: 800,
+                        background: isPolice ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)",
+                        color: isPolice ? "#ef4444" : "#f59e0b",
+                        border: `1px solid ${isPolice ? "rgba(239,68,68,0.4)" : "rgba(245,158,11,0.4)"}`
+                      }}>
                         {formatHazardType(h.type)}
                       </span>
-                      <span className={`manga-chip ${h.confirmedByDispatcher ? "manga-chip--ok" : ""}`}>
+                      <span style={{ fontSize: "0.75rem", color: h.confirmedByDispatcher ? "#22c55e" : "#f59e0b", fontWeight: 800 }}>
                         {h.confirmedByDispatcher ? "✅ Confirmed" : "⚠️ Driver Reported"}
                       </span>
                     </div>
 
-                    <h2 style={{ margin: "0.3rem 0", fontSize: "1.15rem" }}>
+                    <h3 style={{ margin: "0.3rem 0", color: "#fff", fontSize: "1.15rem", fontWeight: 800 }}>
                       📍 {h.locationName || "Reported Location"}
-                    </h2>
+                    </h3>
 
                     {h.notes && (
-                      <p className="manga-lead" style={{ margin: "0.5rem 0", fontStyle: "italic", padding: "0.5rem 0.75rem", border: "2px solid #111", borderRadius: "3px" }}>
+                      <p style={{ margin: "0.5rem 0", color: "#e2e8f0", fontSize: "0.85rem", fontStyle: "italic", background: "rgba(0,0,0,0.25)", padding: "0.5rem 0.75rem", borderRadius: "8px", borderLeft: `2px solid ${cardBorder}` }}>
                         "{h.notes}"
                       </p>
                     )}
 
-                    <div className="manga-hero-note" style={{ marginTop: "0.6rem" }}>
-                      Reported by: <strong>{h.driverName}</strong>
+                    <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.6rem" }}>
+                      Reported by: <strong style={{ color: "#cbd5e1" }}>{h.driverName}</strong>
                       {h.lat && h.lng ? ` · (${h.lat.toFixed(4)}, ${h.lng.toFixed(4)})` : ""}
                     </div>
                   </div>
 
                   <div
-                    className="manga-filter-row"
-                    style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "2px solid #111" }}
+                    style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--line)", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {!h.confirmedByDispatcher && (
                       <button
-                        type="button"
-                        className="manga-btn manga-btn-ok"
-                        style={{ fontSize: "0.8rem" }}
                         onClick={() => handleConfirmHazard(h.id)}
+                        style={{ background: "#22c55e", color: "#fff", border: "none", borderRadius: "6px", padding: "0.45rem 0.8rem", fontSize: "0.8rem", cursor: "pointer", fontWeight: 800 }}
                       >
                         ✅ Confirm Accuracy
                       </button>
                     )}
                     <button
-                      type="button"
-                      className="manga-btn manga-btn-primary"
-                      style={{ fontSize: "0.8rem" }}
                       onClick={() => handleBroadcastWarning(h)}
+                      style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: "6px", padding: "0.45rem 0.8rem", fontSize: "0.8rem", cursor: "pointer", fontWeight: 900 }}
                     >
                       📢 Broadcast Siren
                     </button>
                     <button
-                      type="button"
-                      className="manga-btn manga-btn-ghost"
-                      style={{ fontSize: "0.8rem" }}
                       onClick={() => handleClearHazard(h.id)}
+                      style={{ background: "rgba(255,255,255,0.08)", color: "#94a3b8", border: "1px solid var(--line)", borderRadius: "6px", padding: "0.45rem 0.75rem", fontSize: "0.8rem", cursor: "pointer" }}
                     >
                       Clear
                     </button>
@@ -448,21 +503,22 @@ export const HazardsPage: React.FC = () => {
         )}
       </div>
 
+      {/* Create Hazard Modal */}
       {showModal && (
-        <div className="manga-modal-backdrop">
-          <div className="manga-modal" style={{ maxWidth: "580px" }}>
-            <div className="manga-toolbar" style={{ marginBottom: "0.75rem" }}>
-              <h2>Report Police Checkpoint / Speed Trap</h2>
-              <button type="button" className="manga-btn manga-btn-ghost" onClick={() => setShowModal(false)}>✕</button>
+        <div className="modal" style={{ display: "flex" }}>
+          <div className="modal-content" style={{ maxWidth: "580px", width: "92%", background: "#0f172a", border: "1px solid var(--line)", borderRadius: "16px", padding: "1.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.3rem", fontWeight: 800 }}>Report Police Checkpoint / Speed Trap</h3>
+              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
             </div>
 
-            <div className="manga-banner" style={{ marginBottom: "1.25rem", fontSize: "0.85rem" }}>
+            <div style={{ background: "rgba(245, 158, 11, 0.15)", border: "1px solid rgba(245, 158, 11, 0.4)", padding: "0.75rem 1rem", borderRadius: "10px", marginBottom: "1.25rem", fontSize: "0.85rem", color: "#f59e0b", fontWeight: 600 }}>
               🎯 <strong>Pro Tip:</strong> Click anywhere on the map behind this window to pinpoint exact street coordinates and automatically fill location details!
             </div>
 
             <form onSubmit={handleCreateHazard}>
               <div className="form-group">
-                <label>Hazard Type</label>
+                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Hazard Type</label>
                 <select
                   value={type}
                   onChange={(e) => {
@@ -470,6 +526,7 @@ export const HazardsPage: React.FC = () => {
                     setType(newType);
                     hazardMapRef.current?.setPickMode(true, newType);
                   }}
+                  style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 >
                   <option value="police_checkpoint">👮 Police Checkpoint / Sobriety Station</option>
                   <option value="speed_trap">⚡ Radar Speed Trap / Patrol Gun</option>
@@ -479,64 +536,68 @@ export const HazardsPage: React.FC = () => {
               </div>
 
               <div className="form-group" style={{ marginTop: "1rem" }}>
-                <label>Location / Intersection Name</label>
+                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Location / Intersection Name</label>
                 <input
                   type="text"
                   required
                   placeholder="Click map or enter e.g. Highway 65 & Main St Exit"
                   value={locationName}
                   onChange={(e) => setLocationName(e.target.value)}
+                  style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "1rem" }}>
                 <div className="form-group">
-                  <label>Latitude</label>
+                  <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Latitude</label>
                   <input
                     type="text"
                     placeholder="Auto-filled from map"
                     value={latStr}
                     onChange={(e) => setLatStr(e.target.value)}
+                    style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Longitude</label>
+                  <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Longitude</label>
                   <input
                     type="text"
                     placeholder="Auto-filled from map"
                     value={lngStr}
                     onChange={(e) => setLngStr(e.target.value)}
+                    style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                   />
                 </div>
               </div>
 
               <div className="form-group" style={{ marginTop: "1rem" }}>
-                <label>Notes / Advice for Fleet Drivers</label>
+                <label style={{ color: "#cbd5e1", fontWeight: 700, fontSize: "0.85rem" }}>Notes / Advice for Fleet Drivers</label>
                 <input
                   type="text"
                   placeholder="e.g. State Trooper checking speed guns on eastbound lane"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  style={{ width: "100%", padding: "0.7rem", borderRadius: "10px", background: "#1e293b", color: "#fff", border: "1px solid var(--line)", marginTop: "0.4rem" }}
                 />
               </div>
 
-              <div className="manga-filter-row" style={{ marginTop: "1.5rem", justifyContent: "flex-end" }}>
+              <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
                 <button
                   type="button"
-                  className="manga-btn manga-btn-ghost"
                   onClick={() => {
                     setShowModal(false);
                     setIsPickMode(false);
                     hazardMapRef.current?.setPickMode(false, type);
                   }}
+                  style={{ background: "rgba(255,255,255,0.08)", color: "#cbd5e1", border: "1px solid var(--line)", padding: "0.7rem 1.25rem", borderRadius: "10px", fontWeight: 700 }}
                   disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="manga-btn manga-btn-danger"
                   disabled={submitting}
+                  style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)", color: "#fff", border: "none", padding: "0.7rem 1.4rem", borderRadius: "10px", fontWeight: 800, boxShadow: "0 4px 14px rgba(239, 68, 68, 0.4)" }}
                 >
                   {submitting ? "Publishing..." : "Publish Report"}
                 </button>

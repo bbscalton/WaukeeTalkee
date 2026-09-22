@@ -3,216 +3,292 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Waukee Talkee — Dispatch Manga Guide</title>
+    <title>Waukee Talkee — Radio-simple dispatch for every team</title>
     <meta
       name="description"
-      content="Learn Waukee Talkee like a manga: register, pair a phone, push-to-talk, live map. 14 days free."
+      content="Track your drivers live. PTT radio on any phone. 14 days free, then $8/radio/month. Security, Field, Truck, Family, Retail, Concrete, Taxi."
     />
-    <meta property="og:title" content="Waukee Talkee — Dispatch Manga Guide" />
+    <meta property="og:title" content="Waukee Talkee — Radio-simple dispatch for every team" />
     <meta
       property="og:description"
-      content="Radio-simple dispatch — told like a manga. Track. Talk. Go live."
+      content="Track your drivers live. PTT radio on any phone. 14 days free, then $8/radio/month."
     />
     <meta property="og:type" content="website" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Bangers&family=Kosugi+Maru&family=Dela+Gothic+One&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./manga-home.css" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body class="manga-body">
-    <div class="speedlines" aria-hidden="true"></div>
-
-    <header class="manga-top">
-      <a class="manga-brand" href="./">WAUKEE TALKEE</a>
-      <nav class="manga-nav">
-        <a href="#manga-guide">How to use</a>
-        <a href="#solutions">Worlds</a>
-        <a class="manga-top-cta" href="./register/#flow">Register free</a>
+  <body>
+    <header class="top">
+      <a class="top-brand" href="./">Waukee Talkee</a>
+      <nav class="top-nav">
+        <a href="#solutions">Solutions</a>
+        <a href="#how">How it works</a>
+        <a class="top-cta" href="./register/#flow">Register free</a>
       </nav>
     </header>
 
     <main>
-      <section class="manga-hero" aria-label="Waukee Talkee">
-        <div class="manga-hero-frame">
-          <img
-            src="./img/manga/manga-hero-splash.png"
-            alt="Manga splash: dispatcher and driver using Waukee Talkee radio"
-            class="manga-hero-art zoomable"
-            data-caption="Chapter 1 — Radio goes live"
-          />
-          <div class="manga-hero-ink">
-            <p class="manga-chapter">CHAPTER 01</p>
-            <h1 class="manga-title">WAUKEE<br />TALKEE</h1>
-            <p class="manga-lede">
-              See your team on the map. Talk like a walkie-talkie.
-              <strong>Any Android phone.</strong>
+      <section class="hero hero-split" aria-label="Waukee Talkee">
+        <div class="hero-content">
+          <div class="hero-copy">
+            <p class="brand">Waukee Talkee</p>
+            <h1>Radio-simple dispatch.</h1>
+            <p class="lede">
+              See your team live on a map. Talk like a walkie-talkie. Works on any Android phone.
             </p>
-            <p class="manga-offer">
-              <span class="sfx">FREE!</span> 14 days · 3 radios · then $8 / radio / month
+            <p class="hero-offer">
+              <strong>14 days free</strong> · 3 radios to start · then <strong>$8 USD</strong> per active radio/month · $49 company minimum · no setup fee
             </p>
-            <div class="manga-cta-row">
-              <a class="manga-btn manga-btn-primary" href="./register/#flow">Start free</a>
-              <a class="manga-btn manga-btn-ghost" href="./sites/?org=demo">Live demo</a>
+            <div class="cta-row">
+              <a class="btn btn-primary btn-lg" href="./register/#flow">Register free</a>
+              <a class="btn btn-ghost" href="./sites/?org=demo">Live demo</a>
             </div>
-            <p class="manga-demo">
-              Demo dispatch: <code>demo@neuereatec.org</code> / <code>demo123</code>
-              · <a href="./app/?org=demo">Open →</a>
-            </p>
-            <div class="manga-cta-row">
-              <a class="manga-btn manga-btn-sm" href="./downloads/WaukeeTalkee-dispatcher.apk" download>⬇ Dispatcher APK</a>
-              <a class="manga-btn manga-btn-sm" href="./downloads/WaukeeTalkee-driver.apk" download>⬇ Driver APK</a>
+            <div class="demo-credentials">
+              <strong>Try the demo dispatcher:</strong>
+              <span class="demo-login">demo@neuereatec.org</span> / <span class="demo-login">demo123</span>
+              <a href="./app/?org=demo" class="btn btn-ghost btn-sm">Open dispatch →</a>
+            </div>
+            <div class="cta-row cta-row-downloads">
+              <a class="btn btn-ghost btn-sm" href="./downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk">⬇ Dispatcher APK</a>
+              <a class="btn btn-ghost btn-sm" href="./downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk">⬇ Driver APK</a>
+            </div>
+          </div>
+          <div class="hero-proof">
+            <img
+              src="./img/screenshot-map.png"
+              alt="Live dispatcher map showing drivers in Guyana — real screenshot from Waukee Talkee"
+              class="hero-screenshot zoomable"
+              data-caption="Live dispatcher map — Guyana"
+            />
+            <p class="proof-caption">Live dispatcher map — Guyana</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screenshots" id="proof" aria-label="Real screenshots">
+        <div class="screenshots-inner">
+          <h2>Real dispatcher. Real drivers.</h2>
+          <p class="band-lede">Not mockups. This is what you get.</p>
+          <div class="screenshot-grid">
+            <figure class="screenshot-card">
+              <img
+                src="./img/screenshot-map.png"
+                alt="Live map showing driver locations and speeds on Guyana roads"
+                loading="lazy"
+                class="zoomable"
+                data-caption="Live map with GPS + speed"
+              />
+              <figcaption>Live map with GPS + speed</figcaption>
+            </figure>
+            <figure class="screenshot-card">
+              <img
+                src="./img/screenshot-drivers.png"
+                alt="Drivers roster showing pairing status, duty state, and telemetry"
+                loading="lazy"
+                class="zoomable"
+                data-caption="Drivers roster + pair codes"
+              />
+              <figcaption>Drivers roster + pair codes</figcaption>
+            </figure>
+            <figure class="screenshot-card">
+              <img
+                src="./img/screenshot-inbox.png"
+                alt="Voice inbox with PTT recordings from drivers"
+                loading="lazy"
+                class="zoomable"
+                data-caption="Voice inbox (PTT playback)"
+              />
+              <figcaption>Voice inbox (PTT playback)</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" id="how">
+        <div class="band-inner">
+          <h2>How it works.</h2>
+          <ol class="steps steps-compact">
+            <li>
+              <span class="step-num">1</span>
+              <div>
+                <h3>Pick your world & register</h3>
+                <p>Choose Security, Field, Truck, Family, Retail, Concrete, or Taxi. Name your company.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">2</span>
+              <div>
+                <h3>We approve in TCD</h3>
+                <p>Calton reviews your registration and activates your console.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">3</span>
+              <div>
+                <h3>You get your login</h3>
+                <p>We send your dispatcher dashboard URL and password.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">4</span>
+              <div>
+                <h3>You create the driver</h3>
+                <p>Log in, add a driver in your console — <em>that</em> generates the pair code.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">5</span>
+              <div>
+                <h3>Driver enters code</h3>
+                <p>They type the code in the Waukee Talkee app. Done — live on the map.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="worlds" id="solutions" aria-label="Solutions">
+        <div class="worlds-inner">
+          <h2>Seven worlds. One platform.</h2>
+          <ul class="world-grid">
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="security" style="--w-accent:#4fc3f7">
+                <span class="world-icon" aria-hidden="true">◎</span>
+                <strong>Security</strong>
+                <span>Guards, posts, patrol.</span>
+              </a>
+            </li>
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="field" style="--w-accent:#4caf50">
+                <span class="world-icon" aria-hidden="true">▴</span>
+                <strong>Field</strong>
+                <span>Workers, jobs, sites.</span>
+              </a>
+            </li>
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="truck" style="--w-accent:#f0b429">
+                <span class="world-icon" aria-hidden="true">▣</span>
+                <strong>Truck</strong>
+                <span>Fleet, routes, manifests.</span>
+              </a>
+            </li>
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="family" style="--w-accent:#e8a87c">
+                <span class="world-icon" aria-hidden="true">◇</span>
+                <strong>Family</strong>
+                <span>Check-ins, stay safe.</span>
+              </a>
+            </li>
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="retail" style="--w-accent:#ff7043">
+                <span class="world-icon" aria-hidden="true">▢</span>
+                <strong>Retail</strong>
+                <span>Stores, staff, tasks.</span>
+              </a>
+            </li>
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="concrete" style="--w-accent:#c4a574">
+                <span class="world-icon" aria-hidden="true">⬡</span>
+                <strong>Concrete</strong>
+                <span>Plant-to-pour dispatch.</span>
+              </a>
+            </li>
+            <li>
+              <a class="world-card" href="./register/#picker" data-sol="taxi" style="--w-accent:#f0b429">
+                <span class="world-icon" aria-hidden="true">◈</span>
+                <strong>Taxi / Fleet</strong>
+                <span>Radio dispatch.</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="features" id="features" aria-label="Features">
+        <div class="features-inner">
+          <h2>Everything included.</h2>
+          <div class="features-grid">
+            <div class="feature-col">
+              <h3>Mobile app (driver)</h3>
+              <ul class="feature-list">
+                <li>PTT walkie-talkie</li>
+                <li>GPS + speed</li>
+                <li>Group / peer talk</li>
+                <li>Volume-key PTT</li>
+                <li>SOS panic</li>
+                <li>Multi-stop manifest</li>
+                <li>Stop exceptions + photos</li>
+                <li>Family check-in</li>
+                <li>Police/speed-trap spotter</li>
+              </ul>
+            </div>
+            <div class="feature-col">
+              <h3>Dispatcher console</h3>
+              <ul class="feature-list">
+                <li>Live map</li>
+                <li>Voice inbox</li>
+                <li>Map DVR replay</li>
+                <li>Geofences / sites</li>
+                <li>Speeding / geofence alerts</li>
+                <li>Drivers + pair codes</li>
+                <li>Groups</li>
+                <li>Bookings</li>
+                <li>Vehicles / trailers</li>
+                <li>Manifests</li>
+                <li>Reports / CSV</li>
+                <li>SOS banner</li>
+              </ul>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="manga-guide" id="manga-guide" aria-label="How to use — manga guide">
-        <div class="manga-section-head">
-          <p class="manga-chapter">HOW TO USE</p>
-          <h2>Read the manga. Then go live.</h2>
-          <p class="manga-sub">Five panels. From signup to first radio call.</p>
-        </div>
-
-        <div class="manga-page">
-          <article class="manga-panel panel-tall">
-            <span class="panel-stamp">01</span>
-            <img
-              src="./img/manga/manga-step-register.png"
-              alt="Manga panel: register your company"
-              class="zoomable"
-              data-caption="Panel 1 — Register"
-              loading="lazy"
-            />
-            <div class="panel-caption">
-              <h3>Register your world</h3>
-              <p>Pick Security, Field, Truck, Family, Retail, Concrete, or Taxi. Name the company. Hit register.</p>
-              <a href="./register/#flow">Open registration →</a>
-            </div>
-          </article>
-
-          <article class="manga-panel panel-tall">
-            <span class="panel-stamp">02</span>
-            <img
-              src="./img/manga/manga-step-paircode.png"
-              alt="Manga panel: create driver and pair code"
-              class="zoomable"
-              data-caption="Panel 2 — Pair code"
-              loading="lazy"
-            />
-            <div class="panel-caption">
-              <h3>Create a driver + code</h3>
-              <p>After approval, open Drivers. Add a driver — that issues a 6-character pair code (30 min).</p>
-            </div>
-          </article>
-
-          <article class="manga-panel panel-tall">
-            <span class="panel-stamp">03</span>
-            <img
-              src="./img/manga/manga-step-connect.png"
-              alt="Manga panel: driver enters pair code on phone"
-              class="zoomable"
-              data-caption="Panel 3 — Connect phone"
-              loading="lazy"
-            />
-            <div class="panel-caption">
-              <h3>Driver enters the code</h3>
-              <p>Install the driver APK. Type the code. Phone pairs — radio channel opens.</p>
-              <a href="./downloads/WaukeeTalkee-driver.apk" download>Get driver APK →</a>
-            </div>
-          </article>
-
-          <article class="manga-panel panel-tall">
-            <span class="panel-stamp">04</span>
-            <img
-              src="./img/manga/manga-step-ptt.png"
-              alt="Manga panel: push to talk with volume or Bluetooth"
-              class="zoomable"
-              data-caption="Panel 4 — Push to talk"
-              loading="lazy"
-            />
-            <div class="panel-caption">
-              <h3>Push to talk</h3>
-              <p>Hold phone Volume Up, or press Bluetooth speaker Volume Up. Hear the beep — you’re on air.</p>
-            </div>
-          </article>
-
-          <article class="manga-panel panel-wide">
-            <span class="panel-stamp">05</span>
-            <img
-              src="./img/manga/manga-step-live.png"
-              alt="Manga panel: live map in dispatch console"
-              class="zoomable"
-              data-caption="Panel 5 — Live map"
-              loading="lazy"
-            />
-            <div class="panel-caption">
-              <h3>Watch them live</h3>
-              <p>Dispatcher map shows GPS, speed, and voice inbox. Replay tracks. Alert on geofences.</p>
-              <a href="./app/?org=demo">Try demo dispatch →</a>
-            </div>
-          </article>
+      <section class="pricing-bar" id="pricing">
+        <div class="pricing-bar-inner">
+          <div class="pricing-bar-copy">
+            <p class="pricing-headline">14 days free after approval</p>
+            <p class="pricing-detail">
+              <span class="pricing-amount">$8</span> USD / active radio / month · $49 company minimum · no setup fee
+            </p>
+          </div>
+          <a class="btn btn-primary btn-lg" href="./register/#flow">Start free trial</a>
         </div>
       </section>
 
-      <section class="manga-proof" id="proof" aria-label="Real screenshots">
-        <div class="manga-section-head">
-          <p class="manga-chapter">REAL FOOTAGE</p>
-          <h2>Not just manga — the real console.</h2>
+      <section class="closer">
+        <h2>Ready?</h2>
+        <p>
+          Pick a world, configure the brand, we approve — then your console goes live.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="./register/#flow">Register free</a>
+          <a class="btn btn-ghost" href="./sites/?org=demo">Live demo</a>
+          <a class="btn btn-ghost" href="./app/?org=demo">Open dispatch</a>
         </div>
-        <div class="manga-shot-row">
-          <figure>
-            <img src="./img/screenshot-map.png" alt="Live dispatcher map" class="zoomable" data-caption="Live map" loading="lazy" />
-            <figcaption>Live map</figcaption>
-          </figure>
-          <figure>
-            <img src="./img/screenshot-drivers.png" alt="Drivers roster" class="zoomable" data-caption="Drivers + pair codes" loading="lazy" />
-            <figcaption>Drivers + codes</figcaption>
-          </figure>
-          <figure>
-            <img src="./img/screenshot-inbox.png" alt="Voice inbox" class="zoomable" data-caption="Voice inbox" loading="lazy" />
-            <figcaption>Voice inbox</figcaption>
-          </figure>
+        <div class="demo-credentials">
+          <strong>Try the demo dispatcher:</strong>
+          <span class="demo-login">demo@neuereatec.org</span> / <span class="demo-login">demo123</span>
         </div>
-      </section>
-
-      <section class="manga-worlds" id="solutions" aria-label="Solutions">
-        <div class="manga-section-head">
-          <p class="manga-chapter">PICK YOUR ARC</p>
-          <h2>Seven worlds. One radio.</h2>
-        </div>
-        <ul class="manga-world-grid">
-          <li><a href="./register/#picker" data-sol="security"><strong>Security</strong><span>Guards · posts · patrol</span></a></li>
-          <li><a href="./register/#picker" data-sol="field"><strong>Field</strong><span>Workers · jobs · sites</span></a></li>
-          <li><a href="./register/#picker" data-sol="truck"><strong>Truck</strong><span>Fleet · routes · manifests</span></a></li>
-          <li><a href="./register/#picker" data-sol="family"><strong>Family</strong><span>Check-ins · stay safe</span></a></li>
-          <li><a href="./register/#picker" data-sol="retail"><strong>Retail</strong><span>Stores · staff · tasks</span></a></li>
-          <li><a href="./register/#picker" data-sol="concrete"><strong>Concrete</strong><span>Plant-to-pour</span></a></li>
-          <li><a href="./register/#picker" data-sol="taxi"><strong>Taxi / Fleet</strong><span>Radio dispatch</span></a></li>
-        </ul>
-      </section>
-
-      <section class="manga-closer" id="pricing">
-        <p class="sfx sfx-lg">READY?!</p>
-        <h2>14 days free after approval</h2>
-        <p class="manga-offer">$8 USD / active radio / month · $49 company minimum · no setup fee</p>
-        <div class="manga-cta-row">
-          <a class="manga-btn manga-btn-primary" href="./register/#flow">Register free</a>
-          <a class="manga-btn manga-btn-ghost" href="./sites/?org=demo">Live demo</a>
-          <a class="manga-btn manga-btn-ghost" href="./app/?org=demo">Open dispatch</a>
+        <div class="cta-row cta-row-downloads">
+          <a class="btn btn-ghost btn-sm" href="./downloads/WaukeeTalkee-dispatcher.apk" download="WaukeeTalkee-dispatcher.apk">⬇ Dispatcher APK</a>
+          <a class="btn btn-ghost btn-sm" href="./downloads/WaukeeTalkee-driver.apk" download="WaukeeTalkee-driver.apk">⬇ Driver APK</a>
         </div>
       </section>
     </main>
 
-    <footer class="manga-foot">
+    <footer class="foot">
       <span>Waukee Talkee</span>
       <a href="./register/#picker">Solutions</a>
       <a href="https://github.com/bbscalton/WaukeeTalkee">GitHub</a>
     </footer>
 
+    <!-- Lightbox modal -->
     <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="Image viewer">
       <button class="lightbox-close" aria-label="Close">&times;</button>
       <img class="lightbox-img" src="" alt="" />

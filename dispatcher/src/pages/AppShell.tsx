@@ -9,8 +9,6 @@ import { useRadioArchive } from "../useRadioArchive";
 import { useSolutionProfile } from "../useSolutionProfile";
 import { useSos } from "../SosProvider";
 import { formatDispatcherRole } from "../types";
-import "../manga-shell.css";
-import "../manga-pages.css";
 
 /** Map route keys to emoji icons for the nav */
 const NAV_ICONS: Record<string, string> = {
@@ -59,7 +57,7 @@ function ShellNav() {
   const userEmail   = user?.email ?? "";
 
   return (
-    <div className="shell manga-shell">
+    <div className="shell">
 
       {/* ── SOS emergency banner ─────────────────────────────────────── */}
       {activeSosEvents.length > 0 && (
@@ -87,12 +85,12 @@ function ShellNav() {
 
         {/* Brand */}
         <div className="topbar-brand">
-          <span className="topbar-logo" aria-hidden>📡</span>
+          <span className="topbar-logo">📡</span>
           <div className="topbar-brand-text">
             <strong className="topbar-name">{profile.displayName}</strong>
             <span className="topbar-sub">
               <span className="topbar-live-dot" />
-              作戦本部 · Dispatch · <span className="topbar-org">{ORG_ID}</span>
+              Dispatch · <span className="topbar-org">{ORG_ID}</span>
             </span>
           </div>
         </div>
