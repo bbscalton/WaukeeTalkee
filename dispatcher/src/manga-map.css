@@ -109,7 +109,25 @@
   border: 2px solid #2a2420 !important;
   border-radius: 6px !important;
   background: #14110f !important;
+  color: #f2f0ea !important;
+  font-family: var(--font-manga-body) !important;
+  letter-spacing: 0.01em !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.manga-driver-list button strong {
+  color: #fff !important;
+  font-weight: 800;
+}
+
+.manga-driver-list button > span:not(.talk-hint) {
+  color: rgba(242, 240, 234, 0.72) !important;
+}
+
+.manga-driver-list .talk-hint {
+  color: var(--amber) !important;
 }
 
 .manga-driver-list button:hover {
@@ -119,8 +137,9 @@
 
 .manga-driver-list button.selected {
   border-color: var(--manga-accent) !important;
-  background: rgba(225, 6, 0, 0.12) !important;
+  background: rgba(225, 6, 0, 0.18) !important;
   box-shadow: 3px 3px 0 rgba(225, 6, 0, 0.35) !important;
+  color: #f2f0ea !important;
 }
 
 .manga-dot-live {

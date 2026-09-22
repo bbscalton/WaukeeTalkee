@@ -396,7 +396,7 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.manga-shell button:not(.ghost):not(.street-link):not(.topbar-signout):not(.topbar-hamburger):not(.sos-resolve-btn) {
+.manga-shell button:not(.ghost):not(.street-link):not(.topbar-signout):not(.topbar-hamburger):not(.sos-resolve-btn):not(.driver-list button):not(.unit-list button):not(.map-modes button) {
   border: 2px solid #111;
   border-radius: 3px;
   background: var(--amber);
@@ -412,6 +412,19 @@
   background: #ffe27a;
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 #111;
+}
+
+.manga-shell .driver-list button:hover:not(:disabled),
+.manga-shell .unit-list button:hover:not(:disabled) {
+  background: #1c1815 !important;
+  color: #f2f0ea !important;
+  transform: translateX(3px);
+  box-shadow: none !important;
+}
+
+.manga-shell .driver-list button.selected:hover:not(:disabled),
+.manga-shell .unit-list button.selected:hover:not(:disabled) {
+  background: rgba(225, 6, 0, 0.22) !important;
 }
 
 .manga-shell button.ghost {
@@ -486,6 +499,35 @@
 .manga-shell .unit-list button,
 .manga-shell .geofence-side .panel button {
   border-radius: 4px !important;
+  background: #14110f !important;
+  color: #f2f0ea !important;
+  font-family: var(--font-manga-body) !important;
+  letter-spacing: 0.01em !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  border: 2px solid #2a2420 !important;
+}
+
+.manga-shell .driver-list button strong,
+.manga-shell .unit-list button strong {
+  color: #fff !important;
+}
+
+.manga-shell .driver-list button > span:not(.talk-hint),
+.manga-shell .unit-list button > span:not(.talk-hint) {
+  color: rgba(242, 240, 234, 0.72) !important;
+}
+
+.manga-shell .driver-list .talk-hint,
+.manga-shell .unit-list .talk-hint {
+  color: var(--amber) !important;
+}
+
+.manga-shell .driver-list button.selected,
+.manga-shell .unit-list button.selected {
+  border-color: var(--manga-accent) !important;
+  background: rgba(225, 6, 0, 0.18) !important;
+  color: #f2f0ea !important;
 }
 
 .manga-shell .booking-card,
